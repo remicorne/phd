@@ -49,7 +49,7 @@ df = df.replace(np.nan, 0)
 # ### restructure df = mouse_id, treatment, BR, compound, ng_mg
 # col_names = [‘mouse_id’ , ‘treatment’ , ‘BR’ , ‘compound’ , ‘ng_mg’]
 # raw_col_names = df_raw.columns.copy()
-# result_rows = []
+# result_rows = []  
 
 # for ind, row in df_raw.iterrows(): #loop for row get mouse and group
 #     row = row # This line has no not needed
