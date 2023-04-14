@@ -94,7 +94,7 @@ exist_dict = get_summary_of_exsisting_data(
 
 # Input Data Check
 # List_of_compounds = should be 10 MA and 13 AA = 23
-# list_of_BR = should be 31 final and 23 as of 11/2022 (last input MR)
+# list_of_BR = should be 31 final and 23 as of 11/2022 (last input MR)  
 
 
 # %%% 1. create rations for each brain region: DOPAC/DA, HIA/5HT, 3MT/DA
