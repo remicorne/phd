@@ -3,7 +3,7 @@
 """
 Created on Thu Mar  3 12:46:03 2022
 
-@author: jasminebutler
+@author: jasminebutler   
 """
 
 # %% INSTALL
@@ -284,12 +284,13 @@ def save_outlier_info(outlier_dict, name='compounds'):
         df_outlier_dict = pd.DataFrame.from_dict(treatment_BRs_dict)
         treatment_replaced = treatment.replace('/', '_')
         df_outlier_dict.to_excel(writer, sheet_name=treatment_replaced)
-
-    writer._save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
+        
+    writer.save()
+    # writer._save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()' DEAR REMI: i have commented this change everywhere
     writer.close()
     return
 
-
+# old way!
 def one_way_ANOVA_post_hoc_between_groups(df_inc_ratios, exist_dict, groups_to_drop=[], name='MA'):
     '''calculates a one way anova betweentreatment 1 ,2,3,4 outputs .csv of anova data
                     if p<0.05 Tukeys test is performed, printed and saved to an excel spreadsheet
@@ -335,7 +336,57 @@ def one_way_ANOVA_post_hoc_between_groups(df_inc_ratios, exist_dict, groups_to_d
 
     df_one_way_anova = df_one_way_anova.round(6)
     df_one_way_anova.to_csv(os.getcwd() + '/' + name + '.csv')
-    writer._save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
+    writer.save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
+    writer.close()
+
+    return df_one_way_anova
+
+def onewayANOVA_Tukeyposthoc(df_inc_ratios, exist_dict, groups_to_drop=[], name='MA'): #POS2.0 still HARD CODED GROUPS
+    '''calculates a one way anova betweentreatment 1 ,2,3,4 outputs .csv of anova data
+                    if p<0.05 Tukeys test is performed, printed and saved to an excel spreadsheet
+                                                                        compound_type is for the labeling of outputed files'''
+    df_dose_responce = remove_groups_from_df(
+        df_inc_ratios,  groups_to_drop=groups_to_drop)
+    df_one_way_anova = pd.DataFrame(data=['F', 'p'])  # create empy df
+    df_one_way_anova.columns = pd.MultiIndex.from_tuples([['compound', 'BR']])
+
+    writer = pd.ExcelWriter('one_way_ANOVA_ifsig_Tukey_' + name + '.xlsx')
+
+    for BR, BR_dict in exist_dict.items():
+
+        for comp, comp_dict in BR_dict.items():
+
+
+            if len(exist_dict[BR][comp]['missing_groups'].intersection(set([1, 2, 3, 4]))) > 0: #if group is missking skip
+                continue
+
+            F_value, p_value = scipy.stats.f_oneway(df_inc_ratios[comp, BR][comp_dict['group_specific_ind'][1]],
+                                                    df_inc_ratios[comp,
+                                                                  BR][comp_dict['group_specific_ind'][2]],
+                                                    df_inc_ratios[comp,
+                                                                  BR][comp_dict['group_specific_ind'][3]],
+                                                    df_inc_ratios[comp, BR][comp_dict['group_specific_ind'][4]])
+
+            df_F_p_temp = pd.DataFrame(data=[F_value, p_value])
+            df_F_p_temp.columns = pd.MultiIndex.from_tuples([[comp, BR]])
+            df_one_way_anova = df_one_way_anova.join(df_F_p_temp[comp, BR])
+
+            if p_value < 0.05:  # followed by post hoc
+
+                # could this be done through the dictionary
+                mc = MultiComparison(
+                    df_dose_responce[comp, BR], df_dose_responce['group', 'no'])
+                mc_results = mc.tukeyhsd()
+                print(mc_results)
+                df_Tukey = pd.DataFrame(
+                    data=mc_results._results_table.data[1:], columns=mc_results._results_table.data[0])
+                df_Tukey.to_excel(writer, sheet_name=comp+'_'+BR)
+
+    df_one_way_anova = df_one_way_anova.round(6)
+    df_one_way_anova.to_excel(writer, sheet_name= name+'_one_way_ANOVA')
+    # df_one_way_anova.to_csv(os.getcwd() + '/' + name + '.csv') #saving to csv randomly not nice will put in excel  *^
+    
+    writer.save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
     writer.close()
 
     return df_one_way_anova
@@ -406,7 +457,8 @@ def save_shapiro_data_for_all_treatments(exist_dict, list_of_brain_regions, list
         treatment_str = str(treatment)
         df_shapiro.to_excel(
             writer, sheet_name='treatmenmt_group_'+treatment_str)
-    writer._save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
+    # writer._save()  # TODO make compatible with jasmine code that uses 'save()' and not '_save()'
+    writer.save()
     writer.close()
     return
 
@@ -433,7 +485,7 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
     df_factors['ANT', 'MDL'] = bool_arr_MDL
 
     '''     perform two way anova between groups, 
-       if significant saved to excel (seperate sheets) and followed by a one way anova, 
+        if significant saved to excel (seperate sheets) and followed by a one way anova, 
     if significant post hoc tukes is performed and saved.       '''
 
     writer_tukey = pd.ExcelWriter('TUKEY_ag_ant_' + name + '.xlsx')
@@ -458,11 +510,11 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
                     list(comp_dict['group_specific_ind'][treatment]))
 
             d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
-                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+                  'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
             df_anova_working = pd.DataFrame(data=d)
 
             two_way_anova = pg.anova(data=df_anova_working, dv='dv', between=[
-                                     ('ANT_MDL'), ('AG_TCB2')], detailed=True).round(3)
+                                      ('ANT_MDL'), ('AG_TCB2')], detailed=True).round(3)
 
             p_list = two_way_anova['p-unc'][0:3]
 
@@ -473,9 +525,9 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
 
                 F_value, p_value_one_way = scipy.stats.f_oneway(df_factors[comp, BR][comp_dict['group_specific_ind'][1]],
                                                                 df_factors[comp,
-                                                                           BR][comp_dict['group_specific_ind'][3]],
+                                                                            BR][comp_dict['group_specific_ind'][3]],
                                                                 df_factors[comp,
-                                                                           BR][comp_dict['group_specific_ind'][5]],
+                                                                            BR][comp_dict['group_specific_ind'][5]],
                                                                 df_factors[comp, BR][comp_dict['group_specific_ind'][6]])
 
                 if p_value_one_way < 0.05:
@@ -499,10 +551,141 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
                       '    p=', min(p_list))
 
     # TODO: replace '_save()' by 'save()' for compat with jasmine's pandas version?
-    writer_tukey._save()
+    writer_tukey.save()
     writer_tukey.close()
     # TODO: replace '_save()' by 'save()' for compat with jasmine's pandas version?
-    writer_two_way._save()
+    writer_two_way.save()
+    writer_two_way.close()
+    return
+
+
+def twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6], name='compounds'):
+    '''create columns for the factors i.e. Agonist: True/False Antagomist: True/False
+                        colapse multiindex hedders for anova'''
+    df_factors = df_inc_ratios.copy()
+
+    # structure df for two way anova- create columns for each factor ag = TCB2 and ant = MDL
+    MDL_positive_index = df_factors.index[(
+        df_factors['group', 'no'] == 5) | (df_factors['group', 'no'] == 6)]
+    TCB2_positive_index_list = df_factors.index[(
+        df_factors['group', 'no'] == 3) | (df_factors['group', 'no'] == 5)]
+
+    bool_arr_TCB2 = np.full(len(df_factors), False)
+    bool_arr_TCB2[TCB2_positive_index_list] = True
+    # add boolian column with TCB2 positive = true
+    df_factors['AG', 'TCB2'] = bool_arr_TCB2
+
+    bool_arr_MDL = np.full(len(df_factors), False)
+    bool_arr_MDL[MDL_positive_index] = True
+    # add boolian column with MDL positive = true
+    df_factors['ANT', 'MDL'] = bool_arr_MDL
+
+    '''     perform two way anova between groups, 
+       if significant saved to excel (seperate sheets) and followed by a one way anova, 
+    if significant post hoc tukes is performed and saved.       '''
+
+    writer_tukey = pd.ExcelWriter('oneway_ANOVA_Tukey_' + name + '.xlsx')
+    df_one_way_anova = pd.DataFrame(data=['F', 'p'])  # create empy df
+    df_one_way_anova.columns = pd.MultiIndex.from_tuples([['compound', 'BR']])
+    
+    writer_two_way = pd.ExcelWriter(name + '_two_way_ANOVA.xlsx')
+
+    for BR, BR_dict in exist_dict.items():
+
+        for comp, comp_dict in BR_dict.items():
+
+            # print(exist_dict[BR][comp]['missing_groups'])
+
+            # need to debug and to add correct missing groups! SHIVA
+            if len(exist_dict[BR][comp]['missing_groups'].intersection(set(treatments_to_compare))) > 0:
+                print('missing group data to analise')
+                continue
+
+            # create df for analysis
+            indexes_to_keep = []
+            for treatment in treatments_to_compare:
+                indexes_to_keep.extend(
+                    list(comp_dict['group_specific_ind'][treatment]))
+
+            d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
+                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+            df_anova_working = pd.DataFrame(data=d)
+            # do two way ANOVA
+            two_way_anova = pg.anova(data=df_anova_working, dv='dv', between=[
+                                     ('ANT_MDL'), ('AG_TCB2')], detailed=True).round(3)
+
+            p_list = two_way_anova['p-unc'][0:3]
+            
+            two_way_anova.to_excel(writer_two_way, sheet_name=comp+'_'+BR) #save all two way ANOVA
+            
+            #do one way ANOVA for all not just for sig two way ANOVA
+            F_value, p_value_one_way = scipy.stats.f_oneway(df_factors[comp, BR][comp_dict['group_specific_ind'][1]],
+                                                                df_factors[comp,
+                                                                           BR][comp_dict['group_specific_ind'][3]],
+                                                                df_factors[comp,
+                                                                           BR][comp_dict['group_specific_ind'][5]],
+                                                                df_factors[comp, BR][comp_dict['group_specific_ind'][6]])
+            
+            df_F_p_temp = pd.DataFrame(data=[F_value, p_value_one_way])
+            df_F_p_temp.columns = pd.MultiIndex.from_tuples([[comp, BR]])
+            df_one_way_anova = df_one_way_anova.join(df_F_p_temp[comp, BR])
+            
+            if p_value_one_way < 0.05: #if oneway ANOVA significant 
+                print(comp, ' ', BR, ' is significant for ONE-way anova',
+                      '   p=', p_value_one_way)
+
+                # Nan_free_data = df_agonist_antagonist_colapsed_header.filter(items=['GABA_VM', 'group_no']).dropna()
+
+                mc = MultiComparison(
+                    df_anova_working['dv'], df_anova_working['group'])
+                mc_results = mc.tukeyhsd()
+                print(mc_results)
+                df_Tukey = pd.DataFrame(
+                    data=mc_results._results_table.data[1:], columns=mc_results._results_table.data[0])
+                df_Tukey.to_excel(writer_tukey, sheet_name=comp+'_'+BR)
+            else:
+                print(comp, ' ', BR, ' is NOT significant for ONE-way-anova',
+                      '    p=', p_value_one_way)
+            
+            if min(p_list) < 0.05:
+                print(comp, ' ', BR, ' is significant for TWO-way anova',
+                      '   p=', min(p_list))
+                # two_way_anova.to_excel(writer_two_way, sheet_name=comp+'_'+BR) #only save significant two way ANOVA
+
+                # F_value, p_value_one_way = scipy.stats.f_oneway(df_factors[comp, BR][comp_dict['group_specific_ind'][1]],
+                #                                                 df_factors[comp,
+                #                                                            BR][comp_dict['group_specific_ind'][3]],
+                #                                                 df_factors[comp,
+                #                                                            BR][comp_dict['group_specific_ind'][5]],
+                #                                                 df_factors[comp, BR][comp_dict['group_specific_ind'][6]])
+
+                # if p_value_one_way < 0.05:
+                #     print(comp, ' ', BR, ' is significant for ONE-way anova',
+                #           '   p=', p_value_one_way)
+
+                #     # Nan_free_data = df_agonist_antagonist_colapsed_header.filter(items=['GABA_VM', 'group_no']).dropna()
+
+                #     mc = MultiComparison(
+                #         df_anova_working['dv'], df_anova_working['group'])
+                #     mc_results = mc.tukeyhsd()
+                #     print(mc_results)
+                #     df_Tukey = pd.DataFrame(
+                #         data=mc_results._results_table.data[1:], columns=mc_results._results_table.data[0])
+                #     df_Tukey.to_excel(writer_tukey, sheet_name=comp+'_'+BR)
+                # else:
+                #     print(comp, ' ', BR, ' is NOT significant for ONE-way-anova',
+                #           '    p=', p_value_one_way)
+            else:
+                print(comp, ' ', BR, ' is NOT significant',
+                      '    p=', min(p_list))
+                
+    df_one_way_anova = df_one_way_anova.round(6)
+    df_one_way_anova.to_excel(writer_tukey, sheet_name= name+'_one_way_ANOVA')
+    # TODO: replace '_save()' by 'save()' for compat with jasmine's pandas version?
+    writer_tukey.save()
+    writer_tukey.close()
+    # TODO: replace '_save()' by 'save()' for compat with jasmine's pandas version?
+    writer_two_way.save()
     writer_two_way.close()
     return
 
