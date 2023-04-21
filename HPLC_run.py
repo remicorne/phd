@@ -42,26 +42,26 @@ df = df.replace(np.nan, 0) # to set all 0 to Nan
 #%%  DEVELOPING POS2.0 new df structure
 
 # ### restructure df = mouse_id, treatment, BR, compound, ng_mg
-# col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
-# raw_col_names = df_raw.columns.copy()
-# result_rows = []
+col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
+raw_col_names = df_raw.columns.copy()
+result_rows = []
 
-# for ind, row in df_raw.iterrows(): #loop for row get mouse and group
+for ind, row in df_raw.iterrows(): #loop for row get mouse and group
     
-#     mouse_id = row[0]
-#     treatment = row[1]
+    mouse_id = row[0]
+    treatment = row[1]
 
-#     for val, col_name in zip(row[2:], raw_col_names[2:]): #loop within row
+    for val, col_name in zip(row[2:], raw_col_names[2:]): #loop within row
 
-#         if val > 0:
-#             compound, BR = col_name.split('_')
-#             result_rows.append([mouse_id, treatment, BR, compound, val])
+        if val > 0:
+            compound, BR = col_name.split('_')
+            result_rows.append([mouse_id, treatment, BR, compound, val])
 
-# restructured_df = pd.DataFrame(result_rows, columns=col_names)
+restructured_df = pd.DataFrame(result_rows, columns=col_names)
 
 
 # %% CREATE WORKING DF
-
+print(ind, row)
 index_brain_region = list(df.head(0))
 
 # first two elements are mouse and group info
