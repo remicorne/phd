@@ -52,17 +52,21 @@ CACHE_DIR = f'{INPUT_DIR}/cache'
 
 ########## UTILITARIES ############
 #Check filesystem is set up for write operations
+
+#This fiunction saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables 
 def saveJSON(path, dict_to_save):
     print(dict_to_save, path)
     with open(path, 'w', encoding ='utf8') as json_file:
         json.dump(dict_to_save, json_file)
     print(f"TREATMENT DICT SAVED TOO {path}") 
             
+#This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):
     with open(path) as outfile:
         treatment_mapping = json.load(outfile)
     return treatment_mapping
 
+#This checks that the filesystem has all the requisite folders (input, cache, etc..) and creates them if not
 def checkFilesystem(file_path=None):
     if not os.path.exists(INPUT_DIR):
         os.mkdir(INPUT_DIR)
@@ -74,25 +78,29 @@ def checkFilesystem(file_path=None):
     if file_path and not os.path.exists(file_path):
         os.mkdir(file_path)
 
+#This function deletes all cached files, it is used when you want to start from square one because all intermediary results will be cached
 def resetCache():
     shutil.rmtree(CACHE_DIR)
     os.mkdir(CACHE_DIR)
     print('CACHE CLEARED')
 
+#This function cahces (aka saves in a easily readable format) all dataframes used
 def cacheDf(filename, df_type, df):
     cache_subdir = f'{CACHE_DIR}/{filename}'
     if not os.path.exists(cache_subdir):
         os.mkdir(cache_subdir)
     df.to_pickle(f'{cache_subdir}/{df_type}.pkl')
     print(f'CREATED {cache_subdir}/{df_type}.pkl CACHE')
-    
+
+#This function gets the dataframes that are cached
 def getCache(filename, df_type):
     print(f'GETTING "{df_type}" FROM "{filename}" CACHE')
     return pd.read_pickle(f'{CACHE_DIR}/{filename}/{df_type}.pkl')
 
+#This checks if a particulat dataframe/dataset is cached, return boolean
 def isCached(filename, df_type):
     return os.path.isfile(f'{CACHE_DIR}/{filename}/{df_type}.pkl')
-    
+
 def applyTreatmentMapping(df, mapping):
     df['group_no'] = df.apply(lambda x: mapping[str(int(x['group_no']))], axis=1)
     return df.rename(columns={'group_no': 'treatment'})
@@ -100,7 +108,9 @@ def applyTreatmentMapping(df, mapping):
 
 ########### GETTERS #################    
 
-#Generic df getter 
+#Generic df getter
+#First checks cache to see if the df already has been built and saved in cache
+#If not it uses the builder callback to build the df appropriately
 def getOrBuildDf(filename, df_type, builder_cb):
     filename_no_extension = filename.split(".")[0]
     if isCached(filename_no_extension, df_type): #Check cache to avoid recalcuating from scratch if alreasy done
@@ -110,7 +120,7 @@ def getOrBuildDf(filename, df_type, builder_cb):
     cacheDf(filename_no_extension, df_type, df)
     return df
 
-#Can't remember the name but this is a classic design pattern
+#The three getters that follow just used the generic function to get the df if cached, injecting their own specific functions to build the df in the case where its not chached
 def getRawDf(filename):
     return getOrBuildDf(filename, 'raw_df', buildRawDf)
 
@@ -124,9 +134,11 @@ def getRatiosDf(filename, treatment_mapping=None):
         saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
     return getOrBuildDf(filename, 'ratios_df', buildRatiosDf)
 
+#Generic function to select any ratio imaginable and return the corresponding df
 def selectRatio(region_1, region2, compound_1, compound2, ratios_df):
     return ratios_df.loc[(ratios_df['BR_1']==region_1) & (ratios_df['compound_1']==compound_1) & (ratios_df['BR_2']==region_2) & (ratios_df['compound_2']==compound_2)]
-    
+
+#Function to get the specific rations (intra region) that you use based on a ratios dictionnary
 def getRatiosPerRegion(ratios_df, ratios_mapping):
     ratios_df = ratios_df[ratios_df.BR_1==ratios_df.BR_2]
     compound_ratios = []
@@ -138,6 +150,7 @@ def getRatiosPerRegion(ratios_df, ratios_mapping):
 
 ############ BUILDERS #########
 
+#Contains the logic to build the raw df from the csv file
 def buildRawDf(filename):
     file_name, file_type = filename.split('.')
     if not file_type == 'csv':
@@ -148,6 +161,7 @@ def buildRawDf(filename):
     treatment_mapping = getJSON((f"{CACHE_DIR}/{file_name}/treatment_mapping.json"))
     return applyTreatmentMapping(raw_df, treatment_mapping)
 
+#contains the logic to build the df in the new format based on raw df
 def buildRestructureDf(filename):
     raw_df = getRawDf(filename)
     col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
@@ -170,6 +184,7 @@ def buildRestructureDf(filename):
     restructured_df = pd.DataFrame(result_rows, columns=col_names)
     return pd.DataFrame(result_rows, columns=col_names)
     
+#Contains the logic to build the ratios df based on the df with the new format
 def buildRatiosDf(filename):
     restructured_df = getRestructuredDf(filename) #.iloc[0:100] #To speed up testing
     merged = pd.merge(left=restructured_df, right=restructured_df, on='mouse_id', suffixes=['_1', '_2']) #merge every BR/compound combo to every other for each mouse
@@ -183,4 +198,5 @@ def buildRatiosDf(filename):
 
 
 ######## INIT ##########
+#Start by checking filesystem has all the folders necessary for read/write operations (cache) or create them otherwise
 checkFilesystem()
