@@ -39,12 +39,9 @@ from statsmodels.stats.multicomp import MultiComparison
 import weasyprint
 
 
-
-
-
-
 ######## CONSTANTS ######################
-ROOT = os.getcwd()
+# Constants are like variables that should not be rewritten, they are declared in all caps by convention
+ROOT = os.getcwd() #This gives terminal location (terminal working dir)
 INPUT_DIR = f'{ROOT}/input'
 OUTPUT_DIR = f'{ROOT}/output'
 CACHE_DIR = f'{INPUT_DIR}/cache'
@@ -52,8 +49,13 @@ CACHE_DIR = f'{INPUT_DIR}/cache'
 
 ########## UTILITARIES ############
 #Check filesystem is set up for write operations
+def setTreatment(filename, treatment_mapping):
+    subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
+    checkFilesystem(subcache_dir)
+    saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
+    print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
 
-#This fiunction saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables 
+#This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables 
 def saveJSON(path, dict_to_save):
     print(dict_to_save, path)
     with open(path, 'w', encoding ='utf8') as json_file:
@@ -195,6 +197,28 @@ def buildRatiosDf(filename):
     return merged.rename(columns={'treatment_1': 'treatment'}).drop(columns=['treatment_2', 'ng_mg_1', 'ng_mg_2']) #Drop duplicate columns
     
 
+############### CALCULATE/STATISTICS ############
+
+def plotAnything(anything):
+    return plt(anything)
+
+def showOutliers(raw_df):
+    return plotAnything(getOutliers(raw_df))
+
+def getOutliers(raw_df):
+    return [doRawDfGrubbs(raw_df), doRawDfGrubbs(raw_df)]
+    
+
+def doRawDfGrubbs(raw_df):
+    result_list = []
+    for group in raw_df.groupby('treatment'):
+        result_list.append(grubbsTest(raw_df)) #this func will loop through the df to feel grubbsTest
+    return result_list
+    
+    
+
+def grubbsTest(group_list): #include the vairable type in name i.e. group_list series
+    return
 
 
 ######## INIT ##########
