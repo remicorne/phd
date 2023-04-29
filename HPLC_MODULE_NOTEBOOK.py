@@ -73,8 +73,8 @@ def checkFilesystem(file_path=None):
     if not os.path.exists(INPUT_DIR):
         os.mkdir(INPUT_DIR)
         print('CREATED INPUT DIRECTORY, ADD .csv FILE TO START')
-        if not os.path.exists(CACHE_DIR):
-            os.mkdir(CACHE_DIR)
+    if not os.path.exists(CACHE_DIR):
+        os.mkdir(CACHE_DIR)
     if not os.path.exists(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
     if file_path and not os.path.exists(file_path):
