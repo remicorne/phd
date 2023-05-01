@@ -129,8 +129,8 @@ def getOrBuildDf(filename, df_identifier, builder_cb):
 def getRawDf(filename):
     return getOrBuildDf(filename, 'raw_df', buildRawDf)
 
-def getRestructuredDf(filename):
-    return getOrBuildDf(filename, 'restructured_df', buildRestructureDf)
+def getCompoundDf(filename): #TODO: rename to compounds later
+    return getOrBuildDf(filename, 'compound_df', buildRestructureDf)
 
 def getRatiosDf(filename):
     return getOrBuildDf(filename, 'ratios_df', buildRatiosDf)
@@ -140,22 +140,20 @@ def getRatiosPerRegion(filename, ratios_mapping):
     builder_callback_with_param = functools.partial(buildRatiosPerRegionDf, ratios_mapping=ratios_mapping)
     return getOrBuildDf(filename, cache_filename, builder_callback_with_param)
 
-def getShapiroDf(df):
-    buildShapiroDf(df)
+def getCompoundAggregateStatsDf(filename):
+    return getAggregateStatsDf(filename, 'compound')
 
+def getRatioAggregateStatsDf(filename):
+    return getAggregateStatsDf(filename, 'ratio')
+
+def getAggregateStatsDf(filename, df_type):
+    if df_type not in ['ratio', 'compound']: raise Exception("DF TYPE MUST BE IN ['ratio', 'compound']")
+    builder_callback_with_param = functools.partial(buildAggregateStatsDf, df_type=df_type)
+    return getOrBuildDf(filename, f"{df_type}_aggregate_stats", builder_callback_with_param)
+    
 #Generic function to select any ratio imaginable and return the corresponding df
 def selectRatio(region_1, region2, compound_1, compound2, ratios_df):
     return ratios_df.loc[(ratios_df['BR_1']==region_1) & (ratios_df['compound_1']==compound_1) & (ratios_df['BR_2']==region_2) & (ratios_df['compound_2']==compound_2)]
-
-#Function to get the specific rations (intra region) that you use based on a ratios dictionnary
-def buildRatiosPerRegionDf(filename, ratios_mapping):
-    ratios_df = getRatiosDf(filename)
-    compound_ratios = []
-    for compound_1, compound_2_list in ratios_mapping.items():
-        for compound_2 in compound_2_list:
-            compound_ratios.append(ratios_df[(ratios_df['compound_1']==compound_1) & (ratios_df['compound_2']==compound_2)])
-    return pd.concat(compound_ratios)
-
 
 
 
@@ -198,21 +196,32 @@ def buildRestructureDf(filename):
     
 #Contains the logic to build the ratios df based on the df with the new format
 def buildRatiosDf(filename):
-    restructured_df = getRestructuredDf(filename) #.iloc[0:100] #To speed up testing
+    restructured_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
     merged = pd.merge(left=restructured_df, right=restructured_df, on='mouse_id', suffixes=['_1', '_2']) #merge every BR/compound combo to every other for each mouse
     merged = merged[~((merged.BR_1 == merged.BR_2) & (merged.compound_1 == merged.compound_2))] #eliminate duplicates ((BR1 == BR2 & C1 == C2)
     # merged = merged[(merged.BR_1 < merged.BR_2) | (merged.compound_1 < merged.compound_2) #eliminate duplicates ((BR1 == BR2 & C1 == C2) and cross combinations (row1: BR1=A, C1=B, BR2=C, C2=D; row2: BR1=C, C1=D, BR2=A, C2=B))
     #         & ~((merged.BR_1 > merged.BR_2) & (merged.compound_1 < merged.compound_2))] #Uncomment code to only save half the ration (C1/C2) to divide time it takes by 2
     merged[['compounds', 'ratio']] = merged.apply(lambda x: [f'{x.compound_1}/{x.compound_2}', x.ng_mg_1 / x.ng_mg_2], axis=1, result_type='expand') #calculate the ratio
     return merged.rename(columns={'treatment_1': 'treatment'}).drop(columns=['treatment_2', 'ng_mg_1', 'ng_mg_2']) #Drop duplicate columns
+
+#Function to get the specific rations (intra region) that you use based on a ratios dictionnary
+def buildRatiosPerRegionDf(filename, ratios_mapping):
+    ratios_df = getRatiosDf(filename)
+    compound_ratios = []
+    for compound_1, compound_2_list in ratios_mapping.items():
+        for compound_2 in compound_2_list:
+            compound_ratios.append(ratios_df[(ratios_df['compound_1']==compound_1) & (ratios_df['compound_2']==compound_2)])
+    return pd.concat(compound_ratios)
     
 #returns df columns = ['treatment', 'BR', 'compound', 'F_value', 'p_value']
-def buildShapiroDf(df):
+def buildAggregateStatsDf(filename, df_type):
+    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
     result_ls = []
-    for treat_BR_comp, groupby_df in df.groupby(by =['treatment', 'BR', 'compound']):
-        F, p = scipy.stats.shapiro(groupby_df['ng_mg']) if len(groupby_df) >= 3 else [np.NaN, np.NaN]
-        result_ls.append([*treat_BR_comp, F, p]) #start unpacks the list of strings
-    return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'F_value', 'p_value'])
+    for treat_BR_comp, groupby_df in working_df.groupby(by =['treatment', 'BR', 'compound']):
+        F, p, is_valid = [*scipy.stats.shapiro(groupby_df['ng_mg']), True] if len(groupby_df) >= 3 else [np.NaN, np.NaN, False]
+        mean, std, sem = [groupby_df.ng_mg.mean(), groupby_df.ng_mg.std(), groupby_df.ng_mg.sem()]  
+        result_ls.append([*treat_BR_comp, F, p, is_valid, mean, std, sem]) #start unpacks the list of strings
+    return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem'])
 
 ############### CALCULATE/STATISTICS ############
 
