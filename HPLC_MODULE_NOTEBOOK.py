@@ -219,9 +219,9 @@ def buildAggregateStatsDf(filename, df_type):
     result_ls = []
     for treat_BR_comp, groupby_df in working_df.groupby(by =['treatment', 'BR', 'compound']):
         F, p, is_valid = [*scipy.stats.shapiro(groupby_df['ng_mg']), True] if len(groupby_df) >= 3 else [np.NaN, np.NaN, False]
-        mean, std, sem = [groupby_df.ng_mg.mean(), groupby_df.ng_mg.std(), groupby_df.ng_mg.sem()]  
-        result_ls.append([*treat_BR_comp, F, p, is_valid, mean, std, sem]) #start unpacks the list of strings
-    return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem'])
+        mean, std, sem, values = [groupby_df.ng_mg.mean(), groupby_df.ng_mg.std(), groupby_df.ng_mg.sem(), list(groupby_df.ng_mg)]  
+        result_ls.append([*treat_BR_comp, F, p, is_valid, mean, std, sem, values]) #start unpacks the list of strings
+    return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
 
 ############### CALCULATE/STATISTICS ############
 
