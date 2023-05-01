@@ -140,6 +140,9 @@ def getRatiosPerRegion(filename, ratios_mapping):
     builder_callback_with_param = functools.partial(buildRatiosPerRegionDf, ratios_mapping=ratios_mapping)
     return getOrBuildDf(filename, cache_filename, builder_callback_with_param)
 
+def getShapiroDf(df):
+    buildShapiroDf(df)
+
 #Generic function to select any ratio imaginable and return the corresponding df
 def selectRatio(region_1, region2, compound_1, compound2, ratios_df):
     return ratios_df.loc[(ratios_df['BR_1']==region_1) & (ratios_df['compound_1']==compound_1) & (ratios_df['BR_2']==region_2) & (ratios_df['compound_2']==compound_2)]
@@ -152,6 +155,8 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
         for compound_2 in compound_2_list:
             compound_ratios.append(ratios_df[(ratios_df['compound_1']==compound_1) & (ratios_df['compound_2']==compound_2)])
     return pd.concat(compound_ratios)
+
+
 
 
 ############ BUILDERS #########
@@ -201,6 +206,13 @@ def buildRatiosDf(filename):
     merged[['compounds', 'ratio']] = merged.apply(lambda x: [f'{x.compound_1}/{x.compound_2}', x.ng_mg_1 / x.ng_mg_2], axis=1, result_type='expand') #calculate the ratio
     return merged.rename(columns={'treatment_1': 'treatment'}).drop(columns=['treatment_2', 'ng_mg_1', 'ng_mg_2']) #Drop duplicate columns
     
+#returns df columns = ['treatment', 'BR', 'compound', 'F_value', 'p_value']
+def buildShapiroDf(df):
+    result_ls = []
+    for treat_BR_comp, groupby_df in df.groupby(by =['treatment', 'BR', 'compound']):
+        F, p = scipy.stats.shapiro(groupby_df['ng_mg']) if len(groupby_df) >= 3 else [np.NaN, np.NaN]
+        result_ls.append([*treat_BR_comp, F, p]) #start unpacks the list of strings
+    return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'F_value', 'p_value'])
 
 ############### CALCULATE/STATISTICS ############
 
