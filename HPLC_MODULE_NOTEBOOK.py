@@ -102,8 +102,8 @@ def isCached(filename, df_identifier):
     return os.path.isfile(f'{CACHE_DIR}/{filename}/{df_identifier}.pkl')
 
 def applyTreatmentMapping(df, mapping):
-    df['group_no'] = df.apply(lambda x: mapping[str(int(x['group_no']))], axis=1)
-    return df.rename(columns={'group_no': 'treatment'})
+    df['treatment'] = df.apply(lambda x: mapping[str(int(x['group_no']))], axis=1)
+    return df
     
 def dictToFilename(dict_to_stringify):
     result = str(dict_to_stringify)
@@ -222,6 +222,24 @@ def buildAggregateStatsDf(filename, df_type):
         mean, std, sem, values = [groupby_df.ng_mg.mean(), groupby_df.ng_mg.std(), groupby_df.ng_mg.sem(), list(groupby_df.ng_mg)]  
         result_ls.append([*treat_BR_comp, F, p, is_valid, mean, std, sem, values]) #start unpacks the list of strings
     return pd.DataFrame(result_ls, columns= ['treatment', 'BR', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
+
+#returns df columns = ['treatment', 'BR', 'compound', 'F_value', 'p_value']
+def testBuildAggregateStatsDf(filename, df_type):
+    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
+    descriptive_stats_ls = [] #this one is just describing every BR/compound/treament combo
+    proper_stats_ls = [] #this one really comparing groups
+
+    for BR_comp, BR_comp_groupby_df in working_df.groupby(by =['BR', 'compound']):
+        for treatment, treatment_groupby_df in BR_comp_groupby_df.groupby(by =['treatment']):
+            F, p, is_valid = [*scipy.stats.shapiro(treatment_groupby_df['ng_mg']), True] if len(treatment_groupby_df) >= 3 else [np.NaN, np.NaN, False]
+            mean, std, sem, values = [treatment_groupby_df.ng_mg.mean(), treatment_groupby_df.ng_mg.std(), treatment_groupby_df.ng_mg.sem(), list(treatment_groupby_df.ng_mg)]  
+            descriptive_stats_ls.append([*[treatment, *BR_comp], F, p, is_valid, mean, std, sem, values]) #start unpacks the list of strings
+            
+        f_one, p_one = scipy.stats.f_oneway(g1, g2, g3) #pseudo code
+        f_two, p_two = scipy.stats.f_twoway(g1, g2, g3) #pseudo code
+        proper_stats_ls.append([treatment, BR_comp, F, p]) #pseudo code 
+        
+    return pd.DataFrame(descriptive_stats_ls, columns= ['treatment', 'BR', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
 
 ############### CALCULATE/STATISTICS ############
 
