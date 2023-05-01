@@ -36,7 +36,7 @@ from statannot import add_stat_annotation
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.stats.multicomp import MultiComparison
 
-import weasyprint
+# import weasyprint
 
 
 ######## CONSTANTS ######################

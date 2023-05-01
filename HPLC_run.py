@@ -31,7 +31,7 @@ from sklearn.preprocessing import StandardScaler # mean = 0 vairance =1
 from sklearn.decomposition import PCA
 from HPLC_module import *  # must be in the same directory
 
-path = os.getcwd() + '/TCB2_data_APRIL23.csv'  # TCB2 #using current working directory plus file name 
+path = os.getcwd() + '/input/TCB2_data_HPLC.csv'  # TCB2 #using current working directory plus file name 
 
 
 df_raw = pd.read_csv(path, header=0)
@@ -39,25 +39,25 @@ df_raw = pd.read_csv(path, header=0)
 df = df_raw.copy() #cworking df 
 df = df.replace(np.nan, 0) # to set all 0 to Nan
 
-#%%  DEVELOPING POS2.0 new df structure
+# #%%  DEVELOPING POS2.0 new df structure
 
-# ### restructure df = mouse_id, treatment, BR, compound, ng_mg
-col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
-raw_col_names = df_raw.columns.copy()
-result_rows = []
+# # ### restructure df = mouse_id, treatment, BR, compound, ng_mg
+# col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
+# raw_col_names = df_raw.columns.copy()
+# result_rows = []
 
-for ind, row in df_raw.iterrows(): #loop for row get mouse and group
+# for ind, row in df_raw.iterrows(): #loop for row get mouse and group
     
-    mouse_id = row[0]
-    treatment = row[1]
+#     mouse_id = row[0]
+#     treatment = row[1]
 
-    for val, col_name in zip(row[2:], raw_col_names[2:]): #loop within row
+#     for val, col_name in zip(row[2:], raw_col_names[2:]): #loop within row
 
-        if val > 0:
-            compound, BR = col_name.split('_')
-            result_rows.append([mouse_id, treatment, BR, compound, val])
+#         if val > 0:
+#             compound, BR = col_name.split('_')
+#             result_rows.append([mouse_id, treatment, BR, compound, val])
 
-restructured_df = pd.DataFrame(result_rows, columns=col_names)
+# restructured_df = pd.DataFrame(result_rows, columns=col_names)
 
 
 # %% CREATE WORKING DF
@@ -138,7 +138,7 @@ palette_labeled = {'vehicles': "white",  # TCB2
 # palette_labeled = { 'WT': 'white',        #SNORD115116
 #                     'SNORD_115116_KO': 'red'}
 
-
+df_inc_ratios = df_inc_ratios_raw.copy()
 # %% TEST FOR OUTLIERS, Grubbs test (same as graphpad outliers)
 
 df_inc_ratios = df_inc_ratios_raw.copy()
@@ -162,6 +162,10 @@ df_inc_ratios, outlier_dict = grubbs_test(
 df_inc_ratios, outlier_dict_ratio = grubbs_test(
     df_inc_ratios, ratio_match_ind_dict, list_of_groups, treatment_dict, p_value=0.05, remove_all=False)
 
+#EXIST DICT WITH GRUBS VALUES REMOVED use with df_inc_ratios
+exist_dict_grubbs = get_summary_of_exsisting_data(
+    df_inc_ratios, list_of_brain_regions, list_of_groups, list_of_mice)
+#TO USE NOT REMOVED OUTLIERS use exist_dict and  df_inc_ratios_raw
 
 save_outlier_info(outlier_dict, name='compounds')
 save_outlier_info(outlier_dict_ratio, name='ratios')
@@ -199,7 +203,7 @@ list_names = ['df_compound_mean', 'df_compound_SD', 'df_compound_SEM', 'df_comp_
 
 for  df, name  in zip(list_df_to_save, list_names):
     
-    df.to_csv(name + 'TCB2.xls')
+    df.to_csv('output/' + name + 'TCB2.xls')
 
 # %% 3. ShapiroWilk test for normailty (note if not noirmal) and statistical analysis
 '''' 
@@ -229,16 +233,18 @@ Outputs:
     two_way_ANOVA_agonist_antagonist_significant.xlsx   
     TUKEY_agonist_antagonist_significant.xlsx
 '''
-#saving ALL one way ANOVAs for PDD
+#saving ALL one way ANOVAs for PDD  
 onewayANOVA_Tukeyposthoc(df_inc_ratios, exist_dict, groups_to_drop=[5, 6], name='compounds') 
 onewayANOVA_Tukeyposthoc(df_inc_ratios, ratio_match_ind_dict, groups_to_drop=[5, 6], name='ratios')
 
-# #old way with spit out seperate MAYBE NEED FOR PLOTS
-one_way_ANOVA_post_hoc_between_groups(
-    df_inc_ratios, exist_dict, groups_to_drop=[5, 6], name='compounds')
 
-one_way_ANOVA_post_hoc_between_groups(
-    df_inc_ratios, ratio_match_ind_dict, name='ratios', groups_to_drop=[5, 6])
+#REDUNDANT NOW 27/4/23
+# # #old way with spit out seperate MAYBE NEED FOR PLOTS
+# one_way_ANOVA_post_hoc_between_groups(
+#     df_inc_ratios, exist_dict, groups_to_drop=[5, 6], name='compounds')
+
+# one_way_ANOVA_post_hoc_between_groups(
+#     df_inc_ratios, ratio_match_ind_dict, name='ratios', groups_to_drop=[5, 6])
 
 ##############
 # #ALZ_mice
@@ -247,14 +253,15 @@ one_way_ANOVA_post_hoc_between_groups(
 
 #saving ALLLLLLLL two way and one way anova and tukey only for sig one way  RUN LAST 
 twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6], name='compounds')
-twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6], name='compounds')
 
-#OLD way maybe NEED FOR HISTOGRAM PLOTS 
-two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[
-              1, 3, 5, 6], name='compounds')
+twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(ratio_match_ind_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6], name='ratios')
 
-two_way_ANOVA(ratio_match_ind_dict, df_inc_ratios,
-              treatments_to_compare=[1, 3, 5, 6], name='ratios')
+# #OLD way maybe NEED FOR HISTOGRAM PLOTS #### NOPE REDUNDANT NOW AS above will plor all one way significances on hist as PDD wanted  28/4/23
+# two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[
+#               1, 3, 5, 6], name='compounds')
+
+# two_way_ANOVA(ratio_match_ind_dict, df_inc_ratios,
+#               treatments_to_compare=[1, 3, 5, 6], name='ratios')
 
 
 '''
@@ -304,26 +311,29 @@ plot_hist_comparing_treatment_CI(treatment_dict, exist_dict, df_inc_ratios, pale
                                  treatments_to_compare=[1, 3, 5, 6], name='Agonist_Antagonist_compounds',
                                  order=['vehicles', '3mg/kgTCB',
                                         '0.2mg/kgMDL', 'TCB+MDL'],
-                                 test_path=os.getcwd() + '/TUKEY_ag_ant_compounds.xlsx', ratio=False, mouse_id=False)
+                                 test_path=os.getcwd() + '/output/agg_antag_oneway_ANOVA_Tukey_compounds.xlsx', ratio=False, mouse_id=False)
 
 plot_hist_comparing_treatment_CI(treatment_dict, ratio_match_ind_dict, df_inc_ratios, palette_labeled,
                                  treatments_to_compare=[1, 3, 5, 6], name='Agonist_Antagonist_ratios',
                                  order=['vehicles', '3mg/kgTCB',
                                         '0.2mg/kgMDL', 'TCB+MDL'],
-                                 test_path=os.getcwd() + '/TUKEY_ag_ant_ratios.xlsx', ratio=True, mouse_id=False)
+                                 test_path=os.getcwd() + '/output/agg_antag_oneway_ANOVA_Tukey_ratios.xlsx', ratio=True, mouse_id=False)
 
 # dose_responce: compounds and ratios
 plot_hist_comparing_treatment_CI(treatment_dict, exist_dict, df_inc_ratios, palette_labeled,
                                  treatments_to_compare=[1, 2, 3, 4], name='Dose_Responcxe_compounds',
                                  order=['vehicles', '0.3mg/kgTCB',
                                         '3mg/kgTCB', '10mg/kgTCB'],
-                                 test_path=os.getcwd() + '/TUKEY_dose_resp_compounds.xlsx', ratio=False, mouse_id=False)
+                                 test_path=os.getcwd() + '/output/one_way_ANOVA_ifsig_Tukey_compounds.xlsx', ratio=False, mouse_id=False)
+                                 # test_path=os.getcwd() + '/output/TUKEY_dose_resp_compounds.xlsx', ratio=False, mouse_id=False)
+
+
 
 plot_hist_comparing_treatment_CI(treatment_dict, ratio_match_ind_dict, df_inc_ratios, palette_labeled,
                                  treatments_to_compare=[1, 2, 3, 4], name='Dose_Responce_ratios',
                                  order=['vehicles', '0.3mg/kgTCB',
                                         '3mg/kgTCB', '10mg/kgTCB'],
-                                 test_path=os.getcwd() + '/TUKEY_dose_resp_ratios.xlsx', ratio=True, mouse_id=False)
+                                 test_path=os.getcwd() + '/output/one_way_ANOVA_ifsig_Tukey_ratios.xlsx', ratio=True, mouse_id=False)
 
 
 end_time = time.perf_counter()
@@ -369,9 +379,12 @@ Output:
          ratio_correlograms_within_BR.pdf
 '''
 
-# Pearson product correlograms with only compunds in column_order  ###### JAS23 something wrong with ordering
-pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, treatment_dict, name='compound', p_value=0.05,
-                               column_order=['A', 'NA', 'VMA', 'DA', 'DOPAC', 'LDOPA', 'HVA', '3MT', '5HT', '5HIAA', '5HTP'], method='pearson')  # ordered data
+MA = ['A', 'NA', 'VMA', 'DA', 'DOPAC', 'LDOPA', 'HVA', '3MT', '5HT', '5HIAA', '5HTP']
+AA = [x for x in list_of_compounds if x not in MA]
+
+# Pearson product correlograms with only compunds in column_order  ###### NOT WORKING FOR AA
+pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, treatment_dict, name='MonoAmine', p_value=0.05,
+                               column_order=MA, method='pearson')  # ordered data
 
 
 
@@ -379,7 +392,7 @@ pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, treatm
 #                                 column_order = False)
 
 # Pearson product correlograms with ordered ratios #something wrong
-pearson_correlations_within_BR(list_of_groups, ratio_match_ind_dict, df_inc_ratios, treatment_dict, name='ratio', p_value=0.05,
+pearson_correlations_within_BR(list_of_groups, ratio_match_ind_dict, df_inc_ratios, treatment_dict, name='Ratio', p_value=0.05,
                                column_order=False, method='pearson')
 #TypeError: ufunc 'invert' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
 
@@ -396,12 +409,17 @@ Output:
 # col_order_old = ['OF', 'PL', 'IC', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V', 'M', 'CC', 'NAc', 'VM', 'DM',
 #              'VL', 'DL', 'Am', 'dH', 'vH', 'Y',   'SN', 'VTA', 'DR', 'MR', 'VPL', 'VPR', 'MD', 'SC', 'DG', 'CE']
 
-col_order = ['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
+# col_order = ['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
+#        'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
+#        'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]  #pdd august 2023 #including IC, SL6, SR6
+
+col_order = ['OF', 'PL', 'CC', 'M', 'SJ', 'SL1', 'SR1', 'AC', 'V' , 
        'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
-       'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]  #pdd august 2023
+       'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]  #pdd 28 April 2023
+
 
 pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_ratios, list_of_compounds, treatment_dict,
-                                     name='compound', p_value=0.05, column_order=col_order, method='pearson')
+                                     name='Compound', p_value=0.05, column_order=col_order, method='pearson')
 
 
 # for SNORD? I dont know old list
@@ -425,7 +443,7 @@ pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_ratios, 
 # Pearson product correlograms with all ratios
 
 pearson_correlations_within_compound(list_of_groups, ratio_match_ind_dict, df_inc_ratios, list_of_ratios, treatment_dict,
-                                     name='ratios', p_value=0.05, column_order=col_order, method='pearson')
+                                     name='Ratio', p_value=0.05, column_order=col_order, method='pearson')
 
 # pearson_correlations_within_compound(list_of_groups, ratio_match_ind_dict, df_inc_ratios, list_of_ratios, treatment_dict,
 #                                      name='ratios', p_value=0.05, column_order=False, method='pearson')

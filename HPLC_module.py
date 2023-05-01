@@ -278,7 +278,8 @@ def grubbs_critical_value(size, alpha):
 
 
 def save_outlier_info(outlier_dict, name='compounds'):
-    writer = pd.ExcelWriter('ouliers_by_treatment_' + name + '.xlsx')
+    
+    writer = pd.ExcelWriter('output/ouliers_by_treatment_' + name + '.xlsx')
     for treatment, treatment_BRs_dict in outlier_dict.items():
 
         df_outlier_dict = pd.DataFrame.from_dict(treatment_BRs_dict)
@@ -350,7 +351,7 @@ def onewayANOVA_Tukeyposthoc(df_inc_ratios, exist_dict, groups_to_drop=[], name=
     df_one_way_anova = pd.DataFrame(data=['F', 'p'])  # create empy df
     df_one_way_anova.columns = pd.MultiIndex.from_tuples([['compound', 'BR']])
 
-    writer = pd.ExcelWriter('one_way_ANOVA_ifsig_Tukey_' + name + '.xlsx')
+    writer = pd.ExcelWriter('output/one_way_ANOVA_ifsig_Tukey_' + name + '.xlsx')
 
     for BR, BR_dict in exist_dict.items():
 
@@ -358,19 +359,34 @@ def onewayANOVA_Tukeyposthoc(df_inc_ratios, exist_dict, groups_to_drop=[], name=
 
 
             if len(exist_dict[BR][comp]['missing_groups'].intersection(set([1, 2, 3, 4]))) > 0: #if group is missking skip
+                print(f'missing dara for: {comp} in {BR}')
                 continue
 
+            # F_value, p_value = scipy.stats.f_oneway(df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][1]],
+            #                                         df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][2]],
+            #                                         df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][3]], 
+            #                                         df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][4]] 
+            #                                         )
+            
+            # print(df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][1]])
+            # print(df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][2]])
+            # print(df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][3]])
+            # print(df_inc_ratios['NA', 'AC'][comp_dict['group_specific_ind'][4]]) #there is a NaN here HENCE IT SKIPS
+            
             F_value, p_value = scipy.stats.f_oneway(df_inc_ratios[comp, BR][comp_dict['group_specific_ind'][1]],
                                                     df_inc_ratios[comp,
                                                                   BR][comp_dict['group_specific_ind'][2]],
                                                     df_inc_ratios[comp,
                                                                   BR][comp_dict['group_specific_ind'][3]],
                                                     df_inc_ratios[comp, BR][comp_dict['group_specific_ind'][4]])
-
+            
             df_F_p_temp = pd.DataFrame(data=[F_value, p_value])
             df_F_p_temp.columns = pd.MultiIndex.from_tuples([[comp, BR]])
+            # print(df_F_p_temp)
             df_one_way_anova = df_one_way_anova.join(df_F_p_temp[comp, BR])
-
+            
+            
+            
             if p_value < 0.05:  # followed by post hoc
 
                 # could this be done through the dictionary
@@ -448,7 +464,7 @@ def calculate_shapiro_for_treatment(exist_dict, list_of_brain_regions, list_of_c
 
 def save_shapiro_data_for_all_treatments(exist_dict, list_of_brain_regions, list_of_compounds, df_inc_ratios, list_of_groups):
 
-    writer = pd.ExcelWriter('shapiro_data_all_treatments.xlsx')
+    writer = pd.ExcelWriter('output/shapiro_data_all_treatments.xlsx')
 
     for treatment in list_of_groups:
 
@@ -488,9 +504,10 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
         if significant saved to excel (seperate sheets) and followed by a one way anova, 
     if significant post hoc tukes is performed and saved.       '''
 
-    writer_tukey = pd.ExcelWriter('TUKEY_ag_ant_' + name + '.xlsx')
-    writer_two_way = pd.ExcelWriter(
-        name + 'two_way_ANOVA_agonist_antagonist.xlsx')
+    writer_tukey = pd.ExcelWriter('output/TUKEY_ag_ant_' + name + '.xlsx')
+    writer_two_way = pd.ExcelWriter(f"output/{name}two_way_ANOVA_agonist_antagonist.xlsx")
+    # writer_two_way = pd.ExcelWriter(
+    #     name + 'two_way_ANOVA_agonist_antagonist.xlsx')
 
     for BR, BR_dict in exist_dict.items():
 
@@ -584,11 +601,11 @@ def twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_
        if significant saved to excel (seperate sheets) and followed by a one way anova, 
     if significant post hoc tukes is performed and saved.       '''
 
-    writer_tukey = pd.ExcelWriter('oneway_ANOVA_Tukey_' + name + '.xlsx')
+    writer_tukey = pd.ExcelWriter('output/agg_antag_oneway_ANOVA_Tukey_' + name + '.xlsx')
     df_one_way_anova = pd.DataFrame(data=['F', 'p'])  # create empy df
     df_one_way_anova.columns = pd.MultiIndex.from_tuples([['compound', 'BR']])
     
-    writer_two_way = pd.ExcelWriter(name + '_two_way_ANOVA.xlsx')
+    writer_two_way = pd.ExcelWriter('output/agg_antag_two_way_ANOVA' + name + '.xlsx')
 
     for BR, BR_dict in exist_dict.items():
 
@@ -886,7 +903,7 @@ def plot_hist_comparing_treatment_CI(treatment_dict, exist_dict, df_inc_ratios, 
     # sns.set_palette(sns.color_palette(colors))
     # palette_labeled ={'vehicles': "white", '10mg/kgTCB': "firebrick", '3mg/kgTCB': "red", '0.3mg/kgTCB': "salmon",'TCB+MDL': "grey",'0.2mg/kgMDL': "black"}
 
-    pdf = PdfPages(name+'_histograms_.pdf')
+    pdf = PdfPages(f'output/{name}_histograms_.pdf')
 
     # count = 0
 
@@ -1124,7 +1141,7 @@ def pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, tr
 
     '''
 
-    pdf = PdfPages(name + '_correlograms_within_BR.pdf')
+    pdf = PdfPages(f'output/{name}_correlograms_within_BR.pdf')
 
 # SIVA this df will have some NaN values and i dont really understand how it is being delt with with pandas .corr
     # https://stackoverflow.com/questions/57155427/how-does-corr-remove-na-and-null-values
@@ -1241,7 +1258,7 @@ def pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_rati
                     create correlogram with all significant R vaklues displayed for each compound/ratio 
             --> saved to pdf '''
 
-    pdf = PdfPages(name + '_correlograms_between_BRs.pdf')
+    pdf = PdfPages(f'output/{name}_correlograms_between_BRs.pdf')
 
     for treatment in list_of_groups:  # create df for correlations of smetric data : each collumn is a factor to correlate maintining indicies
         print('treatment = ', treatment)
