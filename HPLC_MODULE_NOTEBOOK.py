@@ -46,6 +46,10 @@ INPUT_DIR = f'{ROOT}/input'
 OUTPUT_DIR = f'{ROOT}/output'
 CACHE_DIR = f'{INPUT_DIR}/cache'
 
+BR_COLUMN_ORDER = ['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
+            'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
+            'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]
+
 
 ########## UTILITARIES ############
 #Check filesystem is set up for write operations
@@ -130,7 +134,7 @@ def getRawDf(filename):
     return getOrBuildDf(filename, 'raw_df', buildRawDf)
 
 def getCompoundDf(filename): #TODO: rename to compounds later
-    return getOrBuildDf(filename, 'compound_df', buildRestructureDf)
+    return getOrBuildDf(filename, 'compound_df', buildCompoundDf)
 
 def getRatiosDf(filename):
     return getOrBuildDf(filename, 'ratios_df', buildRatiosDf)
@@ -173,7 +177,7 @@ def buildRawDf(filename):
     return applyTreatmentMapping(raw_df, treatment_mapping)
 
 #contains the logic to build the df in the new format based on raw df
-def buildRestructureDf(filename):
+def buildCompoundDf(filename):
     raw_df = getRawDf(filename)
     col_names = ['mouse_id' , 'treatment' , 'BR' , 'compound' , 'ng_mg']
     
@@ -196,8 +200,8 @@ def buildRestructureDf(filename):
     
 #Contains the logic to build the ratios df based on the df with the new format
 def buildRatiosDf(filename):
-    restructured_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
-    merged = pd.merge(left=restructured_df, right=restructured_df, on='mouse_id', suffixes=['_1', '_2']) #merge every BR/compound combo to every other for each mouse
+    compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
+    merged = pd.merge(left=compound_df, right=compound_df, on='mouse_id', suffixes=['_1', '_2']) #merge every BR/compound combo to every other for each mouse
     merged = merged[~((merged.BR_1 == merged.BR_2) & (merged.compound_1 == merged.compound_2))] #eliminate duplicates ((BR1 == BR2 & C1 == C2)
     # merged = merged[(merged.BR_1 < merged.BR_2) | (merged.compound_1 < merged.compound_2) #eliminate duplicates ((BR1 == BR2 & C1 == C2) and cross combinations (row1: BR1=A, C1=B, BR2=C, C2=D; row2: BR1=C, C1=D, BR2=A, C2=B))
     #         & ~((merged.BR_1 > merged.BR_2) & (merged.compound_1 < merged.compound_2))] #Uncomment code to only save half the ration (C1/C2) to divide time it takes by 2
@@ -243,6 +247,45 @@ def testBuildAggregateStatsDf(filename, df_type):
 
 ############### CALCULATE/STATISTICS ############
 
+def isSignificant(stat_method_cb, threshold):
+    return lambda x, y: stat_method_cb(x, y) >= threshold
+
+def getPearson(x,y):
+        return scipy.stats.pearsonr(x,y)
+        
+def getPearsonR(x,y):
+        return getPearson(x,y)[0]
+
+def getPearsonPValue(x,y):
+        return getPearson(x,y)[1]
+
+def getPeasonCorrStats(df, p_value_threshold, n_minimum):
+    methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)]
+    pivot_df = df.pivot_table(values='ng_mg', index=df['mouse_id'], columns='BR').filter(BR_COLUMN_ORDER)
+    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods]
+    return correlogram_df, p_value_mask.astype(bool)
+
+def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5):
+    compound_df = getCompoundDf(filename)
+    for column, values in selector.items():
+        values = [values] if type(values) is str else values
+        subselection_df = pd.concat([compound_df[compound_df[column] == value] for value in values])
+        for grouping_name, col_groupby_df in subselection_df.groupby(by=[column]):
+            for treatment, groupby_df in col_groupby_df.groupby(by=['treatment']):
+                plotCorrelogram(*getPeasonCorrStats(groupby_df, p_value_threshold, n_minimum), grouping_name[0], treatment[0])
+            
+def plotCorrelogram(correlogram_df, p_value_mask, grouping_name, treatment):
+    fig, ax = plt.subplots(figsize=(16, 10))
+    # mask = np.invert(np.tril(p_value_mask < 0.05)) #generalise p_value = 0.05
+
+    heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 8})
+    heatmap.set_title(f"{grouping_name} in {treatment}", fontdict={'fontsize': 18}, pad=12)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
+    ax.set_ylabel('')
+    ax.set_xlabel('')
+    return fig
+        
+        
 def plotAnything(anything):
     return plt(anything)
 
@@ -268,3 +311,17 @@ def grubbsTest(group_list): #include the vairable type in name i.e. group_list s
 ######## INIT ##########
 #Start by checking filesystem has all the folders necessary for read/write operations (cache) or create them otherwise
 checkFilesystem()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
