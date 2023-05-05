@@ -46,9 +46,10 @@ INPUT_DIR = f'{ROOT}/input'
 OUTPUT_DIR = f'{ROOT}/output'
 CACHE_DIR = f'{INPUT_DIR}/cache'
 
-BR_COLUMN_ORDER = ['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
+COLUMN_ORDER = {'BR':['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
             'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
-            'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]
+            'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ],
+                   'compound': ['DA', 'DOPAC', 'HVA', '3MT', '5HT', '5HIAA', 'GLU', 'GLN']}
 
 
 ########## UTILITARIES ############
@@ -259,9 +260,9 @@ def getPearsonR(x,y):
 def getPearsonPValue(x,y):
         return getPearson(x,y)[1]
 
-def getPeasonCorrStats(df, p_value_threshold, n_minimum):
+def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
     methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)]
-    pivot_df = df.pivot_table(values='ng_mg', index=df['mouse_id'], columns='BR').filter(BR_COLUMN_ORDER)
+    pivot_df = df.pivot_table(values='ng_mg', index=df['mouse_id'], columns=pivot_column).filter(COLUMN_ORDER[pivot_column])
     correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods]
     return correlogram_df, p_value_mask.astype(bool)
 
@@ -272,7 +273,8 @@ def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum
         subselection_df = pd.concat([compound_df[compound_df[column] == value] for value in values])
         for grouping_name, col_groupby_df in subselection_df.groupby(by=[column]):
             for treatment, groupby_df in col_groupby_df.groupby(by=['treatment']):
-                plotCorrelogram(*getPeasonCorrStats(groupby_df, p_value_threshold, n_minimum), grouping_name[0], treatment[0])
+                pivot_column = 'BR' if column == 'compound' else 'compound'
+                plotCorrelogram(*getPeasonCorrStats(groupby_df, pivot_column, p_value_threshold, n_minimum), grouping_name[0], treatment[0])
             
 def plotCorrelogram(correlogram_df, p_value_mask, grouping_name, treatment):
     fig, ax = plt.subplots(figsize=(16, 10))
