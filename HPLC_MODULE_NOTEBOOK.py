@@ -266,7 +266,7 @@ def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
     correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods]
     return correlogram_df, p_value_mask.astype(bool)
 
-def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5):
+def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5): #TODO: Improve performance cuz this is slow AF
     compound_df = getCompoundDf(filename)
     for column, values in selector.items():
         values = [values] if type(values) is str else values
@@ -274,7 +274,8 @@ def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum
         for grouping_name, col_groupby_df in subselection_df.groupby(by=[column]):
             for treatment, groupby_df in col_groupby_df.groupby(by=['treatment']):
                 pivot_column = 'BR' if column == 'compound' else 'compound'
-                plotCorrelogram(*getPeasonCorrStats(groupby_df, pivot_column, p_value_threshold, n_minimum), grouping_name[0], treatment[0])
+                correlogram_df, p_value_mask = getPeasonCorrStats(groupby_df, pivot_column, p_value_threshold, n_minimum)
+                plotCorrelogram(correlogram_df, p_value_mask, grouping_name[0], treatment[0])
             
 def plotCorrelogram(correlogram_df, p_value_mask, grouping_name, treatment):
     fig, ax = plt.subplots(figsize=(16, 10))
