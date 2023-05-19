@@ -228,6 +228,11 @@ def testBuildAggregateStatsDf(filename, df_type):
         
     return pd.DataFrame(descriptive_stats_ls, columns= ['treatment', 'region', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
 
+
+def editOutlier(subselect={'compound': 'DA', 'experiment': 'dose_response', 'region':'CC'}):
+    query = '&'.join([f"{column}=='{value}'" for column, value in subselect.items()])
+    df.query()
+
 ############### CALCULATE/STATISTICS ############
 
 STAT_METHODS = {'pearson': []}
@@ -264,11 +269,15 @@ def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
 
 
 def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5): #TODO: Improve performance cuz this is slow AF
+    start = time.time()
+    print("start", time.time() - start, "ms")
     compound_df = getCompoundDf(filename)
+    print("getCompoud", time.time() - start, "ms")
     for column, values in selector.items(): #Iterate through the selector dict
         for value in values:
             subvalues = value.split('-')
             subselection_df = compound_df.query('|'.join([f"{column}=='{subvalue}'" for subvalue in subvalues]))
+            print("subselection", time.time() - start, "ms")
             for experiment, experiment_groupby_df in subselection_df.groupby(by=['experiment']): 
                 to_plot = []
                 for treatment, group_df in experiment_groupby_df.groupby(by=['treatment']): 
@@ -277,7 +286,9 @@ def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum
                     methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
                     correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(subvalues)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
                     to_plot.append([correlogram_df, p_value_mask.astype(bool), treatment[0], subvalues])
+                    print("corelogram", time.time() - start, "ms")
                 plotCorrelograms(to_plot)
+                print("plot", time.time() - start, "ms")
                 
 
 def plotCorrelograms(correlograms):
