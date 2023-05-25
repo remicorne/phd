@@ -3,7 +3,7 @@
 
 
 # %% INSTALL
-import os, shutil, itertools, json, time, functools #GENERIC UTILS
+import os, shutil, itertools, json, time, functools, pickle #GENERIC UTILS
 
 #STAT LIBS
 import matplotlib.pyplot as plt
@@ -96,6 +96,10 @@ def cacheDf(filename, df_identifier, df):
         os.mkdir(cache_subdir)
     df.to_pickle(f'{cache_subdir}/{df_identifier}.pkl')
     print(f'CREATED {cache_subdir}/{df_identifier}.pkl CACHE')
+
+def savePlot(identifier, plot):
+    pickle.dump(plot, file('myplot.pickle', 'w'))
+
 
 #This function gets the dataframes that are cached
 def getCache(filename, df_identifier):
@@ -270,22 +274,24 @@ def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum
             subvalues = value.split('-')
             subselection_df = compound_df.query('|'.join([f"{column}=='{subvalue}'" for subvalue in subvalues]))
             for experiment, experiment_groupby_df in subselection_df.groupby(by=['experiment']): 
-                to_plot = []
+                correlograms = []
                 for treatment, group_df in experiment_groupby_df.groupby(by=['treatment']): 
                     pivot_columns = {'region':['region', 'compound'], 'compound': ['compound', 'region']}[column]
                     pivot_df = group_df.pivot_table(values='value', index=group_df['mouse_id'], columns=pivot_columns) #Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
                     methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
                     correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(subvalues)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-                    to_plot.append([correlogram_df, p_value_mask.astype(bool), treatment[0], subvalues])
-                plotCorrelograms(to_plot)
+                    correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], subvalues])
+                plotCorrelograms(f"{column}_{value}_{experiment}", correlograms)
                 
 
-def plotCorrelograms(correlograms):
+def plotCorrelograms(identifier, correlograms):
     fig, axs = plt.subplots(2, 2, figsize=(10,5))
     axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
-    fig #plot
+    savePlot(identifier, fig)
+    fig.show() #plot and close figure
+
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 8}, ax=ax)
