@@ -51,25 +51,38 @@ COLUMN_ORDER = {'region':['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6'
             'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ],
                    'compound': ['DA', 'DOPAC', 'HVA', '3MT', '5HT', '5HIAA', 'GLU', 'GLN']}
 
+CORRELOGRAM_COLUMN_ORDER = { 'compound': COLUMN_ORDER['region'], 'region': COLUMN_ORDER['compound']}
+
 
 ########## UTILITARIES ############
 #Check filesystem is set up for write operations
-def setTreatment(filename, treatment_mapping):
+def saveMetadata(filename, treatment_mapping, experimental_info):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFilesystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
     print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
+    saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
+    print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
 
 #This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables 
 def saveJSON(path, dict_to_save):
     with open(path, 'w', encoding ='utf8') as json_file:
         json.dump(dict_to_save, json_file)
-            
+
+def getMetadata(filename, metadata_type):
+    return getJSON(f"{CACHE_DIR}/{filename.split('.')[0]}/{metadata_type}.json")
+
+def getTreatmentMapping(filename):
+    return getMetadata(filename, 'treatment_mapping')
+
+def getExperimentalInfo(filename):
+    return getMetadata(filename, 'experimental_info')
+    
 #This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):
     with open(path) as outfile:
-        treatment_mapping = json.load(outfile)
-    return treatment_mapping
+        loaded_json = json.load(outfile)
+    return loaded_json
 
 #This checks that the filesystem has all the requisite folders (input, cache, etc..) and creates them if not
 def checkFilesystem(file_path=None):
@@ -90,28 +103,40 @@ def resetCache():
     print('CACHE CLEARED')
 
 #This function cahces (aka saves in a easily readable format) all dataframes used
-def cacheDf(filename, df_identifier, df):
+def cache(filename, identifier, to_cache):
+    filename = filename.split(".")[0]
     cache_subdir = f'{CACHE_DIR}/{filename}'
-    if not os.path.exists(cache_subdir):
-        os.mkdir(cache_subdir)
-    df.to_pickle(f'{cache_subdir}/{df_identifier}.pkl')
-    print(f'CREATED {cache_subdir}/{df_identifier}.pkl CACHE')
-
-def savePlot(identifier, plot):
-    pickle.dump(plot, file('myplot.pickle', 'w'))
-
+    checkFilesystem(cache_subdir)
+    with open(f'{cache_subdir}/{identifier}.pkl','wb') as file:
+        pickle.dump(to_cache, file)
+    print(f'CREATED {cache_subdir}/{identifier}.pkl CACHE')
 
 #This function gets the dataframes that are cached
-def getCache(filename, df_identifier):
-    print(f'GETTING "{df_identifier}" FROM "{filename}" CACHE')
-    return pd.read_pickle(f'{CACHE_DIR}/{filename}/{df_identifier}.pkl')
+def getCache(filename, identifier):
+    filename = filename.split(".")[0]
+    print(f'GETTING "{identifier}" FROM "{filename}" CACHE')
+    with open(f'{CACHE_DIR}/{filename}/{identifier}.pkl','rb') as file:
+        return pickle.load(file)
 
 #This checks if a particulat dataframe/dataset is cached, return boolean
-def isCached(filename, df_identifier):
-    return os.path.isfile(f'{CACHE_DIR}/{filename}/{df_identifier}.pkl')
+def isCached(filename, identifier):
+    filename = filename.split(".")[0]
+    return os.path.isfile(f'{CACHE_DIR}/{filename}/{identifier}.pkl')
+
+def saveFigure(fig, identifier, fig_type):
+    output_subdir = f"{OUTPUT_DIR}/{fig_type}"
+    checkFilesystem(output_subdir)
+    fig.savefig(f"{output_subdir}/{identifier}.svg")
+    print(f'SAVED {output_subdir}/{identifier}.svg') 
+    fig.savefig(f"{output_subdir}/{identifier}.png")
+    print(f'SAVED {output_subdir}/{identifier}.png') 
+
+def saveCorrelogram(fig, identifier):
+    saveFigure(fig, identifier, 'correlograms')
 
 def applyTreatmentMapping(df, filename):
-    treatment_mapping_path = f"{CACHE_DIR}/{filename.split('.')[0]}/treatment_mapping.json"
+    filename = filename.split(".")[0]
+    treatment_mapping_path = f"{CACHE_DIR}/{filename}/treatment_mapping.json"
     if not os.path.isfile(treatment_mapping_path): #Check treatment mapping is present
         raise Exception("TREATMENT INFORMATION ABSENT, TO SAVE TREATMENT MAPPING RUN 'setTreatment(filename, treatment_mapping)'")
     treatment_mapping = getJSON((treatment_mapping_path))
@@ -136,7 +161,7 @@ def getOrBuildDf(filename, df_identifier, builder_cb):
         return getCache(filename_no_extension, df_identifier)
     print(f'BUILDING "{df_identifier}"')    #Build useing callback otherwise and cache result
     df = builder_cb(filename)
-    cacheDf(filename_no_extension, df_identifier, df)
+    cache(filename_no_extension, df_identifier, df)
     return df
 
 #The three getters that follow just used the generic function to get the df if cached, injecting their own specific functions to build the df in the case where its not chached
@@ -145,6 +170,9 @@ def getRawDf(filename):
 
 def getCompoundDf(filename): #TODO: rename to compounds later
     return getOrBuildDf(filename, 'compound_df', buildCompoundDf)
+    
+def getCompoundAndRatiosDf(filename): #TODO: rename to compounds later
+    return getOrBuildDf(filename, 'compound_and_ratios_df', buildCompoundAndRatiosDf)
 
 def getRatiosDf(filename):
     return getOrBuildDf(filename, 'ratios_df', buildRatiosDf)
@@ -184,6 +212,15 @@ def buildCompoundDf(filename):
     new_format_df[['compound', 'region']] = new_format_df.apply(lambda x: x.variable.split('_'), axis=1, result_type='expand')
     new_format_df = applyTreatmentMapping(new_format_df, filename)
     return new_format_df.drop(columns=['variable'])
+
+#Contains the logic to build the ratios df based on the df with the new format
+def buildCompoundAndRatiosDf(filename):
+    compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
+    ratios_df = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
+    ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
+    ratios_df[['compound', 'value']] = ratios_df.apply(lambda x: [f'{x.compound_1}/{x.compound_2}', x.value_1 / x.value_2 if x.value_2 else np.NaN], axis=1, result_type='expand') #calculate ratio
+    return pd.concat([compound_df, ratios_df.drop(columns=['compound_1', 'compound_2', 'value_1', 'value_2'])]) #Drop duplicate columns
+
 
 #Contains the logic to build the ratios df based on the df with the new format
 def buildRatiosDf(filename):
@@ -272,82 +309,69 @@ def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
     return correlogram_df, p_value_mask.astype(bool) # Convert 1s and 0s to boolean for the plotting func
 
 
-def getAndPlotCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5): #TODO: Improve performance cuz this is slow AF
-    start = time.time()
-    print("start", time.time() - start, "ms")
-    compound_df = getCompoundDf(filename)
-    print("getCompoud", time.time() - start, "ms")
-    start = time.time()
-    for column, values in selector.items(): #Iterate through the selector dict
-        for value in values:
-            subvalues = value.split('-')
-            subselection_df = compound_df.query('|'.join([f"{column}=='{subvalue}'" for subvalue in subvalues]))
-            print("subselection", time.time() - start, "ms")
-            start = time.time()
-            for experiment, experiment_groupby_df in subselection_df.groupby(by=['experiment']): 
-                correlograms = []
-                for treatment, group_df in experiment_groupby_df.groupby(by=['treatment']): 
-                    pivot_columns = {'region':['region', 'compound'], 'compound': ['compound', 'region']}[column]
-                    pivot_df = group_df.pivot_table(values='value', index=group_df['mouse_id'], columns=pivot_columns) #Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-                    methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
-                    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(subvalues)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-                    correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], subvalues])
-                    print("corelogram", time.time() - start, "ms")
-                    start = time.time()
-                plotCorrelograms(correlograms)
-                print("plot", time.time() - start, "ms")
-                start = time.time()
-                
-def getAndPlotCorrelograms(filename, p_value_threshold=0.05, n_minimum=5): #TODO: Improve performance cuz this is slow AF
-    start = time.time()
-    print("start", time.time() - start, "ms")
-    compound_df = getCompoundDf(filename)
-    print("getCompoud", time.time() - start, "ms")
-    start = time.time()
-    column = {1: 'compound', 2: 'region'}[input("Which correlogram?\n1: compound\n2: region")]
-    value = input(f"Which {column}?\n(Enter {column}) for simple correlogram or {column}-{column} for square correlogram. Select ratio with {column}/{column}")
-    for column, values in selector.items(): #Iterate through the selector dict
-        for value in values:
-            subvalues = value.split('-')
-            subselection_df = compound_df.query('|'.join([f"{column}=='{subvalue}'" for subvalue in subvalues]))
-            print("subselection", time.time() - start, "ms")
-            start = time.time()
-            for experiment, experiment_groupby_df in subselection_df.groupby(by=['experiment']): 
-                correlograms = []
-                for treatment, group_df in experiment_groupby_df.groupby(by=['treatment']): 
-                    pivot_columns = {'region':['region', 'compound'], 'compound': ['compound', 'region']}[column]
-                    pivot_df = group_df.pivot_table(values='value', index=group_df['mouse_id'], columns=pivot_columns) #Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-                    methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
-                    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(subvalues)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-                    correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], subvalues])
-                    print("corelogram", time.time() - start, "ms")
-                    start = time.time()
-                plotCorrelograms(correlograms)
-                print("plot", time.time() - start, "ms")
-                start = time.time()
+def getAndPlotMultipleCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5, columns=None, from_scratch=None): #TODO: Handle columns and more generality
+    experiment = selector.pop('experiment', None)
+    for correlogram_type, to_correlate_list in selector.items(): #Iterate through the selector dict
+        for to_correlate in to_correlate_list:
+            getAndPlotSingleCorrelogram(filename, experiment, correlogram_type, to_correlate, p_value_threshold, n_minimum, columns, from_scratch)
+
+def askMultipleChoice(question, choices):
+    return choices[int(input(question + '\n' + '\n'.join([f'{i}: {choice}' for i, choice in choices.items()]) + '\n'))]
+
+def getAndPlotSingleCorrelogram(filename, experiment=None, correlogram_type=None, to_correlate=None, p_value_threshold=0.05, n_minimum=5, columns=None, from_scratch=None):
+    experiments = getExperimentalInfo(filename)
+    experiment = experiment if experiment else askMultipleChoice("Which experiment?", {i: experiment for i, experiment in enumerate(experiments)})
+    correlogram_type = correlogram_type if correlogram_type else askMultipleChoice("Which correlogram?", {0: 'compound', 1: 'region'})
+    to_correlate = to_correlate if to_correlate else input(f"""Which {correlogram_type}?
+                    (Enter simple {correlogram_type} or {correlogram_type}/{correlogram_type} for ratio,
+                    Use {correlogram_type} or {correlogram_type}/{correlogram_type} for simple correlogram, or {correlogram_type}-{correlogram_type} or {correlogram_type}/{correlogram_type}-{correlogram_type} for square correlogram
+                    Possibilities: {COLUMN_ORDER[correlogram_type]}
+                    """)
+    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
+    identifier = f"{experiment}_{correlogram_type}_{to_correlate.replace('/', ':')}_{(',').join(columns)}"
+    from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+    if from_scratch or not isCached(filename, identifier):
+        fig = buildSingleCorrelogram(filename, experiment, correlogram_type, to_correlate.split('-'), p_value_threshold, n_minimum, columns)
+        cache(filename, identifier, fig)
+        saveCorrelogram(fig, identifier)
+    else : fig = getCache(filename, identifier)
+    fig.show()
 
 
-def plotCorrelograms(identifier, correlograms):
+def buildSingleCorrelogram(filename, experiment, correlogram_type, to_correlate, p_value_threshold, n_minimum, columns):
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
+    value_type = {'compound': 'region', 'region': 'compound'}[correlogram_type]
+    subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df[value_type].isin(columns))].query('|'.join([f"{correlogram_type}=='{value}'" for value in to_correlate]))
+    pivot_columns = {'region':['region', 'compound'], 'compound': ['compound', 'region']}[correlogram_type]
+    pivot_column_value = to_correlate if len(to_correlate) == 2 else to_correlate + to_correlate #Because table is îvoted on region and compound even in the case of simple correlogram I have to duplicate the selector in that case to avoid ugly labelling
+    correlograms = []
+    for treatment, group_df in subselection_df.groupby(by=['treatment']): 
+        pivot_df = group_df.pivot_table(values='value', index=group_df['mouse_id'], columns=pivot_columns) #Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
+        methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
+        correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(pivot_column_value)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
+        correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate])
+    fig = plotCorrelograms(correlograms)
+    return fig
+
+
+def plotCorrelograms(correlograms):
     fig, axs = plt.subplots(2, 2, figsize=(10,5))
     axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
-    savePlot(identifier, fig)
-    fig.show() #plot and close figure
-
-
+    return fig
+    
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 8}, ax=ax)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
+    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 10}, pad=20)
     if len(subvalues) == 1: 
-        heatmap.set_title(f"{subvalues} in {treatment}", fontdict={'fontsize': 10}, pad=20)
         ax.set_ylabel('')
         ax.set_xlabel('')
     elif len(subvalues) == 2:
-        heatmap.set_title(f"{subvalues[0]} in {treatment}", fontdict={'fontsize': 10}, pad=20)
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
-        
+
 def plotAnything(anything):
     return plt(anything)
 
