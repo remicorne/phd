@@ -134,6 +134,9 @@ def saveFigure(fig, identifier, fig_type):
 def saveCorrelogram(fig, identifier):
     saveFigure(fig, identifier, 'correlograms')
 
+def saveHistogram(fig, identifier):
+    saveFigure(fig, identifier, 'histograms')
+
 def applyTreatmentMapping(df, filename):
     filename = filename.split(".")[0]
     treatment_mapping_path = f"{CACHE_DIR}/{filename}/treatment_mapping.json"
@@ -352,6 +355,41 @@ def buildSingleCorrelogram(filename, experiment, correlogram_type, to_correlate,
         correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate])
     fig = plotCorrelograms(correlograms)
     return fig
+
+def getSingleHistogram(filename, experiment, compound, region, p_value_threshold, from_scratch = False):
+    identifier = f"{experiment}_for_{compound}_in_{region}"
+    from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+    if from_scratch or not isCached(filename, identifier):
+        fig = buildSingleHistogram(filename, experiment, compound, region, p_value_threshold)
+        cache(filename, identifier, fig)
+        saveHistogram(fig , identifier)
+    else : fig = getCache(filename, identifier)
+    fig.show()
+
+def buildSingleHistogram(filename, experiment, compound, region, p_value_threshold):
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
+    subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df.compound==compound) & (compound_and_ratios_df.region==region)]
+    subselection_df = subselection_df[['value', 'mouse_id', 'treatment']]
+    treatment_mapping = getTreatmentMapping(filename)
+    palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    fig, ax = plt.subplots(figsize=(20, 10))
+    ax = sns.barplot(x="treatment", y='value', data=subselection_df, palette=palette,
+                        ci=68, order=order, capsize=.1,
+                        alpha=0.8, errcolor=".2", edgecolor=".2")
+    ax = sns.swarmplot(x="treatment", y="value", palette=palette, order=order,
+                                   data=subselection_df,  edgecolor='k', linewidth=1, linestyle='-')
+    ax.tick_params(labelsize=24)
+    ax.set_ylabel("ng/mg of tissue", fontsize=24)
+    if '/' in compound:
+        ax.set_ylabel(" ", fontsize=24)
+    ax.set_xlabel(" ", fontsize=20)  # treatments
+    ax.set_title(compound + ' in ' + region,
+                    y=1.04, fontsize=34)  # '+/- 68%CI'
+    sns.despine(left=False)
+
+    
+    return fig 
 
 
 def plotCorrelograms(correlograms):
