@@ -84,17 +84,15 @@ def getJSON(path):
         loaded_json = json.load(outfile)
     return loaded_json
 
+def checkFileSystem(filepath):
+    if not os.path.exists(filepath):
+        os.mkdir(filepath)
+        
 #This checks that the filesystem has all the requisite folders (input, cache, etc..) and creates them if not
-def checkFilesystem(file_path=None):
-    if not os.path.exists(INPUT_DIR):
-        os.mkdir(INPUT_DIR)
-        print('CREATED INPUT DIRECTORY, ADD .csv FILE TO START')
-    if not os.path.exists(CACHE_DIR):
-        os.mkdir(CACHE_DIR)
-    if not os.path.exists(OUTPUT_DIR):
-        os.mkdir(OUTPUT_DIR)
-    if file_path and not os.path.exists(file_path):
-        os.mkdir(file_path)
+def initiateFileSystem():
+    checkFileSystem(INPUT_DIR)
+    checkFileSystem(CACHE_DIR)
+    checkFileSystem(OUTPUT_DIR)
 
 #This function deletes all cached files, it is used when you want to start from square one because all intermediary results will be cached
 def resetCache():
@@ -309,11 +307,11 @@ def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
     return correlogram_df, p_value_mask.astype(bool) # Convert 1s and 0s to boolean for the plotting func
 
 
-def getAndPlotMultipleCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5, columns=None, from_scratch=None): #TODO: Handle columns and more generality
+def getAndPlotMultipleCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5, from_scratch=None): #TODO: Handle columns and more generality
     experiment = selector.pop('experiment', None)
     for correlogram_type, to_correlate_list in selector.items(): #Iterate through the selector dict
         for to_correlate in to_correlate_list:
-            getAndPlotSingleCorrelogram(filename, experiment, correlogram_type, to_correlate, p_value_threshold, n_minimum, columns, from_scratch)
+            getAndPlotSingleCorrelogram(filename, experiment, correlogram_type, to_correlate, p_value_threshold, n_minimum, from_scratch)
 
 def askMultipleChoice(question, choices):
     return choices[int(input(question + '\n' + '\n'.join([f'{i}: {choice}' for i, choice in choices.items()]) + '\n'))]
@@ -396,7 +394,7 @@ def grubbsTest(group_list): #include the vairable type in name i.e. group_list s
 
 ######## INIT ##########
 #Start by checking filesystem has all the folders necessary for read/write operations (cache) or create them otherwise
-checkFilesystem()
+initiateFileSystem()
 
 
 
