@@ -58,7 +58,7 @@ CORRELOGRAM_COLUMN_ORDER = { 'compound': COLUMN_ORDER['region'], 'region': COLUM
 #Check filesystem is set up for write operations
 def saveMetadata(filename, treatment_mapping, experimental_info):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
-    checkFilesystem(subcache_dir)
+    checkFileSystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
     print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
     saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
@@ -104,7 +104,7 @@ def resetCache():
 def cache(filename, identifier, to_cache):
     filename = filename.split(".")[0]
     cache_subdir = f'{CACHE_DIR}/{filename}'
-    checkFilesystem(cache_subdir)
+    checkFileSystem(cache_subdir)
     with open(f'{cache_subdir}/{identifier}.pkl','wb') as file:
         pickle.dump(to_cache, file)
     print(f'CREATED {cache_subdir}/{identifier}.pkl CACHE')
@@ -123,7 +123,7 @@ def isCached(filename, identifier):
 
 def saveFigure(fig, identifier, fig_type):
     output_subdir = f"{OUTPUT_DIR}/{fig_type}"
-    checkFilesystem(output_subdir)
+    checkFileSystem(output_subdir)
     fig.savefig(f"{output_subdir}/{identifier}.svg")
     print(f'SAVED {output_subdir}/{identifier}.svg') 
     fig.savefig(f"{output_subdir}/{identifier}.png")
