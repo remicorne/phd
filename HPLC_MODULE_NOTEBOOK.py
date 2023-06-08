@@ -46,10 +46,11 @@ INPUT_DIR = f'{ROOT}/input'
 OUTPUT_DIR = f'{ROOT}/output'
 CACHE_DIR = f'{INPUT_DIR}/cache'
 
-COLUMN_ORDER = {'region':['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1', 'SR1', 'SL6', 'SR6', 'AC', 'V' , 
+COLUMN_ORDER = {'region':['OF', 'PL', 'CC', 'IC', 'M', 'SJ', 'SL1','SL6', 'SR6', 'SR1',  'AC', 'V' , 
             'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
             'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ],
                    'compound': ['DA', 'DOPAC', 'HVA', '3MT', '5HT', '5HIAA', 'GLU', 'GLN']}
+
 
 CORRELOGRAM_COLUMN_ORDER = { 'compound': COLUMN_ORDER['region'], 'region': COLUMN_ORDER['compound']}
 
@@ -302,12 +303,12 @@ def getPearsonPValue(x,y):
 #### Up to here ####
 
 
-#### Here we actually do the proper stats, which include reorganizing the df so that its readily usable
-def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
-    methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
-    pivot_df = df.pivot_table(values='value', index=df['mouse_id'], columns=pivot_column).filter(COLUMN_ORDER[pivot_column]) #Here we just picot our structure to one where each column is a region or compound and each line a mouse
-    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-    return correlogram_df, p_value_mask.astype(bool) # Convert 1s and 0s to boolean for the plotting func
+# #### Here we actually do the proper stats, which include reorganizing the df so that its readily usable
+# def getPeasonCorrStats(df, pivot_column, p_value_threshold, n_minimum):
+#     methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
+#     pivot_df = df.pivot_table(values='value', index=df['mouse_id'], columns=pivot_column).filter(COLUMN_ORDER[pivot_column]) #Here we just picot our structure to one where each column is a region or compound and each line a mouse
+#     correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
+#     return correlogram_df, p_value_mask.astype(bool) # Convert 1s and 0s to boolean for the plotting func
 
 
 def getAndPlotMultipleCorrelograms(filename, selector, p_value_threshold=0.05, n_minimum=5, from_scratch=None): #TODO: Handle columns and more generality
@@ -343,13 +344,20 @@ def buildSingleCorrelogram(filename, experiment, correlogram_type, to_correlate,
     compound_and_ratios_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
     value_type = {'compound': 'region', 'region': 'compound'}[correlogram_type]
     subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df[value_type].isin(columns))].query('|'.join([f"{correlogram_type}=='{value}'" for value in to_correlate]))
+    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
     pivot_columns = {'region':['region', 'compound'], 'compound': ['compound', 'region']}[correlogram_type]
     pivot_column_value = to_correlate if len(to_correlate) == 2 else to_correlate + to_correlate #Because table is îvoted on region and compound even in the case of simple correlogram I have to duplicate the selector in that case to avoid ugly labelling
     correlograms = []
-    for treatment, group_df in subselection_df.groupby(by=['treatment']): 
+    treatment_mapping = getTreatmentMapping(filename)
+    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    subselection_df_ordered = subselection_df.iloc[subselection_df['treatment'].astype(pd.CategoricalDtype(categories=order)).argsort()] #order df in order to plot, then sort=False in .groupby
+    for treatment, group_df in subselection_df_ordered.groupby(by=['treatment'], sort=False): 
         pivot_df = group_df.pivot_table(values='value', index=group_df['mouse_id'], columns=pivot_columns) #Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
         methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)] #This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
-        correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).loc[tuple(pivot_column_value)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
+        columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type] #order columns in desired plotting order
+        pivot_columns_ordered = sorted(pivot_df.columns, key=lambda x: columns.index(x[1]) if x[1] in columns else float('inf'))
+        pivot_df_ordered = pivot_df[pivot_columns_ordered] 
+        correlogram_df, p_value_mask = [pivot_df_ordered.corr(method=method, min_periods=n_minimum).loc[tuple(pivot_column_value)].dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
         correlograms.append([correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate])
     fig = plotCorrelograms(correlograms)
     return fig
@@ -384,30 +392,37 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     ax.set_xlabel(" ", fontsize=20)  # treatments
     ax.set_title(compound + ' in ' + region,
                     y=1.04, fontsize=34)  # '+/- 68%CI'
-    sns.despine(left=False)
-
-    
+    sns.despine(left=False) 
     return fig 
 
 
 def plotCorrelograms(correlograms):
-    fig, axs = plt.subplots(2, 2, figsize=(10,5))
+    fig, axs = plt.subplots(2, 2, figsize=(20,20))
     axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
+    fig.tight_layout() 
     return fig
     
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
-    heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 8}, ax=ax)
+    if np.array_equal(correlogram_df, correlogram_df.T): #remove duplicate data
+        mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
+        p_value_mask[mask] = True
+
+    heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
-    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 10}, pad=20)
+    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 20}, pad=20)
     if len(subvalues) == 1: 
         ax.set_ylabel('')
         ax.set_xlabel('')
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
-
+    fig = plt.gcf()
+    fig.tight_layout()
+    
+    
+    
 def plotAnything(anything):
     return plt(anything)
 
@@ -427,6 +442,8 @@ def doRawDfGrubbs(raw_df):
     
 
 def grubbsTest(group_list): #include the vairable type in name i.e. group_list series
+    #from outliers import smirnov_grubbs as grubbs
+    #x_ = grubbs.test(x, alpha=p_value)
     return
 
 
