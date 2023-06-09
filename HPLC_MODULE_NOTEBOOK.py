@@ -125,9 +125,9 @@ def isCached(filename, identifier):
 def saveFigure(fig, identifier, fig_type):
     output_subdir = f"{OUTPUT_DIR}/{fig_type}"
     checkFileSystem(output_subdir)
-    fig.savefig(f"{output_subdir}/{identifier}.svg")
+    fig.savefig(f"{output_subdir}/{identifier}.svg") #dpi also?
     print(f'SAVED {output_subdir}/{identifier}.svg') 
-    fig.savefig(f"{output_subdir}/{identifier}.png")
+    fig.savefig(f"{output_subdir}/{identifier}.png", dpi=fig.dpi) #https://stackoverflow.com/questions/7906365/matplotlib-savefig-plots-different-from-show
     print(f'SAVED {output_subdir}/{identifier}.png') 
 
 def saveCorrelogram(fig, identifier):
@@ -247,11 +247,11 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
 def buildAggregateStatsDf(filename, df_type):
     working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
     result_ls = []
-    for treat_region_comp, groupby_df in working_df.groupby(by =['treatment', 'region', 'compound']):
+    for treat_region_comp, groupby_df in working_df.groupby(by =['treatment', 'region', 'compound', 'experiment']):
         F, p, is_valid = [*scipy.stats.shapiro(groupby_df['value']), True] if len(groupby_df) >= 3 else [np.NaN, np.NaN, False]
         mean, std, sem, values = [groupby_df.value.mean(), groupby_df.value.std(), groupby_df.value.sem(), list(groupby_df.value)]  
         result_ls.append([*treat_region_comp, F, p, is_valid, mean, std, sem, values]) #start unpacks the list of strings
-    return pd.DataFrame(result_ls, columns= ['treatment', 'region', 'compound', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
+    return pd.DataFrame(result_ls, columns= ['treatment', 'region', 'compound', 'experiment', 'shapiro_F', 'shapiro_p', 'is_valid', 'mean', 'std', 'sem', 'values'])
 
 #returns df columns = ['treatment', 'region', 'compound', 'F_value', 'p_value']
 def testBuildAggregateStatsDf(filename, df_type):
@@ -397,7 +397,7 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
 
 
 def plotCorrelograms(correlograms):
-    fig, axs = plt.subplots(2, 2, figsize=(20,20))
+    fig, axs = plt.subplots(2, 2, figsize=(22,22))
     axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
@@ -410,7 +410,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         p_value_mask[mask] = True
 
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
+    ax.set_xticklabels(ax.get_xticklabels()) #rotation=45, horizontalalignment='right',
     heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 20}, pad=20)
     if len(subvalues) == 1: 
         ax.set_ylabel('')
@@ -418,8 +418,9 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
-    fig = plt.gcf()
-    fig.tight_layout()
+    plt.tight_layout()
+    # fig = plt.gcf()
+    # fig.tight_layout()
     
     
     
