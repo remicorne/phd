@@ -25,6 +25,7 @@ from scipy.stats import pearsonr
 import scipy.stats as stats
 from scipy.stats import ttest_ind
 
+
 import seaborn as sns
 
 from sklearn.preprocessing import StandardScaler # mean = 0 vairance =1
@@ -295,21 +296,32 @@ def getPearson(x,y):
         return scipy.stats.pearsonr(x,y)
         
 def getPearsonR(x,y):
-        return getPearson(x,y)[0]
+        return getPearson(x,y).statistic
 
 def getPearsonPValue(x,y):
-        return getPearson(x,y)[1]
-        
-def getOneWayAnova(data, experimental_info):
-    print('test')
+        return getPearson(x,y).pvalue
+
+def getTukey(data, p_value_threshold):
+    columns, stats_data = pairwise_tukeyhsd(endog=data['value'],groups=data['treatment'], alpha=p_value_threshold)._results_table.data
+    return pd.DataFrame(stats_data, columns=columns)
+
+   
+def getOneWayAnova(data):
+    groups_to_compare = []
+    for treatment, group_df in data.groupby('treatment'):
+        groups_to_compare.append(list(group_df['value']))
+    F_value, p_value = scipy.stats.f_oneway(*groups_to_compare)
+    # print(f'oneWAY_ANOVA F_value: {F_value}, p_value: {p_value}')
+    return F_value, p_value
 
 def getTwoWayAnova(data, experimental_info):
     data[experimental_info['independant_vars']] = data.apply(lambda x: [var in x['treatment'] for var in experimental_info['independant_vars']], axis=1, result_type='expand')
-    print(pg.anova(data=data, dv='value', between=experimental_info['independant_vars'], detailed=True).round(3))        
+    # print(pg.anova(data=data, dv='value', between=experimental_info['independant_vars'], detailed=True).round(3))        
+    return pg.anova(data=data, dv='value', between=experimental_info['independant_vars'], detailed=True).round(3)
 
-
-STAT_METHODS = {'pearson': [], 'twoWAY_ANOVA': getTwoWayAnova, 'oneWAY_ANOVA': getOneWayAnova}
-
+QUANTITATIVE_STAT_METHODS = {'twoway_anova': getTwoWayAnova, 'oneway_anova': getOneWayAnova, 'tukey' : getTukey}
+QUALITATIVE_STAT_METHODS = {'pearson': getPearson}
+STAT_METHODS = QUANTITATIVE_STAT_METHODS + QUALITATIVE_STAT_METHODS
 #### Up to here ####
 
 
@@ -390,7 +402,7 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     experimental_info = getExperimentalInfo(filename)[experiment]
     palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
     order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
-    statistics = {stat_name: STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name in experimental_info['histogram_display']}
+    STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(x="treatment", y='value', data=subselection_df, palette=palette,
                         ci=68, order=order, capsize=.1,
@@ -406,6 +418,23 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
                     y=1.04, fontsize=34)  # '+/- 68%CI'
     sns.despine(left=False) 
     return fig 
+
+def put_significnce_stars(stat_data, ax, treatment_dict, test_path, data=None,x=None, y=None, order=None, sheet='5HT_DL'):  # , p_values):
+
+        if len(df_significant.index) > 0:
+            print(df_significant)
+            p_values = df_significant['p-adj'].values
+            pairs = [(treatment_dict[i[1]["group1"]], treatment_dict[i[1]["group2"]])
+                     for i in df_significant.iterrows()]
+
+            annotator = Annotator(ax, pairs, data=data,
+                                  x=x, y=y, order=order)
+            # https://stackoverflow.com/questions/64081570/matplotlib-marker-annotation-fontsize-not-shrinking-below-1pt-in-pdf
+            annotator.configure(text_format="star",
+                                loc="inside", fontsize='xx-large')
+            annotator.set_pvalues_and_annotate(p_values)
+
+        return ax
 
 
 def plotCorrelograms(correlograms):
