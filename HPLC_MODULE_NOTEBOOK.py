@@ -278,7 +278,6 @@ def editOutlier(subselect={'compound': 'DA', 'experiment': 'dose_response', 'reg
 
 ############### CALCULATE/STATISTICS ############
 
-STAT_METHODS = {'pearson': []}
 
 
 ### The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
@@ -300,6 +299,17 @@ def getPearsonR(x,y):
 
 def getPearsonPValue(x,y):
         return getPearson(x,y)[1]
+        
+def getOneWayAnova(data, experimental_info):
+    print('test')
+
+def getTwoWayAnova(data, experimental_info):
+    data[experimental_info['independant_vars']] = data.apply(lambda x: [var in x['treatment'] for var in experimental_info['independant_vars']], axis=1, result_type='expand')
+    print(pg.anova(data=data, dv='value', between=experimental_info['independant_vars'], detailed=True).round(3))        
+
+
+STAT_METHODS = {'pearson': [], 'twoWAY_ANOVA': getTwoWayAnova, 'oneWAY_ANOVA': getOneWayAnova}
+
 #### Up to here ####
 
 
@@ -377,8 +387,10 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df.compound==compound) & (compound_and_ratios_df.region==region)]
     subselection_df = subselection_df[['value', 'mouse_id', 'treatment']]
     treatment_mapping = getTreatmentMapping(filename)
+    experimental_info = getExperimentalInfo(filename)[experiment]
     palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
+    statistics = {stat_name: STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name in experimental_info['histogram_display']}
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(x="treatment", y='value', data=subselection_df, palette=palette,
                         ci=68, order=order, capsize=.1,
