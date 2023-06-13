@@ -507,7 +507,6 @@ def buildRawHTDf(filename):
 def buildHTHistogram(filename, HT_filename, experiment='agonist_antagonist', p_value_threshold=0.05, to_plot=['HT_20']):
     HT_df = getRawHTDf(HT_filename)
     applyTreatmentMapping(HT_df, filename)
-
     treatment_mapping = getTreatmentMapping(filename)
     treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
     treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
@@ -521,9 +520,13 @@ def buildHTHistogram(filename, HT_filename, experiment='agonist_antagonist', p_v
         sns.barplot(data = experimental_df, x = 'treatment', y='value', 
                     ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
                     errcolor=".2", edgecolor=".2")
+        sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  order=treatments, 
+                      palette=treatment_palette, edgecolor='k', linewidth=1, linestyle='-', marker = 'x')
     else:
         sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
                     ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
+        sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  hue = 'variable' , order=treatments, 
+                      edgecolor='k', linewidth=1, linestyle='-', dodge=True, marker = 'x')
 
     ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
     ax.set_ylabel("twitches / min",fontsize=24)
