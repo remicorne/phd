@@ -460,9 +460,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
-    plt.tight_layout()
-    # fig = plt.gcf()
-    # fig.tight_layout()
+ 
     
     
     
