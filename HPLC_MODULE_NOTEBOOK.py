@@ -321,7 +321,7 @@ def getTwoWayAnova(data, experimental_info):
 
 QUANTITATIVE_STAT_METHODS = {'twoway_anova': getTwoWayAnova, 'oneway_anova': getOneWayAnova, 'tukey' : getTukey}
 QUALITATIVE_STAT_METHODS = {'pearson': getPearson}
-STAT_METHODS = QUANTITATIVE_STAT_METHODS + QUALITATIVE_STAT_METHODS
+# STAT_METHODS = QUANTITATIVE_STAT_METHODS + QUALITATIVE_STAT_METHODS
 #### Up to here ####
 
 
@@ -402,7 +402,8 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     experimental_info = getExperimentalInfo(filename)[experiment]
     palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
     order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
-    STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
+    #REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
+    # STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(x="treatment", y='value', data=subselection_df, palette=palette,
                         ci=68, order=order, capsize=.1,
