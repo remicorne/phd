@@ -206,7 +206,7 @@ def buildRawDf(filename):
         raise Exception(f'METHOD TO DEAL WITH FILE TYPE "{file_type}" ABSENT')
     if not os.path.isfile(f'{INPUT_DIR}/{filename}'):
         raise Exception(f'FILE {filename} IS ABSENT IN "input/" DIRECTORY')
-    return pd.read_csv(f'{INPUT_DIR}/{filename}', header=0).replace(np.nan, 0).rename(columns={'mouse_no':'mouse_id', 'group_no':'group_id'}) # to set all 0 to Nan
+    return pd.read_csv(f'{INPUT_DIR}/{filename}', header=0).replace(np.nan, 0) # to set all 0 to Nan
 
 #contains the logic to build the df in the new format based on raw df
 def buildCompoundDf(filename):
