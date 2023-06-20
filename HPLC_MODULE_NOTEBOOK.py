@@ -9,7 +9,7 @@ import os, shutil, itertools, json, time, functools, pickle #GENERIC UTILS
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.pyplot import cm
-
+import matplotlib.patches as mpatches
 import numpy as np
 
 from outliers import smirnov_grubbs as grubbs
@@ -58,13 +58,15 @@ CORRELOGRAM_COLUMN_ORDER = { 'compound': COLUMN_ORDER['region'], 'region': COLUM
 
 ########## UTILITARIES ############
 #Check filesystem is set up for write operations
-def saveMetadata(filename, treatment_mapping, experimental_info):
+def saveMetadata(filename, treatment_mapping, experimental_info, region_subclassification):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
     print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
     saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
     print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
+    saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
+    print(f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE")
 
 #This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables 
 def saveJSON(path, dict_to_save):
@@ -79,6 +81,9 @@ def getTreatmentMapping(filename):
 
 def getExperimentalInfo(filename):
     return getMetadata(filename, 'experimental_info')
+
+def getRegionSubclassification(filename):
+    return getMetadata(filename, 'region_subclassification')
     
 #This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):
@@ -139,6 +144,9 @@ def saveHistogram(fig, identifier):
 
 def saveHTHistogram(fig, identifier):
     saveFigure(fig, identifier, 'HT_histograms')
+
+def saveQuantitativeSummaryFig(fig, identifier):
+    saveFigure(fig, identifier, 'QuantitativeSummaryFigs')
 
 def applyTreatmentMapping(df, filename):
     filename = filename.split(".")[0]
@@ -221,6 +229,7 @@ def buildCompoundDf(filename):
 
 #Contains the logic to build the ratios df based on the df with the new format
 def buildCompoundAndRatiosDf(filename):
+    #FIX ME: add compound_ratio_mapping to ONLY GET RELEVANT RATIOS
     compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
     ratios_df = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
     ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
@@ -249,7 +258,9 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
     
 #returns df columns = ['treatment', 'region', 'compound', 'F_value', 'p_value']
 def buildAggregateStatsDf(filename, df_type):
-    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
+    #CHANGED
+    working_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
+    # working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename) #FIX ME: now there is no selctor to have ratios only or compounds only
     result_ls = []
     for treat_region_comp, groupby_df in working_df.groupby(by =['treatment', 'region', 'compound', 'experiment']):
         F, p, is_valid = [*scipy.stats.shapiro(groupby_df['value']), True] if len(groupby_df) >= 3 else [np.NaN, np.NaN, False]
@@ -442,7 +453,7 @@ def put_significnce_stars(stat_data, ax, treatment_dict, test_path, data=None,x=
 
 
 def plotCorrelograms(correlograms):
-    fig, axs = plt.subplots(2, 2, figsize=(22,22))
+    fig, axs = plt.subplots(2, 2, figsize=(22,22))   
     axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
@@ -465,7 +476,125 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         ax.set_xlabel(subvalues[1])
  
     
-    
+def getQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER, from_scratch=None):
+    identifier = f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
+    from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+    if from_scratch or not isCached(filename, identifier):
+        fig = buildQuantitativeSummaryFig(filename, experiment=experiment, value_type=value_type, value=value, regions_to_plot=regions_to_plot)
+        cache(filename, identifier, fig)
+        saveQuantitativeSummaryFig(fig, identifier)
+    else : fig = getCache(filename, identifier)
+    fig.show() 
+
+def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER):
+
+    #get aggstats df
+    values_df = getAggregateStatsDf(filename, df_type=value_type)
+
+    #slice df to experiment and vale 
+    treatment_mapping = getTreatmentMapping(filename)
+    experimental_df = values_df[(values_df['region'].isin(regions_to_plot)) & (values_df['experiment']== experiment) & (values_df['compound']== value) ] #select only relevent treatments AND REGIONS
+
+    #create a new column % of control mean/control_mean * 100
+    experimental_df.loc[:, 'percentage_of_vehicles'] = experimental_df.groupby('region')['mean'].transform(lambda x: (x / x.loc[experimental_df['treatment'] == 'vehicles'].values[0]) * 100)
+
+    #order and reshape df to plot 
+    experimental_df = experimental_df.iloc[experimental_df['region'].astype('category').cat.reorder_categories(regions_to_plot).argsort()]
+    plot_experimental_df = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
+
+    #load pallette and open fig
+    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    fig, ax = plt.subplots(figsize=(12, 9))
+    # sns.set_style("whitegrid")
+    sns.set_style("white")
+    sns.set_context("notebook")
+
+    #plot lines
+    sns.lineplot(data=plot_experimental_df, x='region', y='value', hue='treatment', palette=treatment_palette)
+
+    #add markers for each region 
+    marker_mapping = {value['treatment']: value['markers'] for value in treatment_mapping.values() if
+                    experiment in value['experiments']}
+
+    # Define the minimum and maximum marker sizes
+    min_marker_size = 20
+    max_marker_size = 100
+
+    # Calculate the marker sizes based on the difference from 100
+    plot_experimental_df['marker_size'] = abs(plot_experimental_df['value'] - 100)
+
+    # Normalize marker sizes between the minimum and maximum sizes
+    plot_experimental_df['marker_size'] = (
+        (plot_experimental_df['marker_size'] - plot_experimental_df['marker_size'].min())
+        / (plot_experimental_df['marker_size'].max() - plot_experimental_df['marker_size'].min())
+    ) * (max_marker_size - min_marker_size) + min_marker_size
+
+    # Plot with adjusted marker sizes
+    sns.scatterplot(
+        data=plot_experimental_df,
+        x='region',
+        y='value',
+        hue='treatment',
+        palette=treatment_palette,
+        style='treatment',
+        markers=marker_mapping,
+        legend=False,
+        size='marker_size',  
+        sizes=(min_marker_size, max_marker_size),  # Set the range of marker sizes
+        alpha=0.7  # Adjust the marker transparency if desired
+    )
+
+    # Add axvspan to each grouping
+    region_subclassification = getRegionSubclassification(filename)
+    region_subclassification = {group.replace("_", " "): properties for group, properties in region_subclassification.items()}
+    for group, properties in region_subclassification.items():
+        regions = properties['regions']
+        color = properties['color']
+        label = group.replace("_", " ")
+        if regions:
+            start_idx = regions_to_plot.index(regions[0]) - 0.5
+            end_idx = regions_to_plot.index(regions[-1]) + 0.5
+            ax.axvspan(start_idx, end_idx, facecolor=color, alpha=0.1, label=label)
+                    
+            # Add axvspan label
+            label_x = (start_idx + end_idx) / 2
+            label_y = ax.get_ylim()[1] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])  # Adjust the label_y coordinate
+            ax.annotate(group, xy=(label_x, label_y), xycoords='data',
+                        xytext=(0, -12), textcoords='offset points',  # Adjust the xytext offset
+                        ha='center', va='top', color=color)
+            
+    # Set x-ticks and labels
+    if value_type == 'ratio':   
+        y_label = 'ratio'
+    elif value_type == 'compound':
+        y_label = 'ng/mg'
+    # Set x-tick positions and labels
+    x_ticks = range(len(regions_to_plot))
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(regions_to_plot, rotation=45)
+
+    # ax.set_xticklabels(regions_to_plot, rotation=45)
+    # ax.tick_params(axis='x', rotation=45)  
+    ax.set_xlabel('Region')
+    ax.set_ylabel(f'{y_label} {value}')
+    ax.set_title(f'{experiment.replace("_", " ").capitalize()} for {value}', fontsize=20, pad=20)
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Create custom legend handles for 'treatment' with black outline in the specified order
+    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    legend_handles = [
+        mpatches.Patch(facecolor=treatment_palette[treatment], edgecolor='black', label=treatment)
+        for treatment in order]
+
+    # Add a legend with black outline
+    plt.legend(handles=legend_handles, loc='upper left', frameon=False)
+
+    # Adjust the spacing
+    plt.tight_layout()
+    return fig
     
 def plotAnything(anything):
     return plt(anything)
@@ -517,18 +646,21 @@ def buildHTHistogram(filename, HT_filename, experiment='agonist_antagonist', p_v
 
     fig, ax = plt.subplots(figsize=(20, 10))
     if len(to_plot)==1:
+        time = to_plot[0].split('_')[1]
         sns.barplot(data = experimental_df, x = 'treatment', y='value', 
                     ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
                     errcolor=".2", edgecolor=".2")
         sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  order=treatments, 
                       palette=treatment_palette, edgecolor='k', linewidth=1, linestyle='-', marker = 'x')
+        ax.set_title(f'Head Twitch at {time} minutes', y=1.04, fontsize=34)
     else:
         sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
                     ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
         sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  hue = 'variable' , order=treatments, 
                       edgecolor='k', linewidth=1, linestyle='-', dodge=True, marker = 'x')
+        ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
 
-    ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
+    
     ax.set_ylabel("twitches / min",fontsize=24)
     ax.set_xlabel(" ",fontsize=24)
     ax.tick_params(labelsize=24)
