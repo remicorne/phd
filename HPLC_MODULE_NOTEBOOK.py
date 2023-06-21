@@ -468,10 +468,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
 
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
     ax.set_xticklabels(ax.get_xticklabels()) #rotation=45, horizontalalignment='right',
-    # heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=1.5)
     title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually
-
-
 
     if len(subvalues) == 1: 
         ax.set_ylabel('')
