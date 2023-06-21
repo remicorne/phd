@@ -487,7 +487,8 @@ def getQuantitativeSummaryFig(filename, experiment='dose_response', value_type =
     fig.show() 
 
 def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER):
-
+#FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
+#REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
     #get aggstats df
     values_df = getAggregateStatsDf(filename, df_type=value_type)
 
@@ -499,7 +500,7 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
     experimental_df.loc[:, 'percentage_of_vehicles'] = experimental_df.groupby('region')['mean'].transform(lambda x: (x / x.loc[experimental_df['treatment'] == 'vehicles'].values[0]) * 100)
 
     #order and reshape df to plot 
-    experimental_df = experimental_df.iloc[experimental_df['region'].astype('category').cat.reorder_categories(regions_to_plot).argsort()]
+    experimental_df = experimental_df.loc[experimental_df['region'].isin(regions_to_plot)].assign(region=lambda x: pd.Categorical(x['region'], categories=regions_to_plot, ordered=True)).sort_values('region')
     plot_experimental_df = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
 
     #load pallette and open fig
@@ -577,7 +578,7 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
     # ax.tick_params(axis='x', rotation=45)  
     ax.set_xlabel('Region')
     ax.set_ylabel(f'{y_label} {value}')
-    ax.set_title(f'{experiment.replace("_", " ").capitalize()} for {value}', fontsize=20, pad=20)
+    ax.set_title(f'{experiment.replace("_", " ").capitalize()} for {value} (% of vehicles)', fontsize=20, pad=20)
 
     # Remove top and right spines
     ax.spines['top'].set_visible(False)
