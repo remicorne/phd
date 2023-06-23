@@ -557,14 +557,26 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
         if regions:
             start_idx = regions_to_plot.index(regions[0]) - 0.5
             end_idx = regions_to_plot.index(regions[-1]) + 0.5
-            ax.axvspan(start_idx, end_idx, facecolor=color, alpha=0.1, label=label)
-                    
+            ax.axvspan(start_idx, end_idx, facecolor=color, alpha=0.2, label=label)
+            # Adjust x-axis limits
+            ax.set_xlim(-0.5, len(regions_to_plot) - 0.5)  # Set the x-axis limits
+
             # Add axvspan label
+
             label_x = (start_idx + end_idx) / 2
             label_y = ax.get_ylim()[1] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])  # Adjust the label_y coordinate
-            ax.annotate(group, xy=(label_x, label_y), xycoords='data',
-                        xytext=(0, -12), textcoords='offset points',  # Adjust the xytext offset
-                        ha='center', va='top', color=color)
+            words = label.split()
+            lines = [words[i:i+2] for i in range(0, len(words), 2)]  # Split words into pairs for multiline display
+            line_height = 18  # Adjust the height between lines
+
+            for i, line in enumerate(lines):
+                line_label = '\n'.join(line)  # Join words with a line break
+                current_label_y = label_y - i * line_height
+                ax.annotate(line_label, xy=(label_x, current_label_y), xycoords='data',
+                            xytext=(0, -12), textcoords='offset points',
+                            ha='center', va='top', color=color, fontsize=18)
+            
+
             
     # Set x-ticks and labels
     if value_type == 'ratio':   
@@ -641,7 +653,8 @@ def buildHTHistogram(filename, HT_filename, experiment='agonist_antagonist', p_v
     applyTreatmentMapping(HT_df, filename)
     treatment_mapping = getTreatmentMapping(filename)
     treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-    treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    treatments = [treatment_mapping[group]['treatment'] for group in treatment_mapping if experiment in treatment_mapping[group]['experiments']]
+    # treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
     experimental_df = HT_df[HT_df['treatment'].isin(treatments)] #select only relevent treatments
     columns = to_plot +['treatment'] # slice df for plotting
     experimental_df = experimental_df[columns]
@@ -654,13 +667,13 @@ def buildHTHistogram(filename, HT_filename, experiment='agonist_antagonist', p_v
                     ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
                     errcolor=".2", edgecolor=".2")
         sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  order=treatments, 
-                      palette=treatment_palette, edgecolor='k', linewidth=1, linestyle='-', marker = 'x')
+                      palette=treatment_palette, edgecolor='k', linewidth=1, linestyle='-')
         ax.set_title(f'Head Twitch at {time} minutes', y=1.04, fontsize=34)
     else:
         sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
                     ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
         sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  hue = 'variable' , order=treatments, 
-                      edgecolor='k', linewidth=1, linestyle='-', dodge=True, marker = 'x')
+                      edgecolor='k', linewidth=1, linestyle='-', dodge=True, marker = 'o')
         ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
 
     
