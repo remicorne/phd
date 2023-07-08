@@ -528,6 +528,7 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
 
             d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
                   'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+            
             df_anova_working = pd.DataFrame(data=d)
 
             two_way_anova = pg.anova(data=df_anova_working, dv='dv', between=[
@@ -804,87 +805,87 @@ def two_way_ANOVA_ALZ(exist_dict, df_inc_ratios, treatments_to_compare=[1, 2, 3,
     return
 
 
-def plot_hist_comparing_treatment_SEM(treatment_dict, exist_dict,  palette_labeled, df_compound_mean, df_compound_SEM,      # note: if there is a missing group in the set there will be no plot and no stats! SHIVA
-                                      treatments_to_compare=[1, 3, 5, 6], name='name me',
-                                      order=['vehicles', '3mg/kgTCB',
-                                             '0.2mg/kgMDL', 'TCB+MDL'],
-                                      test_path=os.getcwd() + '/TUKEY_ag_ant_compounds.xlsx',
-                                      ratio=False):
-    '''
+# def plot_hist_comparing_treatment_SEM(treatment_dict, exist_dict,  palette_labeled, df_compound_mean, df_compound_SEM,      # note: if there is a missing group in the set there will be no plot and no stats! SHIVA
+#                                       treatments_to_compare=[1, 3, 5, 6], name='name me',
+#                                       order=['vehicles', '3mg/kgTCB',
+#                                              '0.2mg/kgMDL', 'TCB+MDL'],
+#                                       test_path=os.getcwd() + '/TUKEY_ag_ant_compounds.xlsx',
+#                                       ratio=False):
+#     '''
 
 
-order of teatments to compare is the order of plotting 
+# order of teatments to compare is the order of plotting 
 
-    '''
+#     '''
 
-    # colors = ['white', 'red', 'grey', 'black']
-    # sns.set_palette(sns.color_palette(colors))
-    # palette_labeled ={'vehicles': "white", '10mg/kgTCB': "firebrick", '3mg/kgTCB': "red", '0.3mg/kgTCB': "salmon",'TCB+MDL': "grey",'0.2mg/kgMDL': "black"}
+#     # colors = ['white', 'red', 'grey', 'black']
+#     # sns.set_palette(sns.color_palette(colors))
+#     # palette_labeled ={'vehicles': "white", '10mg/kgTCB': "firebrick", '3mg/kgTCB': "red", '0.3mg/kgTCB': "salmon",'TCB+MDL': "grey",'0.2mg/kgMDL': "black"}
 
-    pdf = PdfPages(name+'_histograms_.pdf')
+#     pdf = PdfPages(name+'_histograms_.pdf')
 
-    for BR, BR_dict in exist_dict.items():
+#     for BR, BR_dict in exist_dict.items():
 
-        for comp, comp_dict in BR_dict.items():
-            print(comp + '_' + BR)
+#         for comp, comp_dict in BR_dict.items():
+#             print(comp + '_' + BR)
 
-            if len(exist_dict[BR][comp]['missing_groups'].intersection(set(treatments_to_compare))) > 0:
-                print('missing treatment group ',
-                      exist_dict[BR][comp]['missing_groups'])
-                continue
+#             if len(exist_dict[BR][comp]['missing_groups'].intersection(set(treatments_to_compare))) > 0:
+#                 print('missing treatment group ',
+#                       exist_dict[BR][comp]['missing_groups'])
+#                 continue
 
-            mean_treatment = []  # CTE's
+#             mean_treatment = []  # CTE's
 
-            SEM_treatment = []  # error
-            labels = []
-            color = []
+#             SEM_treatment = []  # error
+#             labels = []
+#             color = []
 
-            for treatment in treatments_to_compare:
+#             for treatment in treatments_to_compare:
 
-                mean_treatment.append(np.mean(
-                    df_compound_mean[df_compound_mean['group', 'no'] == treatment][comp, BR]))
-                SEM_treatment.append(
-                    np.mean(df_compound_SEM[df_compound_SEM['group', 'no'] == treatment][comp, BR]))
-                labels.append(treatment_dict[treatment])
-                color.append(palette_labeled[treatment_dict[treatment]])
+#                 mean_treatment.append(np.mean(
+#                     df_compound_mean[df_compound_mean['group', 'no'] == treatment][comp, BR]))
+#                 SEM_treatment.append(
+#                     np.mean(df_compound_SEM[df_compound_SEM['group', 'no'] == treatment][comp, BR]))
+#                 labels.append(treatment_dict[treatment])
+#                 color.append(palette_labeled[treatment_dict[treatment]])
 
-            x_pos = np.arange(len(labels))
+#             x_pos = np.arange(len(labels))
 
-            fig, ax = plt.subplots(figsize=(20, 10))
+#             fig, ax = plt.subplots(figsize=(20, 10))
 
-            ax.bar(x_pos, np.array(mean_treatment),
-                   yerr=SEM_treatment, color=color, edgecolor='black',
-                   align='center',
-                   alpha=0.5,
-                   ecolor='black',
-                   capsize=10)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.set_ylabel("ng/mg of tissue", fontsize=24)
-            ax.tick_params(axis='y', which='major', labelsize=20)
-            ax.set_xticks(x_pos)
-            ax.set_xticklabels(labels, fontsize=20)
-            ax.set_title(comp.replace('_', '/') +
-                         ' in ' + BR, y=1.04, fontsize=34)
-            # ax.yaxis.grid(True)
-            if ratio == True:
-                ax.set_ylabel(" ", fontsize=24)
+#             ax.bar(x_pos, np.array(mean_treatment),
+#                    yerr=SEM_treatment, color=color, edgecolor='black',
+#                    align='center',
+#                    alpha=0.5,
+#                    ecolor='black',
+#                    capsize=10)
+#             ax.spines['top'].set_visible(False)
+#             ax.spines['right'].set_visible(False)
+#             ax.set_ylabel("ng/mg of tissue", fontsize=24)
+#             ax.tick_params(axis='y', which='major', labelsize=20)
+#             ax.set_xticks(x_pos)
+#             ax.set_xticklabels(labels, fontsize=20)
+#             ax.set_title(comp.replace('_', '/') +
+#                          ' in ' + BR, y=1.04, fontsize=34)
+#             # ax.yaxis.grid(True)
+#             if ratio == True:
+#                 ax.set_ylabel(" ", fontsize=24)
 
-            # ax = put_significnce_stars(ax, treatment_dict, test_path, data = df_working_labeled,
-            #                            x = "group", y = 'dv',
-            #                            order = order, sheet = comp + '_' + BR)#, p_values)
+#             # ax = put_significnce_stars(ax, treatment_dict, test_path, data = df_working_labeled,
+#             #                            x = "group", y = 'dv',
+#             #                            order = order, sheet = comp + '_' + BR)#, p_values)
 
-            # ax.tick_params(labelsize=24)
+#             # ax.tick_params(labelsize=24)
 
-            ax.set_xlabel(" ", fontsize=20)  # treatments
-            ax.set_title(comp.replace('_', '/') + ' in ' + BR,
-                         y=1.04, fontsize=34)  # '+/- 68%CI'
-            pdf.savefig(fig)
-            plt.close(fig)
+#             ax.set_xlabel(" ", fontsize=20)  # treatments
+#             ax.set_title(comp.replace('_', '/') + ' in ' + BR,
+#                          y=1.04, fontsize=34)  # '+/- 68%CI'
+#             pdf.savefig(fig)
+#             plt.close(fig)
 
-    pdf.close()
-    plt.close('all')
-    return
+#     pdf.close()
+#     plt.close('all')
+#     return
 
 
 def plot_hist_comparing_treatment_CI(treatment_dict, exist_dict, df_inc_ratios, palette_labeled,
@@ -1280,6 +1281,7 @@ def pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_rati
                 exist_dict[x][comp]['group_specific_ind'][treatment]) > n_minimum]
             # print('BRs used for correlation = ', cols)
 
+
             if column_order == False:
                 print('no column order')
 
@@ -1314,7 +1316,7 @@ def pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_rati
 
             corr_matrix_BR = df_corr_working.corr(method=method, min_periods=1)
 
-            fig, ax = plt.subplots(figsize=(16, 10))
+            # fig, ax = plt.subplots(figsize=(16, 10))
 
             # calculate p_values and set maske to P>0.05
             p_value_matrix = calculate_pvalues(df_corr_working)
@@ -1322,7 +1324,9 @@ def pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_rati
             p_value_matrix = p_value_matrix.dropna(axis=1, how='all')
             # removing rows that have all 'NaN' vslues
             p_value_matrix = p_value_matrix.dropna(axis=0, how='all')
-
+            
+            
+            fig, ax = plt.subplots(figsize=(16, 10))
             mask = np.invert(np.tril(p_value_matrix < p_value))
 
             heatmap = sns.heatmap(corr_matrix_BR, vmin=-1, vmax=1,
@@ -1353,7 +1357,7 @@ def pearson_correlations_between_two_BR(treatment_dict, list_of_groups, exist_di
                     create correlogram with all significant R vaklues displayed for each compound/ratio 
             --> saved to pdf '''
 
-    pdf = PdfPages(name + '_custom_correlograms.pdf')
+    pdf = PdfPages( 'output/'+name+'_custom_correlograms.pdf')
 
     for treatment in list_of_groups:  # create df for correlations of smetric data : each collumn is a factor to correlate maintining indicies
 

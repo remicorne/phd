@@ -61,7 +61,8 @@ df = df.replace(np.nan, 0) # to set all 0 to Nan
 
 
 # %% CREATE WORKING DF
-print(ind, row)
+# print(ind, row)
+# 
 index_brain_region = list(df.head(0))
 
 # first two elements are mouse and group info
@@ -112,6 +113,14 @@ df_inc_ratios_raw, list_of_ratios, ratio_match_ind_dict = create_ratios_for_each
                                                                                     len(df.index),
                                                                                     list_of_groups)
 
+#outlier shit 
+
+# df_inc_ratios_raw, list_of_ratios, ratio_match_ind_dict = create_ratios_for_each_BR(df_inc_ratios,
+#                                                                                     list_of_brain_regions,
+#                                                                                     compound_ratio_dict,
+#                                                                                     exist_dict,
+#                                                                                     len(df.index),
+#                                                                                     list_of_groups)
 
 
 '''
@@ -139,6 +148,9 @@ palette_labeled = {'vehicles': "white",  # TCB2
 #                     'SNORD_115116_KO': 'red'}
 
 df_inc_ratios = df_inc_ratios_raw.copy()
+
+exist_dict = get_summary_of_exsisting_data(
+    df_inc_ratios, list_of_brain_regions, list_of_groups, list_of_mice)
 # %% TEST FOR OUTLIERS, Grubbs test (same as graphpad outliers)
 
 df_inc_ratios = df_inc_ratios_raw.copy()
@@ -170,6 +182,9 @@ exist_dict_grubbs = get_summary_of_exsisting_data(
 save_outlier_info(outlier_dict, name='compounds')
 save_outlier_info(outlier_dict_ratio, name='ratios')
 
+
+#exist_dict = get_summary_of_exsisting_data(
+    #df_inc_ratios, list_of_brain_regions, list_of_groups, list_of_mice)
 
 # %% 2. calculate and save to table average, SD and SEM
 '''
@@ -452,10 +467,10 @@ pearson_correlations_within_compound(list_of_groups, ratio_match_ind_dict, df_in
 #########
 # Correlations between TWO BR's for each treatment group SQUARE CORRELOGRAM
 
-# pearson_correlations_between_two_BR (treatment_dict, list_of_groups, exist_dict,
-#                                            df_inc_ratios, name = 'neurotransmitters_between_VL_VM', p_value = 0.05,
-#                                            compounds_to_analise = ['NA','5HT','DA', 'GLU', 'GABA', 'GLY'],
-#                                            BR_to_analise = ['VL', 'VM'])
+pearson_correlations_between_two_BR (treatment_dict, list_of_groups, exist_dict,
+                                            df_inc_ratios, name = 'neurotransmitters_between_VL_VM', p_value = 0.05,
+                                            compounds_to_analise = ['NA','5HT','DA', 'GLU', 'GABA', 'GLY'],
+                                            BR_to_analise = ['VL', 'VM'])
 
 # %% 5.  --> Principal Component Analysis
 

@@ -946,14 +946,18 @@ def plotCorrelograms(correlograms):
 
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
-    if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data
+    if np.array_equal(correlogram_df, correlogram_df.T): #if a stardard or triangle correlogram 
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
         np.fill_diagonal(p_value_mask.values, False) #this maked the diagonal correlations of 1 visible
 
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
     ax.set_xticklabels(ax.get_xticklabels()) #rotation=45, horizontalalignment='right',
-    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 20}, pad=20)
+    title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20)  # Adjust the y position of the title manually
+    if np.array_equal(correlogram_df, correlogram_df.T):
+        title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually
+
+        
     if len(subvalues) == 1: 
         ax.set_ylabel('')
         ax.set_xlabel('')
