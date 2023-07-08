@@ -27,16 +27,6 @@ def saveJSON(path, dict_to_save):
         json.dump(dict_to_save, json_file)
 
 
-def getMetadata(filename, metadata_type):
-    return getJSON(f"{CACHE_DIR}/{filename.split('.')[0]}/{metadata_type}.json")
-
-
-def getTreatmentMapping(filename):
-    return getMetadata(filename, "treatment_mapping")
-
-
-def getExperimentalInfo(filename):
-    return getMetadata(filename, 'experimental_info')
     
 #This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):

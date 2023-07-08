@@ -168,21 +168,22 @@ def plotCorrelograms(correlograms):
 
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
-    if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data
+    if np.array_equal(correlogram_df, correlogram_df.T): #remove duplicate data
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
         np.fill_diagonal(p_value_mask.values, False) #this maked the diagonal correlations of 1 visible
 
     heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
     ax.set_xticklabels(ax.get_xticklabels()) #rotation=45, horizontalalignment='right',
-    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 20}, pad=20)
+    title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually
+
     if len(subvalues) == 1: 
         ax.set_ylabel('')
         ax.set_xlabel('')
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
- 
+    
     
 
 def getSingleHistogram(
@@ -206,51 +207,31 @@ def getSingleHistogram(
 
 
 def buildSingleHistogram(filename, experiment, compound, region, p_value_threshold):
-    # this is not the full ratios df, its only intra region compound ratios for nom
-    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
-    subselection_df = compound_and_ratios_df[
-        (compound_and_ratios_df.experiment == experiment)
-        & (compound_and_ratios_df.compound == compound)
-        & (compound_and_ratios_df.region == region)
-    ]
-    subselection_df = subselection_df[["value", "mouse_id", "treatment"]]
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
+    subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df.compound==compound) & (compound_and_ratios_df.region==region)]
+    subselection_df = subselection_df[['value', 'mouse_id', 'treatment']]
     treatment_mapping = getTreatmentMapping(filename)
     experimental_info = getExperimentalInfo(filename)[experiment]
     palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-    order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
+    order = [treatment_mapping[group]['treatment'] for group in treatment_mapping if experiment in treatment_mapping[group]['experiments']]
+
     #REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
     # STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
     fig, ax = plt.subplots(figsize=(20, 10))
-    ax = sns.barplot(
-        x="treatment",
-        y="value",
-        data=subselection_df,
-        palette=palette,
-        ci=68,
-        order=order,
-        capsize=0.1,
-        alpha=0.8,
-        errcolor=".2",
-        edgecolor=".2",
-    )
-    ax = sns.swarmplot(
-        x="treatment",
-        y="value",
-        palette=palette,
-        order=order,
-        data=subselection_df,
-        edgecolor="k",
-        linewidth=1,
-        linestyle="-",
-    )
+    ax = sns.barplot(x="treatment", y='value', data=subselection_df, palette=palette,
+                        ci=68, order=order, capsize=.1,
+                        alpha=0.8, errcolor=".2", edgecolor=".2")
+    ax = sns.swarmplot(x="treatment", y="value", palette=palette, order=order,
+                                   data=subselection_df,  edgecolor='k', linewidth=1, linestyle='-')
     ax.tick_params(labelsize=24)
     ax.set_ylabel("ng/mg of tissue", fontsize=24)
-    if "/" in compound:
+    if '/' in compound:
         ax.set_ylabel(" ", fontsize=24)
     ax.set_xlabel(" ", fontsize=20)  # treatments
-    ax.set_title(compound + " in " + region, y=1.04, fontsize=34)  # '+/- 68%CI'
-    sns.despine(left=False)
-    return fig
+    ax.set_title(compound + ' in ' + region,
+                    y=1.04, fontsize=34)  # '+/- 68%CI'
+    sns.despine(left=False) 
+    return fig 
 
 
 def put_significnce_stars(
@@ -278,42 +259,6 @@ def put_significnce_stars(
         annotator.set_pvalues_and_annotate(p_values)
 
     return ax
-
-
-def buildHeadTwitchHistogram(
-    filename,
-    head_twitch_filename,
-    experiment="agonist_antagonist",
-    p_value_threshold=0.05,
-    to_plot=["HT_20"],
-):
-    head_twitch_df = getRawHeadTwitchDf(head_twitch_filename)
-    applyTreatmentMapping(head_twitch_df, filename)
-    treatment_mapping = getTreatmentMapping(filename)
-    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-    treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
-    experimental_df = head_twitch_df[head_twitch_df['treatment'].isin(treatments)] #select only relevent treatments
-    columns = to_plot +['treatment'] # slice df for plotting
-    experimental_df = experimental_df[columns]
-    experimental_df = pd.melt(
-        experimental_df, id_vars=["treatment"], value_vars=to_plot
-    )
-
-    fig, ax = plt.subplots(figsize=(20, 10))
-    if len(to_plot)==1:
-        sns.barplot(data = experimental_df, x = 'treatment', y='value', 
-                    ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
-                    errcolor=".2", edgecolor=".2")
-    else:
-        sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
-                    ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
-
-    ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
-    ax.set_ylabel("twitches / min",fontsize=24)
-    ax.set_xlabel(" ",fontsize=24)
-    ax.tick_params(labelsize=24)
-    sns.despine(left=False)
-    return fig
 
 
 def getHeadTwitchHistogram(
@@ -344,4 +289,41 @@ def getHeadTwitchHistogram(
     else:
         fig = getCache(filename, identifier)
     fig.show()
+
+
+def buildHeadTwitchHistogram(filename, HT_filename, experiment='agonist_antagonist', p_value_threshold=0.05, to_plot=['HT_20']):
+    HT_df = getRawHeadTwitchDf(HT_filename)
+    applyTreatmentMapping(HT_df, filename)
+    treatment_mapping = getTreatmentMapping(filename)
+    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    treatments = [treatment_mapping[group]['treatment'] for group in treatment_mapping if experiment in treatment_mapping[group]['experiments']]
+    # treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    experimental_df = HT_df[HT_df['treatment'].isin(treatments)] #select only relevent treatments
+    columns = to_plot +['treatment'] # slice df for plotting
+    experimental_df = experimental_df[columns]
+    experimental_df = pd.melt(experimental_df, id_vars=['treatment'], value_vars=to_plot)
+
+    fig, ax = plt.subplots(figsize=(20, 10))
+    if len(to_plot)==1:
+        time = to_plot[0].split('_')[1]
+        sns.barplot(data = experimental_df, x = 'treatment', y='value', 
+                    ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
+                    errcolor=".2", edgecolor=".2")
+        sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  order=treatments, 
+                      palette=treatment_palette, edgecolor='k', linewidth=1, linestyle='-')
+        ax.set_title(f'Head Twitch at {time} minutes', y=1.04, fontsize=34)
+    else:
+        sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
+                    ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
+        sns.swarmplot(data = experimental_df, x = 'treatment', y='value',  hue = 'variable' , order=treatments, 
+                      edgecolor='k', linewidth=1, linestyle='-', dodge=True, marker = 'o')
+        ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
+
+    
+    ax.set_ylabel("twitches / min",fontsize=24)
+    ax.set_xlabel(" ",fontsize=24)
+    ax.tick_params(labelsize=24)
+    sns.despine(left=False)
+    return fig
+
 

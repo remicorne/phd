@@ -1,11 +1,13 @@
 import functools
-
+from matplotlib import pyplot as plt
+import seaborn as sns
 import scipy
 from module.metadata import applyTreatmentMapping
 from module.statistics import *
 from module.utils import *
 import pandas as pd
 import numpy as np
+import matplotlib.patches as mpatches
 
 def getOrBuildDf(filename, df_identifier, builder_cb):
     filename_no_extension = filename.split(".")[0]
@@ -21,6 +23,22 @@ def getOrBuildDf(filename, df_identifier, builder_cb):
 
 # The three getters that follow just used the generic function to get the df if cached, injecting their own specific functions to build the df in the case where its not chached
 
+
+def getMetadata(filename, metadata_type):
+    return getJSON(f"{CACHE_DIR}/{filename.split('.')[0]}/{metadata_type}.json")
+
+
+def getTreatmentMapping(filename):
+    return getMetadata(filename, "treatment_mapping")
+
+
+def getExperimentalInfo(filename):
+    return getMetadata(filename, 'experimental_info')
+    
+    
+def getRegionSubclassification(filename):
+    return getMetadata(filename, 'region_subclassification')
+    
 
 def getRawDf(filename):
     return getOrBuildDf(filename, "raw_df", buildRawDf)
@@ -320,3 +338,136 @@ def buildRawHeadTwitchDf(filename):
         np.nan, 0
     )  # to set all 0 to Nan
 
+
+def getQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER, from_scratch=None):
+    identifier = f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
+    from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+    if from_scratch or not isCached(filename, identifier):
+        fig = buildQuantitativeSummaryFig(filename, experiment=experiment, value_type=value_type, value=value, regions_to_plot=regions_to_plot)
+        cache(filename, identifier, fig)
+        saveQuantitativeSummaryFig(fig, identifier)
+    else : fig = getCache(filename, identifier)
+    fig.show() 
+
+def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER):
+#FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
+#REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
+    #get aggstats df
+    values_df = getAggregateStatsDf(filename, df_type=value_type)
+
+    #slice df to experiment and vale 
+    treatment_mapping = getTreatmentMapping(filename)
+    experimental_df = values_df[(values_df['region'].isin(regions_to_plot)) & (values_df['experiment']== experiment) & (values_df['compound']== value) ] #select only relevent treatments AND REGIONS
+
+    #create a new column % of control mean/control_mean * 100
+    experimental_df.loc[:, 'percentage_of_vehicles'] = experimental_df.groupby('region')['mean'].transform(lambda x: (x / x.loc[experimental_df['treatment'] == 'vehicles'].values[0]) * 100)
+
+    #order and reshape df to plot 
+    experimental_df = experimental_df.loc[experimental_df['region'].isin(regions_to_plot)].assign(region=lambda x: pd.Categorical(x['region'], categories=regions_to_plot, ordered=True)).sort_values('region')
+    plot_experimental_df = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
+
+    #load pallette and open fig
+    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    fig, ax = plt.subplots(figsize=(12, 9))
+    # sns.set_style("whitegrid")
+    sns.set_style("white")
+    sns.set_context("notebook")
+
+    #plot lines
+    sns.lineplot(data=plot_experimental_df, x='region', y='value', hue='treatment', palette=treatment_palette)
+
+    #add markers for each region 
+    marker_mapping = {value['treatment']: value['markers'] for value in treatment_mapping.values() if
+                    experiment in value['experiments']}
+
+    # Define the minimum and maximum marker sizes
+    min_marker_size = 20
+    max_marker_size = 100
+
+    # Calculate the marker sizes based on the difference from 100
+    plot_experimental_df['marker_size'] = abs(plot_experimental_df['value'] - 100)
+
+    # Normalize marker sizes between the minimum and maximum sizes
+    plot_experimental_df['marker_size'] = (
+        (plot_experimental_df['marker_size'] - plot_experimental_df['marker_size'].min())
+        / (plot_experimental_df['marker_size'].max() - plot_experimental_df['marker_size'].min())
+    ) * (max_marker_size - min_marker_size) + min_marker_size
+
+    # Plot with adjusted marker sizes
+    sns.scatterplot(
+        data=plot_experimental_df,
+        x='region',
+        y='value',
+        hue='treatment',
+        palette=treatment_palette,
+        style='treatment',
+        markers=marker_mapping,
+        legend=False,
+        size='marker_size',  
+        sizes=(min_marker_size, max_marker_size),  # Set the range of marker sizes
+        alpha=0.7  # Adjust the marker transparency if desired
+    )
+
+    # Add axvspan to each grouping
+    region_subclassification = getRegionSubclassification(filename)
+    region_subclassification = {group.replace("_", " "): properties for group, properties in region_subclassification.items()}
+    for group, properties in region_subclassification.items():
+        regions = properties['regions']
+        color = properties['color']
+        label = group.replace("_", " ")
+        if regions:
+            start_idx = regions_to_plot.index(regions[0]) - 0.5
+            end_idx = regions_to_plot.index(regions[-1]) + 0.5
+            ax.axvspan(start_idx, end_idx, facecolor=color, alpha=0.2, label=label)
+            # Adjust x-axis limits
+            ax.set_xlim(-0.5, len(regions_to_plot) - 0.5)  # Set the x-axis limits
+
+            # Add axvspan label
+
+            label_x = (start_idx + end_idx) / 2
+            label_y = ax.get_ylim()[1] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])  # Adjust the label_y coordinate
+            words = label.split()
+            lines = [words[i:i+2] for i in range(0, len(words), 2)]  # Split words into pairs for multiline display
+            line_height = 18  # Adjust the height between lines
+
+            for i, line in enumerate(lines):
+                line_label = '\n'.join(line)  # Join words with a line break
+                current_label_y = label_y - i * line_height
+                ax.annotate(line_label, xy=(label_x, current_label_y), xycoords='data',
+                            xytext=(0, -12), textcoords='offset points',
+                            ha='center', va='top', color=color, fontsize=18)
+            
+
+            
+    # Set x-ticks and labels
+    if value_type == 'ratio':   
+        y_label = 'ratio'
+    elif value_type == 'compound':
+        y_label = 'ng/mg'
+    # Set x-tick positions and labels
+    x_ticks = range(len(regions_to_plot))
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(regions_to_plot, rotation=45)
+
+    # ax.set_xticklabels(regions_to_plot, rotation=45)
+    # ax.tick_params(axis='x', rotation=45)  
+    ax.set_xlabel('Region')
+    ax.set_ylabel(f'{y_label} {value}')
+    ax.set_title(f'{experiment.replace("_", " ").capitalize()} for {value} (% of vehicles)', fontsize=20, pad=20)
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Create custom legend handles for 'treatment' with black outline in the specified order
+    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    legend_handles = [
+        mpatches.Patch(facecolor=treatment_palette[treatment], edgecolor='black', label=treatment)
+        for treatment in order]
+
+    # Add a legend with black outline
+    plt.legend(handles=legend_handles, loc='upper left', frameon=False)
+
+    # Adjust the spacing
+    plt.tight_layout()
+    return fig
