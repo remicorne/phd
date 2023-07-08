@@ -15,7 +15,7 @@ import pickle  # GENERIC UTILS
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.pyplot import cm
-
+import matplotlib.patches as mpatches
 import numpy as np
 
 from outliers import smirnov_grubbs as grubbs
@@ -98,14 +98,16 @@ CORRELOGRAM_COLUMN_ORDER = {
 
 
 ########## UTILITARIES ############
-# Check filesystem is set up for write operations
-def saveMetadata(filename, treatment_mapping, experimental_info):
+#Check filesystem is set up for write operations
+def saveMetadata(filename, treatment_mapping, experimental_info, region_subclassification):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
     print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
     saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
     print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
+    saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
+    print(f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE")
 
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
@@ -125,12 +127,9 @@ def getTreatmentMapping(filename):
 
 
 def getExperimentalInfo(filename):
-    return getMetadata(filename, "experimental_info")
-
-
-# This function gets JSON files and makes them into python dictionnaries
-
-
+    return getMetadata(filename, 'experimental_info')
+    
+#This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):
     with open(path) as outfile:
         loaded_json = json.load(outfile)
@@ -211,6 +210,9 @@ def saveHistogram(fig, identifier):
 def saveHTHistogram(fig, identifier):
     saveFigure(fig, identifier, "HT_histograms")
 
+
+def saveQuantitativeSummaryFig(fig, identifier):
+    saveFigure(fig, identifier, 'QuantitativeSummaryFigs')
 
 def applyTreatmentMapping(df, filename):
     filename = filename.split(".")[0]
@@ -347,13 +349,8 @@ def buildCompoundDf(filename):
 
 
 def buildCompoundAndRatiosDf(filename):
-    compound_df = getCompoundDf(filename)  # .iloc[0:100] #To speed up testing
-    ratios_df = pd.merge(
-        left=compound_df,
-        right=compound_df,
-        on=["mouse_id", "group_id", "region", "experiment", "color", "treatment"],
-        suffixes=["_1", "_2"],
-    )  # merge every compound to every other for each mouse
+    compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
+    ratios_df = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
     ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
     ratios_df[["compound", "value"]] = ratios_df.apply(
         lambda x: [
@@ -422,9 +419,7 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
 
 
 def buildAggregateStatsDf(filename, df_type):
-    working_df = (
-        getCompoundDf(filename) if df_type == "compound" else getRatiosDf(filename)
-    )
+    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
     result_ls = []
     for treat_region_comp, groupby_df in working_df.groupby(
         by=["treatment", "region", "compound", "experiment"]
@@ -513,7 +508,7 @@ def testBuildAggregateStatsDf(filename, df_type):
         ],
     )
 
-
+#Not functionning
 def editOutlier(
     subselect={"compound": "DA", "experiment": "dose_response", "region": "CC"}
 ):
@@ -877,15 +872,10 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     subselection_df = subselection_df[["value", "mouse_id", "treatment"]]
     treatment_mapping = getTreatmentMapping(filename)
     experimental_info = getExperimentalInfo(filename)[experiment]
-    palette = {
-        info["treatment"]: info["color"] for number, info in treatment_mapping.items()
-    }
-    order = [
-        treatment_mapping[str(group)]["treatment"]
-        for group in experimental_info["groups"]
-    ]
-    # REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
-    # QUANTITATIVE_STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
+    palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
+    #REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
+    # STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x="treatment",
@@ -947,11 +937,9 @@ def put_significnce_stars(
 
 
 def plotCorrelograms(correlograms):
-    fig, axs = plt.subplots(2, 2, figsize=(22, 22))
-    axs = flatten(axs)  # Put all the axes into a list at the same level
-    for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(
-        correlograms, axs
-    ):
+    fig, axs = plt.subplots(2, 2, figsize=(22,22))
+    axs = list(itertools.chain.from_iterable(axs)) # Put all the axes into a list at the same level
+    for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
     fig.tight_layout()
     return fig
@@ -961,32 +949,21 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
+        np.fill_diagonal(p_value_mask.values, False) #this maked the diagonal correlations of 1 visible
 
-    heatmap = sns.heatmap(
-        correlogram_df,
-        vmin=-1,
-        vmax=1,
-        square=True,
-        annot=True,
-        cmap="BrBG",
-        mask=p_value_mask,
-        annot_kws={"size": 6},
-        ax=ax,
-    )
-    ax.set_xticklabels(
-        ax.get_xticklabels()
-    )  # rotation=45, horizontalalignment='right',
-    heatmap.set_title(
-        f"{'-'.join(subvalues)} in {treatment}", fontdict={"fontsize": 20}, pad=20
-    )
-    if len(subvalues) == 1:
-        ax.set_ylabel("")
-        ax.set_xlabel("")
+    heatmap = sns.heatmap(correlogram_df, vmin=-1, vmax=1, square=True, annot=True, cmap='BrBG', mask=p_value_mask, annot_kws={"size": 6}, ax=ax)
+    ax.set_xticklabels(ax.get_xticklabels()) #rotation=45, horizontalalignment='right',
+    heatmap.set_title(f"{'-'.join(subvalues)} in {treatment}", fontdict={'fontsize': 20}, pad=20)
+    if len(subvalues) == 1: 
+        ax.set_ylabel('')
+        ax.set_xlabel('')
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
-
-
+ 
+    
+    
+    
 def plotAnything(anything):
     return plt(anything)
 
@@ -1039,55 +1016,28 @@ def buildHTHistogram(
 ):
     HT_df = getRawHTDf(HT_filename)
     applyTreatmentMapping(HT_df, filename)
-
     treatment_mapping = getTreatmentMapping(filename)
-    treatment_palette = {
-        info["treatment"]: info["color"] for number, info in treatment_mapping.items()
-    }
-    treatments = [
-        treatment_mapping[str(group)]["treatment"]
-        for group in getExperimentalInfo(filename)[experiment]["groups"]
-    ]
-    experimental_df = HT_df[
-        HT_df["treatment"].isin(treatments)
-    ]  # select only relevent treatments
-    columns = to_plot + ["treatment"]  # slice df for plotting
+    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    treatments = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    experimental_df = HT_df[HT_df['treatment'].isin(treatments)] #select only relevent treatments
+    columns = to_plot +['treatment'] # slice df for plotting
     experimental_df = experimental_df[columns]
     experimental_df = pd.melt(
         experimental_df, id_vars=["treatment"], value_vars=to_plot
     )
 
     fig, ax = plt.subplots(figsize=(20, 10))
-    if len(to_plot) == 1:
-        sns.barplot(
-            data=experimental_df,
-            x="treatment",
-            y="value",
-            ci=68,
-            order=treatments,
-            capsize=0.1,
-            alpha=0.8,
-            palette=treatment_palette,
-            errcolor=".2",
-            edgecolor=".2",
-        )
+    if len(to_plot)==1:
+        sns.barplot(data = experimental_df, x = 'treatment', y='value', 
+                    ci=68, order=treatments,capsize=.1, alpha=0.8, palette=treatment_palette,
+                    errcolor=".2", edgecolor=".2")
     else:
-        sns.barplot(
-            data=experimental_df,
-            x="treatment",
-            y="value",
-            hue="variable",
-            ci=68,
-            order=treatments,
-            capsize=0.1,
-            alpha=0.8,
-            errcolor=".2",
-            edgecolor=".2",
-        )
+        sns.barplot(data = experimental_df, x = 'treatment', y='value', hue='variable', 
+                    ci=68, order=treatments, capsize=.1, alpha=0.8, errcolor=".2", edgecolor=".2")
 
-    ax.set_title(f"Head Twitch", y=1.04, fontsize=34)
-    ax.set_ylabel("twitches / min", fontsize=24)
-    ax.set_xlabel(" ", fontsize=24)
+    ax.set_title(f'Head Twitch', y=1.04, fontsize=34)
+    ax.set_ylabel("twitches / min",fontsize=24)
+    ax.set_xlabel(" ",fontsize=24)
     ax.tick_params(labelsize=24)
     sns.despine(left=False)
     return fig
