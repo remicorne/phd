@@ -1,4 +1,4 @@
-#Check filesystem is set up for write operations
+# Check filesystem is set up for write operations
 import itertools
 import json
 import os
@@ -7,8 +7,11 @@ import shutil
 import warnings
 from module.constants import *
 
-# 
-def saveMetadata(filename, treatment_mapping, experimental_info, region_subclassification):
+
+#
+def saveMetadata(
+    filename, treatment_mapping, experimental_info, region_subclassification
+):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
@@ -16,7 +19,9 @@ def saveMetadata(filename, treatment_mapping, experimental_info, region_subclass
     saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
     print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
     saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
-    print(f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE")
+    print(
+        f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE"
+    )
 
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
@@ -27,8 +32,7 @@ def saveJSON(path, dict_to_save):
         json.dump(dict_to_save, json_file)
 
 
-    
-#This function gets JSON files and makes them into python dictionnaries
+# This function gets JSON files and makes them into python dictionnaries
 def getJSON(path):
     with open(path) as outfile:
         loaded_json = json.load(outfile)
@@ -111,8 +115,7 @@ def saveHeadTwitchHistogram(fig, identifier):
 
 
 def saveQuantitativeSummaryFig(fig, identifier):
-    saveFigure(fig, identifier, 'QuantitativeSummaryFigs')
-
+    saveFigure(fig, identifier, "quantitative_summary_fig")
 
 
 def dictToFilename(dict_to_stringify):
@@ -130,10 +133,10 @@ def dictToFilename(dict_to_stringify):
         # This syntaxt wil unpack the list as if I had written 'result.replace(replacement[0], replacement[1])'
         result = result.replace(*replacement)
     return result
-    
+
+
 def flatten(two_d_list):
     return list(itertools.chain.from_iterable(two_d_list))
-
 
 
 def askMultipleChoice(question, choices):
@@ -147,7 +150,6 @@ def askMultipleChoice(question, choices):
             )
         )
     ]
-
 
 
 # This is a decorator design pattern. Its basically a function that wraps another function and does some operations before
@@ -177,3 +179,30 @@ def select_params(stat_function):
             return ["ERROR", str(e)]
 
     return wrapper
+
+
+IDENTIFIERS = {"histogram": "{experiment}_for_{compound}_in_{region}"}
+
+
+def get_or_add(identifier_type):
+    def decorator(builder_func):
+        def wrapper(*args, **kwargs):
+            identifier = IDENTIFIERS[identifier_type].format(**kwargs)
+            from_scratch = (
+                kwargs.get("from_scratch")
+                if kwargs.get("from_scratch") is not None
+                else input("Recalculate figure even if previous version exists? (y/n)")
+                == "y"
+            )
+            filename = args[0]
+            if from_scratch or not isCached(filename, identifier):
+                result = builder_func(*args, **kwargs)
+                cache(args[0], identifier, result)
+                saveFigure(result, identifier, identifier_type)
+            else:
+                result = getCache(filename, identifier)
+            return result
+
+        return wrapper
+
+    return decorator
