@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.patches as mpatches
 
+
 def getOrBuildDf(filename, df_identifier, builder_cb):
     filename_no_extension = filename.split(".")[0]
     # Check cache to avoid recalcuating from scratch if alreasy done
@@ -33,12 +34,12 @@ def getTreatmentMapping(filename):
 
 
 def getExperimentalInfo(filename):
-    return getMetadata(filename, 'experimental_info')
-    
-    
+    return getMetadata(filename, "experimental_info")
+
+
 def getRegionSubclassification(filename):
-    return getMetadata(filename, 'region_subclassification')
-    
+    return getMetadata(filename, "region_subclassification")
+
 
 def getRawDf(filename):
     return getOrBuildDf(filename, "raw_df", buildRawDf)
@@ -92,8 +93,10 @@ def getQuantitativeStats(filename, p_value_threshold, from_scratch=False):
         quantitative_stats_df = getCache(filename, identifier)
     return quantitative_stats_df
 
+
 def getRawHeadTwitchDf(filename):
-    return getOrBuildDf(filename, "raw_head_twitch_df", buildRawHeadTwitchDf)
+    return getOrBuildDf(filename, "raw_head_twitch_df", buildRawDf)
+
 
 ######### BUILDERS #######
 
@@ -127,8 +130,13 @@ def buildCompoundDf(filename):
 
 
 def buildCompoundAndRatiosDf(filename):
-    compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
-    ratios_df = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
+    compound_df = getCompoundDf(filename)  # .iloc[0:100] #To speed up testing
+    ratios_df = pd.merge(
+        left=compound_df,
+        right=compound_df,
+        on=["mouse_id", "group_id", "region", "experiment", "color", "treatment"],
+        suffixes=["_1", "_2"],
+    )  # merge every compound to every other for each mouse
     ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
     ratios_df[["compound", "value"]] = ratios_df.apply(
         lambda x: [
@@ -197,7 +205,9 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
 
 
 def buildAggregateStatsDf(filename, df_type):
-    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
+    working_df = (
+        getCompoundDf(filename) if df_type == "compound" else getRatiosDf(filename)
+    )
     result_ls = []
     for treat_region_comp, groupby_df in working_df.groupby(
         by=["treatment", "region", "compound", "experiment"]
@@ -238,7 +248,7 @@ def buildAggregateStatsDf(filename, df_type):
 
 def testBuildAggregateStatsDf(filename, df_type):
     working_df = (
-        getCompoundDf(filename) if df_type == "compound" else getRatiosDf(filename)
+        getCompoundDf(filename) if df_type == "compound" else getCompoundAndRatiosDffilename)
     )
     # this one is just describing every region/compound/treament combo
     descriptive_stats_ls = []
@@ -285,38 +295,76 @@ def testBuildAggregateStatsDf(filename, df_type):
             "values",
         ],
     )
+
+
+# def oldBuildQuantitativeStatsDf(filename, p_value_threshold):
+#     experimental_info = getExperimentalInfo(filename)
+#     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+#     data_keys = ["experiment", "compound", "region"]
+#     quantitative_stats = []
+#     groupbys = compound_and_ratios_df.groupby(by=data_keys)
+#     for i, (experiment_compound_region, data) in list(enumerate(groupbys))[:100]:
+#         print("CALULATING", i, "OF", len(groupbys), "GROUPBYS")
+#         experiment, compound, region = experiment_compound_region
+#         if (
+#             experiment == "dose_response"
+#         ):  ## TODO: Remove when info mapping is completed
+#             continue
+#         experiment_info = experimental_info[experiment]
+#         current_result = [
+#             experiment,
+#             compound,
+#             region,
+#         ]
+#         for test in experiment_info["quantitative_statistics"]:
+#             current_result.extend(
+#                 QUANTITATIVE_STAT_METHODS[test](
+#                     data=data,
+#                     independant_vars=experiment_info["independant_vars"],
+#                     p_value_threshold=p_value_threshold,
+#                 )
+#             )
+#         quantitative_stats.append(current_result)
+#     return pd.DataFrame(
+#         quantitative_stats,
+#         columns=[
+#             data_keys
+#             + flatten(
+#                 [
+#                     [f"{test}_status", f"{test}_result"]
+#                     for test in experiment_info["quantitative_statistics"]
+#                 ]
+#             )
+#         ],
+#     )
+
+
+# Change experiment param to none when experiment info mapping is complete
+def buildQuantitativeStatsDf(
+    filename, subselect=None, experiment="agonist_antagonist", p_value_threshold=0.05
+):
     
-    
-def buildQuantitativeStatsDf(filename, p_value_threshold):
-    experimental_info = getExperimentalInfo(filename)
-    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    experiment_info = getExperimentalInfo(filename)[experiment]
+    compound_and_ratios_df = (
+        subselectDf(getCompoundAndRatiosDf(filename), subselect)
+        if subselect
+        else getCompoundAndRatiosDf(filename)
+    )
+    compound_and_ratios_df = compound_and_ratios_df[
+        compound_and_ratios_df.experiment == experiment
+    ]  # TODO: Remove when info mapping is completed
     data_keys = ["experiment", "compound", "region"]
-    quantitative_stats = []
-    for experiment_compound_region, data in compound_and_ratios_df.groupby(
-        by=data_keys
-    ):
-        experiment, compound, region = experiment_compound_region
-        if (
-            experiment == "dose_response"
-        ):  ## TODO: Remove when info mapping is completed
-            continue
-        experiment_info = experimental_info[experiment]
-        current_result = [
-            experiment,
-            compound,
-            region,
-        ]
-        for test in experiment_info["quantitative_statistics"]:
-            current_result.extend(
-                QUANTITATIVE_STAT_METHODS[test](
-                    data=data,
-                    independant_vars=experiment_info["independant_vars"],
-                    p_value_threshold=p_value_threshold,
-                )
-            )
-        quantitative_stats.append(current_result)
+    groupbys = compound_and_ratios_df.groupby(by=data_keys)
+
     return pd.DataFrame(
-        quantitative_stats,
+        list(
+            map(
+                buildGroupbyQuantitativeStatsMapper(
+                    experiment_info, len(groupbys), p_value_threshold
+                ),
+                list(enumerate(groupbys)),
+            )
+        ),
         columns=[
             data_keys
             + flatten(
@@ -328,92 +376,184 @@ def buildQuantitativeStatsDf(filename, p_value_threshold):
         ],
     )
 
-def buildRawHeadTwitchDf(filename):
-    file_name, file_type = filename.split(".")
-    if not file_type == "csv":
-        raise Exception(f'METHOD TO DEAL WITH FILE TYPE "{file_type}" ABSENT')
-    if not os.path.isfile(f"{INPUT_DIR}/{filename}"):
-        raise Exception(f'FILE {filename} IS ABSENT IN "input/" DIRECTORY')
-    return pd.read_csv(f"{INPUT_DIR}/{filename}", header=0).replace(
-        np.nan, 0
-    )  # to set all 0 to Nan
+
+def buildGroupbyQuantitativeStatsMapper(
+    experiment_info, groupby_length, p_value_threshold
+):
+    def executor(i_groupby):
+        i, groupby = i_groupby
+        print("CALULATING", i + 1, "OF", groupby_length, "GROUPBYS")
+        experiment_compound_region, data = groupby
+        experiment, compound, region = experiment_compound_region
+        return buildGroupbyQuantitativeStats(
+            experiment_info, experiment, compound, region, data, p_value_threshold
+        )
+
+    return executor
 
 
-def getQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER, from_scratch=None):
-    identifier = f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
-    from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+def buildGroupbyQuantitativeStats(
+    experiment_info, experiment, compound, region, data, p_value_threshold
+):
+    return [
+        experiment,
+        compound,
+        region,
+    ] + flatten(
+        [
+            QUANTITATIVE_STAT_METHODS[test](
+                data=data,
+                independant_vars=experiment_info["independant_vars"],
+                p_value_threshold=p_value_threshold,
+            )
+            for test in experiment_info["quantitative_statistics"]
+        ]
+    )
+
+
+def getQuantitativeSummaryFig(
+    filename,
+    experiment="dose_response",
+    value_type="ratio",
+    value="5HIAA/5HT",
+    regions_to_plot=COLUMN_ORDER,
+    from_scratch=None,
+):
+    identifier = (
+        f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
+    )
+    from_scratch = (
+        from_scratch
+        if from_scratch is not None
+        else input("Recalculate figure even if previous version exists? (y/n)") == "y"
+    )
     if from_scratch or not isCached(filename, identifier):
-        fig = buildQuantitativeSummaryFig(filename, experiment=experiment, value_type=value_type, value=value, regions_to_plot=regions_to_plot)
+        fig = buildQuantitativeSummaryFig(
+            filename,
+            experiment=experiment,
+            value_type=value_type,
+            value=value,
+            regions_to_plot=regions_to_plot,
+        )
         cache(filename, identifier, fig)
         saveQuantitativeSummaryFig(fig, identifier)
-    else : fig = getCache(filename, identifier)
-    fig.show() 
+    else:
+        fig = getCache(filename, identifier)
+    fig.show()
 
-def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER):
-#FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
-#REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
-    #get aggstats df
+
+def buildQuantitativeSummaryFig(
+    filename,
+    experiment="dose_response",
+    value_type="ratio",
+    value="5HIAA/5HT",
+    regions_to_plot=COLUMN_ORDER,
+):
+    # FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
+    # REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
+    # get aggstats df
     values_df = getAggregateStatsDf(filename, df_type=value_type)
 
-    #slice df to experiment and vale 
+    # slice df to experiment and vale
     treatment_mapping = getTreatmentMapping(filename)
-    experimental_df = values_df[(values_df['region'].isin(regions_to_plot)) & (values_df['experiment']== experiment) & (values_df['compound']== value) ] #select only relevent treatments AND REGIONS
+    experimental_df = values_df[
+        (values_df["region"].isin(regions_to_plot))
+        & (values_df["experiment"] == experiment)
+        & (values_df["compound"] == value)
+    ]  # select only relevent treatments AND REGIONS
 
-    #create a new column % of control mean/control_mean * 100
-    experimental_df.loc[:, 'percentage_of_vehicles'] = experimental_df.groupby('region')['mean'].transform(lambda x: (x / x.loc[experimental_df['treatment'] == 'vehicles'].values[0]) * 100)
+    # create a new column % of control mean/control_mean * 100
+    experimental_df.loc[:, "percentage_of_vehicles"] = experimental_df.groupby(
+        "region"
+    )["mean"].transform(
+        lambda x: (x / x.loc[experimental_df["treatment"] == "vehicles"].values[0])
+        * 100
+    )
 
-    #order and reshape df to plot 
-    experimental_df = experimental_df.loc[experimental_df['region'].isin(regions_to_plot)].assign(region=lambda x: pd.Categorical(x['region'], categories=regions_to_plot, ordered=True)).sort_values('region')
-    plot_experimental_df = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
+    # order and reshape df to plot
+    experimental_df = (
+        experimental_df.loc[experimental_df["region"].isin(regions_to_plot)]
+        .assign(
+            region=lambda x: pd.Categorical(
+                x["region"], categories=regions_to_plot, ordered=True
+            )
+        )
+        .sort_values("region")
+    )
+    plot_experimental_df = pd.melt(
+        experimental_df,
+        id_vars=["region", "treatment"],
+        value_vars=["percentage_of_vehicles"],
+    )
 
-    #load pallette and open fig
-    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    # load pallette and open fig
+    treatment_palette = {
+        info["treatment"]: info["color"] for number, info in treatment_mapping.items()
+    }
     fig, ax = plt.subplots(figsize=(12, 9))
     # sns.set_style("whitegrid")
     sns.set_style("white")
     sns.set_context("notebook")
 
-    #plot lines
-    sns.lineplot(data=plot_experimental_df, x='region', y='value', hue='treatment', palette=treatment_palette)
+    # plot lines
+    sns.lineplot(
+        data=plot_experimental_df,
+        x="region",
+        y="value",
+        hue="treatment",
+        palette=treatment_palette,
+    )
 
-    #add markers for each region 
-    marker_mapping = {value['treatment']: value['markers'] for value in treatment_mapping.values() if
-                    experiment in value['experiments']}
+    # add markers for each region
+    marker_mapping = {
+        value["treatment"]: value["markers"]
+        for value in treatment_mapping.values()
+        if experiment in value["experiments"]
+    }
 
     # Define the minimum and maximum marker sizes
     min_marker_size = 20
     max_marker_size = 100
 
     # Calculate the marker sizes based on the difference from 100
-    plot_experimental_df['marker_size'] = abs(plot_experimental_df['value'] - 100)
+    plot_experimental_df["marker_size"] = abs(plot_experimental_df["value"] - 100)
 
     # Normalize marker sizes between the minimum and maximum sizes
-    plot_experimental_df['marker_size'] = (
-        (plot_experimental_df['marker_size'] - plot_experimental_df['marker_size'].min())
-        / (plot_experimental_df['marker_size'].max() - plot_experimental_df['marker_size'].min())
+    plot_experimental_df["marker_size"] = (
+        (
+            plot_experimental_df["marker_size"]
+            - plot_experimental_df["marker_size"].min()
+        )
+        / (
+            plot_experimental_df["marker_size"].max()
+            - plot_experimental_df["marker_size"].min()
+        )
     ) * (max_marker_size - min_marker_size) + min_marker_size
 
     # Plot with adjusted marker sizes
     sns.scatterplot(
         data=plot_experimental_df,
-        x='region',
-        y='value',
-        hue='treatment',
+        x="region",
+        y="value",
+        hue="treatment",
         palette=treatment_palette,
-        style='treatment',
+        style="treatment",
         markers=marker_mapping,
         legend=False,
-        size='marker_size',  
+        size="marker_size",
         sizes=(min_marker_size, max_marker_size),  # Set the range of marker sizes
-        alpha=0.7  # Adjust the marker transparency if desired
+        alpha=0.7,  # Adjust the marker transparency if desired
     )
 
     # Add axvspan to each grouping
     region_subclassification = getRegionSubclassification(filename)
-    region_subclassification = {group.replace("_", " "): properties for group, properties in region_subclassification.items()}
+    region_subclassification = {
+        group.replace("_", " "): properties
+        for group, properties in region_subclassification.items()
+    }
     for group, properties in region_subclassification.items():
-        regions = properties['regions']
-        color = properties['color']
+        regions = properties["regions"]
+        color = properties["color"]
         label = group.replace("_", " ")
         if regions:
             start_idx = regions_to_plot.index(regions[0]) - 0.5
@@ -425,48 +565,68 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
             # Add axvspan label
 
             label_x = (start_idx + end_idx) / 2
-            label_y = ax.get_ylim()[1] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])  # Adjust the label_y coordinate
+            label_y = ax.get_ylim()[1] - 0.05 * (
+                ax.get_ylim()[1] - ax.get_ylim()[0]
+            )  # Adjust the label_y coordinate
             words = label.split()
-            lines = [words[i:i+2] for i in range(0, len(words), 2)]  # Split words into pairs for multiline display
+            lines = [
+                words[i : i + 2] for i in range(0, len(words), 2)
+            ]  # Split words into pairs for multiline display
             line_height = 18  # Adjust the height between lines
 
             for i, line in enumerate(lines):
-                line_label = '\n'.join(line)  # Join words with a line break
+                line_label = "\n".join(line)  # Join words with a line break
                 current_label_y = label_y - i * line_height
-                ax.annotate(line_label, xy=(label_x, current_label_y), xycoords='data',
-                            xytext=(0, -12), textcoords='offset points',
-                            ha='center', va='top', color=color, fontsize=18)
-            
+                ax.annotate(
+                    line_label,
+                    xy=(label_x, current_label_y),
+                    xycoords="data",
+                    xytext=(0, -12),
+                    textcoords="offset points",
+                    ha="center",
+                    va="top",
+                    color=color,
+                    fontsize=18,
+                )
 
-            
     # Set x-ticks and labels
-    if value_type == 'ratio':   
-        y_label = 'ratio'
-    elif value_type == 'compound':
-        y_label = 'ng/mg'
+    if value_type == "ratio":
+        y_label = "ratio"
+    elif value_type == "compound":
+        y_label = "ng/mg"
     # Set x-tick positions and labels
     x_ticks = range(len(regions_to_plot))
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(regions_to_plot, rotation=45)
 
     # ax.set_xticklabels(regions_to_plot, rotation=45)
-    # ax.tick_params(axis='x', rotation=45)  
-    ax.set_xlabel('Region')
-    ax.set_ylabel(f'{y_label} {value}')
-    ax.set_title(f'{experiment.replace("_", " ").capitalize()} for {value} (% of vehicles)', fontsize=20, pad=20)
+    # ax.tick_params(axis='x', rotation=45)
+    ax.set_xlabel("Region")
+    ax.set_ylabel(f"{y_label} {value}")
+    ax.set_title(
+        f'{experiment.replace("_", " ").capitalize()} for {value} (% of vehicles)',
+        fontsize=20,
+        pad=20,
+    )
 
     # Remove top and right spines
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
     # Create custom legend handles for 'treatment' with black outline in the specified order
-    order = [treatment_mapping[str(group)]['treatment'] for group in getExperimentalInfo(filename)[experiment]['groups']]
+    order = [
+        treatment_mapping[str(group)]["treatment"]
+        for group in getExperimentalInfo(filename)[experiment]["groups"]
+    ]
     legend_handles = [
-        mpatches.Patch(facecolor=treatment_palette[treatment], edgecolor='black', label=treatment)
-        for treatment in order]
+        mpatches.Patch(
+            facecolor=treatment_palette[treatment], edgecolor="black", label=treatment
+        )
+        for treatment in order
+    ]
 
     # Add a legend with black outline
-    plt.legend(handles=legend_handles, loc='upper left', frameon=False)
+    plt.legend(handles=legend_handles, loc="upper left", frameon=False)
 
     # Adjust the spacing
     plt.tight_layout()

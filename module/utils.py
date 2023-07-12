@@ -135,6 +135,10 @@ def dictToFilename(dict_to_stringify):
     return result
 
 
+def buildCorrelogramFilenmae(to_correlate, columns):
+    return f"{to_correlate.replace('/', ':')}_{(',').join(columns)}"
+
+
 def flatten(two_d_list):
     return list(itertools.chain.from_iterable(two_d_list))
 
@@ -150,6 +154,12 @@ def askMultipleChoice(question, choices):
             )
         )
     ]
+
+
+def subselectDf(df, subselect):
+    return df.query(
+        "&".join([f"{column}=='{value}'" for column, value in subselect.items()])
+    )
 
 
 # This is a decorator design pattern. Its basically a function that wraps another function and does some operations before
@@ -169,25 +179,36 @@ def select_params(stat_function):
         ]
         # Select the argument based on their name from kwargs, kwargs is all the keyword arguments passed to the function including the useless ones
         selected_args = [kwargs[arg_name] for arg_name in stat_function_args]
-        try:
-            # call the function with the args it needs
-            return ["OK", stat_function(*selected_args)]
-        except Warning as w:
-            warnings.resetwarnings()
-            return ["WARNING", stat_function(*selected_args)]
-        except Exception as e:
-            return ["ERROR", str(e)]
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            try:
+                result = stat_function(*selected_args)
+                return [
+                    "WARNING" if w and issubclass(w[-1].category, Warning) else "OK",
+                    result,
+                ]
+            except Exception as e:
+                return ["ERROR", str(e)]
 
     return wrapper
 
 
-IDENTIFIERS = {"histogram": "{experiment}_for_{compound}_in_{region}"}
+IDENTIFIERS = {
+    "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
+    "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
+    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{to_plot}"',
+}
+
+
+def buildIdentifier(identifier_type, **kwargs):
+    locals().update(kwargs)
+    return eval(IDENTIFIERS[identifier_type])
 
 
 def get_or_add(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
-            identifier = IDENTIFIERS[identifier_type].format(**kwargs)
+            identifier = buildIdentifier(identifier_type, **kwargs)
             from_scratch = (
                 kwargs.get("from_scratch")
                 if kwargs.get("from_scratch") is not None
@@ -206,3 +227,26 @@ def get_or_add(identifier_type):
         return wrapper
 
     return decorator
+
+
+# I want to do this as wel but I don't know how to do it in a way that is not too complicated
+
+# MUTILPLE_CHOICE_PARAMS = {
+#     "experiment": [
+#         "Which experiment?",
+#         {i: experiment for i, experiment in enumerate(getExperimentalInfo(filename))},
+#     ]
+# }
+#
+# def multipleChoice(param_name):
+#     def decorator(builder_func):
+#         def wrapper(*args, **kwargs):
+#             if kwargs.get(param_name) is None:
+#                 kwargs[param_name] = askMultipleChoice(
+#                     f"Choose {param_name}", kwargs[param_name + "s"]
+#                 )
+#             return builder_func(*args, **kwargs)
+
+#         return wrapper
+
+#     return decorator

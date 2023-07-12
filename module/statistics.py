@@ -6,7 +6,6 @@ import pandas as pd
 from module.utils import *
 
 
-
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
 # This is a classic design pattern of which i forget the name again.
 def isSignificant(stat_method_cb, pval_threshold=0.05):
@@ -81,7 +80,6 @@ def grubbsTest(group_list):  # include the vairable type in name i.e. group_list
     return
 
 
-
 QUANTITATIVE_STAT_METHODS = {
     "twoway_anova": getTwoWayAnova,
     "oneway_anova": getOneWayAnova,
@@ -90,5 +88,3 @@ QUANTITATIVE_STAT_METHODS = {
 
 
 QUALITATIVE_STAT_METHODS = {"pearson": getPearson}
-
-

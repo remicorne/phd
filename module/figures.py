@@ -20,7 +20,7 @@ def getAndPlotMultipleCorrelograms(
         to_correlate_list,
     ) in selector.items():  # Iterate through the selector dict
         for to_correlate in to_correlate_list:
-            getAndPlotSingleCorrelogram(
+            correlogram()(
                 filename,
                 experiment,
                 correlogram_type,
@@ -31,7 +31,7 @@ def getAndPlotMultipleCorrelograms(
             )
 
 
-def getAndPlotSingleCorrelogram(
+def correlogram(
     filename,
     experiment=None,
     correlogram_type=None,
@@ -61,35 +61,25 @@ def getAndPlotSingleCorrelogram(
         else input(
             f"""Which {correlogram_type}?
                     (Enter simple {correlogram_type} or {correlogram_type}/{correlogram_type} for ratio,
-                    Use {correlogram_type} or {correlogram_type}/{correlogram_type} for simple correlogram, or {correlogram_type}-{correlogram_type} or {correlogram_type}/{correlogram_type}-{correlogram_type} for square correlogram
+                    Use {correlogram_type} or {correlogram_type}/q{correlogram_type} for simple correlogram, or {correlogram_type}-{correlogram_type} or {correlogram_type}/{correlogram_type}-{correlogram_type} for square correlogram
                     Possibilities: {COLUMN_ORDER[correlogram_type]}
                     """
         )
     )
     columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
-    identifier = f"{experiment}_{correlogram_type}_{to_correlate.replace('/', ':')}_{(',').join(columns)}"
-    from_scratch = (
-        from_scratch
-        if from_scratch is not None
-        else input("Recalculate figure even if previous version exists? (y/n)") == "y"
+    buildSingleCorrelogram(
+        filename,
+        experiment=experiment,
+        correlogram_type=correlogram_type,
+        to_correlate=to_correlate,
+        p_value_threshold=p_value_threshold,
+        n_minimum=n_minimum,
+        columns=columns,
+        from_scratch=from_scratch,
     )
-    if from_scratch or not isCached(filename, identifier):
-        fig = buildSingleCorrelogram(
-            filename,
-            experiment,
-            correlogram_type,
-            to_correlate.split("-"),
-            p_value_threshold,
-            n_minimum,
-            columns,
-        )
-        cache(filename, identifier, fig)
-        saveCorrelogram(fig, identifier)
-    else:
-        fig = getCache(filename, identifier)
-    fig.show()
 
 
+@get_or_add("correlogram")
 def buildSingleCorrelogram(
     filename,
     experiment,
@@ -98,10 +88,12 @@ def buildSingleCorrelogram(
     p_value_threshold,
     n_minimum,
     columns,
+    from_scratch,  # Used in decorator
 ):
     # this is not the full ratios df, its only intra region compound ratios for nom
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     value_type = {"compound": "region", "region": "compound"}[correlogram_type]
+    to_correlate = to_correlate.split("-")
     subselection_df = compound_and_ratios_df[
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
@@ -202,8 +194,13 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
 
 
 @get_or_add("histogram")
-def singleHistogram(
-    filename, experiment, compound, region, p_value_threshold, from_scratch=None
+def histogram(
+    filename,
+    experiment,
+    compound,
+    region,
+    p_value_threshold,
+    from_scratch=None,  # Used in decorator
 ):
     compound_and_ratios_df = getCompoundAndRatiosDf(
         filename
@@ -287,37 +284,8 @@ def put_significnce_stars(
     return ax
 
 
-def getHeadTwitchHistogram(
-    filename,
-    head_twitch_filename,
-    experiment="dose_responce",
-    p_value_threshold=0.05,
-    to_plot=[],
-    from_scratch=None,
-):
-    identifier = f"head_twitch_Histogram_{experiment}_for_{to_plot}"
-    from_scratch = (
-        from_scratch
-        if from_scratch is not None
-        else input("Recalculate figure even if previous version exists? (y/n)") == "y"
-    )
-    if from_scratch or not isCached(filename, identifier):
-        fig = buildHeadTwitchHistogram(
-            filename,
-            head_twitch_filename,
-            experiment=experiment,
-            p_value_threshold=p_value_threshold,
-            to_plot=to_plot,
-        )
-
-        cache(filename, identifier, fig)
-        saveHeadTwitchHistogram(fig, identifier)
-    else:
-        fig = getCache(filename, identifier)
-    fig.show()
-
-
-def buildHeadTwitchHistogram(
+@get_or_add("head_twitch_histogram")
+def headTwitchHistogram(
     filename,
     HT_filename,
     experiment="agonist_antagonist",
