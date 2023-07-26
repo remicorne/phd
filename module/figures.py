@@ -193,6 +193,25 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         ax.set_xlabel(subvalues[1])
 
 
+def applyHistogramOutlierMapping(subselection_df, test_name, p_value_threshold):
+    outlier_labels = pd.DataFrame(
+        [
+            [treatment, value, is_outlier]
+            for treatment, groupby_df in subselection_df.groupby("treatment")
+            for value, is_outlier in getOutlierLabels(
+                groupby_df.value.values, test_name, p_value_threshold
+            )
+        ],
+        columns=["treatment", "value", "is_outlier"],
+    )
+    return pd.merge(
+        left=subselection_df,
+        right=outlier_labels,
+        on=["value", "treatment"],
+    )
+
+
+# TODO: Plug stat methods in here
 @get_or_add("histogram")
 def histogram(
     filename,
@@ -200,7 +219,8 @@ def histogram(
     compound,
     region,
     p_value_threshold,
-    from_scratch=None,  # Used in decorator
+    from_scratch=False,  # Used in decorator
+    select_outliers=False,
 ):
     compound_and_ratios_df = getCompoundAndRatiosDf(
         filename
@@ -213,17 +233,47 @@ def histogram(
     subselection_df = subselection_df[["value", "mouse_id", "treatment"]]
     treatment_mapping = getTreatmentMapping(filename)
     experimental_info = getExperimentalInfo(filename)[experiment]
-    palette = {
-        info["treatment"]: info["color"] for number, info in treatment_mapping.items()
-    }
+    subselection_df = applyHistogramOutlierMapping(
+        pd.concat(
+            [
+                subselection_df,
+                # pd.DataFrame(
+                #     {"treatment": ["vehicles"], "value": [50], "mouse_id": [203]}
+                # ),
+            ]
+        ),
+        experimental_info["outliers"],
+        p_value_threshold,
+    )
     order = [
         treatment_mapping[group]["treatment"]
         for group in treatment_mapping
         if experiment in treatment_mapping[group]["experiments"]
     ]
+    palette = {info["treatment"]: info["color"] for info in treatment_mapping.values()}
+    subselection_df["point_color"] = subselection_df.apply(
+        lambda x: "green" if x.is_outlier else palette[x.treatment],
+        axis=1,
+    )
 
-    # REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
-    # STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
+    if select_outliers:
+        hue_or_palette = {"hue": "is_outlier"}
+        fig = buildHistogram(
+            compound, region, subselection_df, order, palette, hue_or_palette
+        )
+        plt.show(fig)
+        remove_outliers = input("Remove outliers?") == "y"
+        if remove_outliers:
+            subselection_df = subselection_df[subselection_df.is_outlier == False]
+
+    hue_or_palette = {"palette": palette}
+    fig = buildHistogram(
+        compound, region, subselection_df, order, palette, hue_or_palette
+    )
+    return fig
+
+
+def buildHistogram(compound, region, subselection_df, order, palette, hue_or_palette):
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x="treatment",
@@ -240,7 +290,7 @@ def histogram(
     ax = sns.swarmplot(
         x="treatment",
         y="value",
-        palette=palette,
+        **hue_or_palette,
         order=order,
         data=subselection_df,
         edgecolor="k",

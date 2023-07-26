@@ -248,7 +248,9 @@ def buildAggregateStatsDf(filename, df_type):
 
 def testBuildAggregateStatsDf(filename, df_type):
     working_df = (
-        getCompoundDf(filename) if df_type == "compound" else getCompoundAndRatiosDffilename)
+        getCompoundDf(filename)
+        if df_type == "compound"
+        else getCompoundAndRatiosDf(filename)
     )
     # this one is just describing every region/compound/treament combo
     descriptive_stats_ls = []
@@ -343,7 +345,6 @@ def testBuildAggregateStatsDf(filename, df_type):
 def buildQuantitativeStatsDf(
     filename, subselect=None, experiment="agonist_antagonist", p_value_threshold=0.05
 ):
-    
     experiment_info = getExperimentalInfo(filename)[experiment]
     compound_and_ratios_df = (
         subselectDf(getCompoundAndRatiosDf(filename), subselect)

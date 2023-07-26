@@ -4,6 +4,7 @@ import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import pandas as pd
 from module.utils import *
+from outliers import smirnov_grubbs as grubbs
 
 
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
@@ -65,22 +66,17 @@ def getTwoWayAnova(data, independant_vars):
     ).round(3)
 
 
-def doRawDfGrubbs(raw_df):
-    result_list = []
-    for group in raw_df.groupby("treatment"):
-        result_list.append(
-            grubbsTest(raw_df)
-        )  # this func will loop through the df to feel grubbsTest
-    return result_list
+def grubbsTest(data, p_value_threshold):
+    return grubbs.test(data, alpha=p_value_threshold)
 
 
-def grubbsTest(group_list):  # include the vairable type in name i.e. group_list series
-    # from outliers import smirnov_grubbs as grubbs
-    # x_ = grubbs.test(x, alpha=p_value)
-    return
+def getOutlierLabels(data, test_name, p_value_threshold):
+    normal_values = QUANTITATIVE_STAT_METHODS[test_name](data, p_value_threshold)
+    return [[value, value not in normal_values] for value in data]
 
 
 QUANTITATIVE_STAT_METHODS = {
+    "grubbs": grubbsTest,
     "twoway_anova": getTwoWayAnova,
     "oneway_anova": getOneWayAnova,
     "tukey": getTukey,
