@@ -75,8 +75,8 @@ df.columns = pd.MultiIndex.from_tuples(ideal_headers)
 
 list_of_brain_regions = np.unique(brain_region_list)  # TCB2 == 32
 list_of_compounds = np.unique(compound_list)  # TCB2 == 26
-list_of_groups = np.unique(df['group', 'no'])
-list_of_mice = np.unique(df['mouse', 'no'])
+list_of_groups = np.unique(df['group', 'id'])
+list_of_mice = np.unique(df['mouse', 'id'])
 
 
 # create dict of existing indicies to handel missing values in data set

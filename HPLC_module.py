@@ -140,7 +140,7 @@ def remove_groups_from_df(df_inc_ratios,  groups_to_drop=[]):
     for i in groups_to_drop:
         # need to check here that when i drop values i am not messing up the indexes in the dictionary
         df_dose_responce.drop(
-            df_dose_responce.index[df_dose_responce['group', 'no'] == i], inplace=True)
+            df_dose_responce.index[df_dose_responce['group', 'id'] == i], inplace=True)
 
     return df_dose_responce
 
@@ -232,7 +232,7 @@ def grubbs_test(df_inc_ratios, exist_dict, list_of_groups, treatment_dict, p_val
                         ind_of_outllier = df_inc_ratios.loc[df_inc_ratios[comp, BR] == float(
                             outlier)].index[0]
                         mouse_outliers.append(
-                            df_inc_ratios.loc[ind_of_outllier]['mouse', 'no'])
+                            df_inc_ratios.loc[ind_of_outllier]['mouse', 'id'])
 
                     outlier_dict[treatment_dict[treatment]][BR][comp] = {'mice_removed': mouse_outliers,
                                                                          'excluded_values': np.setdiff1d(x, x_),
@@ -328,7 +328,7 @@ def one_way_ANOVA_post_hoc_between_groups(df_inc_ratios, exist_dict, groups_to_d
 
                 # could this be done through the dictionary
                 mc = MultiComparison(
-                    df_dose_responce[comp, BR], df_dose_responce['group', 'no'])
+                    df_dose_responce[comp, BR], df_dose_responce['group', 'id'])
                 mc_results = mc.tukeyhsd()
                 print(mc_results)
                 df_Tukey = pd.DataFrame(
@@ -391,7 +391,7 @@ def onewayANOVA_Tukeyposthoc(df_inc_ratios, exist_dict, groups_to_drop=[], name=
 
                 # could this be done through the dictionary
                 mc = MultiComparison(
-                    df_dose_responce[comp, BR], df_dose_responce['group', 'no'])
+                    df_dose_responce[comp, BR], df_dose_responce['group', 'id'])
                 mc_results = mc.tukeyhsd()
                 print(mc_results)
                 df_Tukey = pd.DataFrame(
@@ -486,9 +486,9 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
 
     # structure df for two way anova- create columns for each factor ag = TCB2 and ant = MDL
     MDL_positive_index = df_factors.index[(
-        df_factors['group', 'no'] == 5) | (df_factors['group', 'no'] == 6)]
+        df_factors['group', 'id'] == 5) | (df_factors['group', 'id'] == 6)]
     TCB2_positive_index_list = df_factors.index[(
-        df_factors['group', 'no'] == 3) | (df_factors['group', 'no'] == 5)]
+        df_factors['group', 'id'] == 3) | (df_factors['group', 'id'] == 5)]
 
     bool_arr_TCB2 = np.full(len(df_factors), False)
     bool_arr_TCB2[TCB2_positive_index_list] = True
@@ -527,7 +527,7 @@ def two_way_ANOVA(exist_dict, df_inc_ratios, treatments_to_compare=[1, 3, 5, 6],
                     list(comp_dict['group_specific_ind'][treatment]))
 
             d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
-                  'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+                  'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'id'][indexes_to_keep]}
             
             df_anova_working = pd.DataFrame(data=d)
 
@@ -584,9 +584,9 @@ def twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_
 
     # structure df for two way anova- create columns for each factor ag = TCB2 and ant = MDL
     MDL_positive_index = df_factors.index[(
-        df_factors['group', 'no'] == 5) | (df_factors['group', 'no'] == 6)]
+        df_factors['group', 'id'] == 5) | (df_factors['group', 'id'] == 6)]
     TCB2_positive_index_list = df_factors.index[(
-        df_factors['group', 'no'] == 3) | (df_factors['group', 'no'] == 5)]
+        df_factors['group', 'id'] == 3) | (df_factors['group', 'id'] == 5)]
 
     bool_arr_TCB2 = np.full(len(df_factors), False)
     bool_arr_TCB2[TCB2_positive_index_list] = True
@@ -626,7 +626,7 @@ def twoway_ANOVA_oneway_ANOVA_ifsig_Tukey(exist_dict, df_inc_ratios, treatments_
                     list(comp_dict['group_specific_ind'][treatment]))
 
             d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
-                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'id'][indexes_to_keep]}
             df_anova_working = pd.DataFrame(data=d)
             # do two way ANOVA
             two_way_anova = pg.anova(data=df_anova_working, dv='dv', between=[
@@ -715,10 +715,10 @@ def two_way_ANOVA_ALZ(exist_dict, df_inc_ratios, treatments_to_compare=[1, 2, 3,
 
     # structure df for two way anova- create columns for each factor ag = TCB2 and ant = MDL
     # structure df for two way anova- create columns for each factor old = TCB2 and AD = MDL
-    MDL_positive_index = df_factors.index[(df_factors['group', 'no'] == 2) | (
-        df_factors['group', 'no'] == 4)]  # AD positive (false for WT)
-    TCB2_positive_index_list = df_factors.index[(df_factors['group', 'no'] == 3) | (
-        df_factors['group', 'no'] == 4)]  # old positive (false for young)
+    MDL_positive_index = df_factors.index[(df_factors['group', 'id'] == 2) | (
+        df_factors['group', 'id'] == 4)]  # AD positive (false for WT)
+    TCB2_positive_index_list = df_factors.index[(df_factors['group', 'id'] == 3) | (
+        df_factors['group', 'id'] == 4)]  # old positive (false for young)
 
     bool_arr_TCB2 = np.full(len(df_factors), False)
     bool_arr_TCB2[TCB2_positive_index_list] = True
@@ -756,7 +756,7 @@ def two_way_ANOVA_ALZ(exist_dict, df_inc_ratios, treatments_to_compare=[1, 2, 3,
                     list(comp_dict['group_specific_ind'][treatment]))
 
             d = {'dv': df_factors[comp, BR][indexes_to_keep], 'ANT_MDL': df_factors['ANT', 'MDL'][indexes_to_keep],
-                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'no'][indexes_to_keep]}
+                 'AG_TCB2': df_factors['AG', 'TCB2'][indexes_to_keep], 'group': df_factors['group', 'id'][indexes_to_keep]}
             df_anova_working = pd.DataFrame(data=d)
 
             two_way_anova = pg.anova(data=df_anova_working, dv='dv', between=[
@@ -843,9 +843,9 @@ def two_way_ANOVA_ALZ(exist_dict, df_inc_ratios, treatments_to_compare=[1, 2, 3,
 #             for treatment in treatments_to_compare:
 
 #                 mean_treatment.append(np.mean(
-#                     df_compound_mean[df_compound_mean['group', 'no'] == treatment][comp, BR]))
+#                     df_compound_mean[df_compound_mean['group', 'id'] == treatment][comp, BR]))
 #                 SEM_treatment.append(
-#                     np.mean(df_compound_SEM[df_compound_SEM['group', 'no'] == treatment][comp, BR]))
+#                     np.mean(df_compound_SEM[df_compound_SEM['group', 'id'] == treatment][comp, BR]))
 #                 labels.append(treatment_dict[treatment])
 #                 color.append(palette_labeled[treatment_dict[treatment]])
 
@@ -928,7 +928,7 @@ def plot_hist_comparing_treatment_CI(treatment_dict, exist_dict, df_inc_ratios, 
 
             # create relevant df
             d = {'dv': df_inc_ratios[comp, BR][indexes_to_keep], 'group': df_inc_ratios['group',
-                                                                                        'no'][indexes_to_keep], 'mouse': df_inc_ratios['mouse', 'no']}
+                                                                                        'no'][indexes_to_keep], 'mouse': df_inc_ratios['mouse', 'id']}
             df_working = pd.DataFrame(data=d)
             df_working_labeled = df_working.replace(
                 {'group': treatment_dict})  # label groups
@@ -1041,7 +1041,7 @@ def plot_two_groups(treatment_dict, exist_dict, df_inc_ratios, palette_labeled, 
 
             # create relevant df
             d = {'dv': df_inc_ratios[comp, BR][indexes_to_keep],
-                 'group': df_inc_ratios['group', 'no'][indexes_to_keep]}
+                 'group': df_inc_ratios['group', 'id'][indexes_to_keep]}
             df_working = pd.DataFrame(data=d)
 
             # print (df_working)
@@ -1158,7 +1158,7 @@ def pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, tr
             #         break
 
             # get all indexes of treatment group
-            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'no'] == treatment].tolist(
+            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'id'] == treatment].tolist(
             )
 
             if column_order == False:
@@ -1267,7 +1267,7 @@ def pearson_correlations_within_compound(list_of_groups, exist_dict, df_inc_rati
         for comp in list_of_compounds:
             print('comp =', comp)
             # get all indexes of treatment group
-            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'no'] == treatment].tolist(
+            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'id'] == treatment].tolist(
             )
 
             existing_BR_for_comp = [
@@ -1365,7 +1365,7 @@ def pearson_correlations_between_two_BR(treatment_dict, list_of_groups, exist_di
         # count = 0
         print(treatment)
 
-        index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'no'] == treatment].tolist(
+        index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'id'] == treatment].tolist(
         )
         # get all indexes of treatment group
 
@@ -1440,9 +1440,9 @@ def pearson_correlations_between_two_BR(treatment_dict, list_of_groups, exist_di
 def find_group_specific_indices(df, exist_ind, list_of_groups):
     ''' segregate viable sample indices by  groups'''
 
-    # exist_group = np.unique( df[ 'group', 'no'][exist_ind])   # missing groups are groups with n = 0
+    # exist_group = np.unique( df[ 'group', 'id'][exist_ind])   # missing groups are groups with n = 0
 
-    groups = df['group', 'no'].values[exist_ind]
+    groups = df['group', 'id'].values[exist_ind]
 
     sample_counts = np.bincount(groups)
     ii = np.nonzero(sample_counts)[0]
@@ -1453,12 +1453,12 @@ def find_group_specific_indices(df, exist_ind, list_of_groups):
     # groups present i.e. list of groups *not groups
     missing_groups = set(list_of_groups) - set(exist_group)
 
-    # group_spec_dict = { gr : exist_ind [ df[ 'group', 'no'][exist_ind] == gr]      # including viabile indicies with n = 1 per group
+    # group_spec_dict = { gr : exist_ind [ df[ 'group', 'id'][exist_ind] == gr]      # including viabile indicies with n = 1 per group
     #                     for gr in groups}
 
-    group_spec_dict = {gr: exist_ind[df['group', 'no'][exist_ind] == gr]
+    group_spec_dict = {gr: exist_ind[df['group', 'id'][exist_ind] == gr]
                        for gr in groups
-                       if len(exist_ind[df['group', 'no'][exist_ind] == gr]) > 2}   # will not count groups with n < 3 as viable indicies
+                       if len(exist_ind[df['group', 'id'][exist_ind] == gr]) > 2}   # will not count groups with n < 3 as viable indicies
 
     return group_spec_dict, missing_groups
 
@@ -1541,13 +1541,13 @@ def calculate_mean_SD_SEM(df_inc_ratios, exist_dict):
         the viable sample indices provided by <exist_dict>
     '''
 
-    groups = np.unique(df_inc_ratios['group', 'no'])
+    groups = np.unique(df_inc_ratios['group', 'id'])
     n_groups = len(groups)
     measure_list = ['mean', 'SD', 'SEM']
 
     summary = {measure: pd.DataFrame(groups,
                                      columns=pd.MultiIndex.from_tuples(
-                                         [['group', 'no']])
+                                         [['group', 'id']])
                                      )
                for measure in measure_list
                }
@@ -1600,7 +1600,7 @@ def pearson_correlations_within_BR_custom(treatment_dict, list_of_groups, exist_
             #         break
 
             # get all indexes of treatment group
-            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'no'] == treatment].tolist(
+            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'id'] == treatment].tolist(
             )
 
             df_corr_working = pd.DataFrame('NaN', index=index_of_group, columns=list(
@@ -1668,7 +1668,7 @@ def pearson_correlations_within_compound_ratio(list_of_ratios, list_of_groups, r
         for comp in list_of_ratios:
 
             # get all indexes of treatment group
-            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'no'] == treatment].tolist(
+            index_of_group = df_inc_ratios.index[df_inc_ratios['group', 'id'] == treatment].tolist(
             )
 
             # df_corr_working = pd.DataFrame('NaN', index=index_of_group, columns=list(ratio_match_ind_dict.keys()))      # create df to be filled for single BR and treatment
