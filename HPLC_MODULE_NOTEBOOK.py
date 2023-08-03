@@ -874,8 +874,10 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     experimental_info = getExperimentalInfo(filename)[experiment]
     palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
     order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
+
     #REMI: i commented this as its missing a : but idk where - i just need to work on plotters for correlograms
     # STAT_METHODS[stat_name](subselection_df, experimental_info) for stat_name, necessary_for_diplay in experimental_info['quantitative_statistics'].items()}
+
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x="treatment",
@@ -899,6 +901,20 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
         linewidth=1,
         linestyle="-",
     )
+    
+    #DEARIST REMI: here is where you need to feed the star plotter with a list of pairs to plot and the list of p values (obiously in the same order)  I suppose you have figured out a way to chose which stats to plot i.e. only plot post hoc (the only p val we would ever plot) if passes oneway / if passes one AND two way anova
+    pairs = [('vehicles', '3mg/kgTCB'), ('vehicles', '0.2mg/kgMDL')] #pairs where significance is found and want to plot
+    p_values = [0.0001, 0.04]
+    
+    put_significnce_stars(
+        ax,
+        pairs,
+        p_values,
+        data=subselection_df,
+        x="treatment",
+        y="value",
+        order=order)
+
     ax.tick_params(labelsize=24)
     ax.set_ylabel("ng/mg of tissue", fontsize=24)
     if "/" in compound:
@@ -910,28 +926,18 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
 
 
 def put_significnce_stars(
-    stat_data,
     ax,
-    treatment_dict,
-    test_path,
+    pairs,
+    p_values,
     data=None,
     x=None,
     y=None,
-    order=None,
-    sheet="5HT_DL",
-):  # , p_values):
-    if len(df_significant.index) > 0:
-        print(df_significant)
-        p_values = df_significant["p-adj"].values
-        pairs = [
-            (treatment_dict[i[1]["group1"]], treatment_dict[i[1]["group2"]])
-            for i in df_significant.iterrows()
-        ]
+    order=None
+): 
 
-        annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)
-        # https://stackoverflow.com/questions/64081570/matplotlib-marker-annotation-fontsize-not-shrinking-below-1pt-in-pdf
-        annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
-        annotator.set_pvalues_and_annotate(p_values)
+    annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)
+    annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+    annotator.set_pvalues_and_annotate(p_values)
 
     return ax
 
