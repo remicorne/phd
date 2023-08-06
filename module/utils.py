@@ -71,7 +71,7 @@ def cache(filename, identifier, to_cache):
     checkFileSystem(cache_subdir)
     with open(f"{cache_subdir}/{identifier}.pkl", "wb") as file:
         pickle.dump(to_cache, file)
-    print(f"CREATED {cache_subdir}/{identifier}.pkl CACHE")
+    print(f"CACHED {cache_subdir}/{identifier}.pkl")
 
 
 # This function gets the dataframes that are cached
@@ -79,7 +79,7 @@ def cache(filename, identifier, to_cache):
 
 def getCache(filename, identifier):
     filename = filename.split(".")[0]
-    print(f'GETTING "{identifier}" FROM "{filename}" CACHE')
+    print(f'RETRIEVED "{identifier}" FROM "{filename}" CACHE')
     with open(f"{CACHE_DIR}/{filename}/{identifier}.pkl", "rb") as file:
         return pickle.load(file)
 
@@ -144,16 +144,27 @@ def flatten(two_d_list):
 
 
 def askMultipleChoice(question, choices):
+    choice_mapping = {i: choice for i, choice in enumerate(choices)}
     return choices[
         int(
             input(
                 question
                 + "\n"
-                + "\n".join([f"{i}: {choice}" for i, choice in choices.items()])
+                + "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
                 + "\n"
             )
         )
     ]
+
+
+def askSelectParameter(data, column):
+    options = data[column].unique()
+    answer = input(f"Which {column}?\n{', '.join(options)}\n").upper()
+    while answer not in options:
+        print(f".{answer}.")
+        answer = input(
+            f"Invalid choice, possible {column}s are:\n{', '.join(options)}\n"
+        ).upper()
 
 
 def subselectDf(df, subselect):

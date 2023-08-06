@@ -2,7 +2,8 @@ import functools
 from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy
-from module.metadata import applyTreatmentMapping
+from module.figures import *
+from module.metadata import *
 from module.statistics import *
 from module.utils import *
 import pandas as pd
@@ -129,30 +130,48 @@ def buildCompoundDf(filename):
 # Contains the logic to build the ratios df based on the df with the new format
 
 
+# Only compound ratios included here
 def buildCompoundAndRatiosDf(filename):
     compound_df = getCompoundDf(filename)  # .iloc[0:100] #To speed up testing
     ratios_df = pd.merge(
         left=compound_df,
         right=compound_df,
-        on=["mouse_id", "group_id", "region", "experiment", "color", "treatment"],
-        suffixes=["_1", "_2"],
-    )  # merge every compound to every other for each mouse
-    ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
-    ratios_df[["compound", "value"]] = ratios_df.apply(
-        lambda x: [
-            f"{x.compound_1}/{x.compound_2}",
-            x.value_1 / x.value_2 if x.value_2 else np.NaN,
+        on=[
+            "mouse_id",
+            "group_id",
+            "region",
+            "experiment",
+            "color",
+            "treatment",
         ],
+        suffixes=["_1", "_2"],
+    ).reset_index(
+        drop=True
+    )  # merge every compound to every other for each mouse, we want to reset the index (ie make sure it has no duplicates) becaus many update operations will use it
+
+    ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
+
+    def calculateRatio(row):
+        ratio_name = f"{row.compound_1}/{row.compound_2}"
+        print("CALCULATING", row.name, "OF", len(ratios_df))
+        return [
+            ratio_name,
+            row.value_1 / row.value_2 if row.value_2 else np.NaN,
+        ]
+
+    ratios_df[["compound", "value"]] = ratios_df.apply(
+        calculateRatio,
         axis=1,
         result_type="expand",
     )  # calculate ratio
     # Drop duplicate columns
-    return pd.concat(
+    compound_and_ratios_df = pd.concat(
         [
             compound_df,
             ratios_df.drop(columns=["compound_1", "compound_2", "value_1", "value_2"]),
         ]
     )
+    return compound_and_ratios_df
 
 
 # Contains the logic to build the ratios df based on the df with the new format
@@ -205,11 +224,9 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
 
 
 def buildAggregateStatsDf(filename, df_type):
-    working_df = (
-        getCompoundDf(filename) if df_type == "compound" else getRatiosDf(filename)
-    )
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     result_ls = []
-    for treat_region_comp, groupby_df in working_df.groupby(
+    for treat_region_comp, groupby_df in compound_and_ratios_df.groupby(
         by=["treatment", "region", "compound", "experiment"]
     ):
         F, p, is_valid = (
@@ -221,7 +238,7 @@ def buildAggregateStatsDf(filename, df_type):
             groupby_df.value.mean(),
             groupby_df.value.std(),
             groupby_df.value.sem(),
-            list(groupby_df.value),
+            groupby_df.value.values,
         ]
         # start unpacks the list of strings
         result_ls.append([*treat_region_comp, F, p, is_valid, mean, std, sem, values])
@@ -632,3 +649,28 @@ def buildQuantitativeSummaryFig(
     # Adjust the spacing
     plt.tight_layout()
     return fig
+
+
+def buildHistogramData(
+    filename,
+    experiment,
+    compound,
+    region,
+    p_value_threshold,
+):
+    compound_and_ratios_df = getCompoundAndRatiosDf(
+        filename
+    )  # this is not the full ratios df, its only intra region compound ratios for nom
+    data = compound_and_ratios_df[
+        (compound_and_ratios_df.experiment == experiment)
+        & (compound_and_ratios_df.compound == compound)
+        & (compound_and_ratios_df.region == region)
+    ]
+
+    order = data.sort_values(by="group_id", ascending=True).treatment.unique()
+    palette = {
+        treatment: color
+        for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
+    }
+
+    return data, order, palette

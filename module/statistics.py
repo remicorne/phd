@@ -4,7 +4,9 @@ import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import pandas as pd
 from module.utils import *
+from module.getters import *
 from outliers import smirnov_grubbs as grubbs
+import matplotlib.pyplot as plt
 
 
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
@@ -17,9 +19,6 @@ def isSignificant(stat_method_cb, pval_threshold=0.05):
     # For the mask to be properly generated however, we also want to give a pval threshold to pass, as well as the statistical method that determines significance
     # But there is no way to pass this once you are in th pd.corr() context, so this is why you use this design pattern. It is meant to import variable into a context where they are not normally available
     return lambda x, y: stat_method_cb(x, y) >= pval_threshold
-
-
-# The
 
 
 def getPearson(x, y):
@@ -66,17 +65,7 @@ def getTwoWayAnova(data, independant_vars):
     ).round(3)
 
 
-def grubbsTest(data, p_value_threshold):
-    return grubbs.test(data, alpha=p_value_threshold)
-
-
-def getOutlierLabels(data, test_name, p_value_threshold):
-    normal_values = QUANTITATIVE_STAT_METHODS[test_name](data, p_value_threshold)
-    return [[value, value not in normal_values] for value in data]
-
-
 QUANTITATIVE_STAT_METHODS = {
-    "grubbs": grubbsTest,
     "twoway_anova": getTwoWayAnova,
     "oneway_anova": getOneWayAnova,
     "tukey": getTukey,

@@ -4,9 +4,10 @@ from module.utils import *
 from module.getters import *
 from module.statistics import *
 from module.metadata import *
+from module.getters import *
 import seaborn as sns
 from statannotations.Annotator import Annotator
-
+import pandas as pd
 
 # TODO: Handle columns and more generality
 
@@ -47,13 +48,13 @@ def correlogram(
         if experiment
         else askMultipleChoice(
             "Which experiment?",
-            {i: experiment for i, experiment in enumerate(experiments)},
+            experiments.keys(),
         )
     )
     correlogram_type = (
         correlogram_type
         if correlogram_type
-        else askMultipleChoice("Which correlogram?", {0: "compound", 1: "region"})
+        else askMultipleChoice("Which correlogram?", ["compound", "region"])
     )
     to_correlate = (
         to_correlate
@@ -193,24 +194,6 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         ax.set_xlabel(subvalues[1])
 
 
-def applyHistogramOutlierMapping(subselection_df, test_name, p_value_threshold):
-    outlier_labels = pd.DataFrame(
-        [
-            [treatment, value, is_outlier]
-            for treatment, groupby_df in subselection_df.groupby("treatment")
-            for value, is_outlier in getOutlierLabels(
-                groupby_df.value.values, test_name, p_value_threshold
-            )
-        ],
-        columns=["treatment", "value", "is_outlier"],
-    )
-    return pd.merge(
-        left=subselection_df,
-        right=outlier_labels,
-        on=["value", "treatment"],
-    )
-
-
 # TODO: Plug stat methods in here
 @get_or_add("histogram")
 def histogram(
@@ -251,10 +234,6 @@ def histogram(
         if experiment in treatment_mapping[group]["experiments"]
     ]
     palette = {info["treatment"]: info["color"] for info in treatment_mapping.values()}
-    subselection_df["point_color"] = subselection_df.apply(
-        lambda x: "green" if x.is_outlier else palette[x.treatment],
-        axis=1,
-    )
 
     if select_outliers:
         hue_or_palette = {"hue": "is_outlier"}
@@ -273,12 +252,12 @@ def histogram(
     return fig
 
 
-def buildHistogram(compound, region, subselection_df, order, palette, hue_or_palette):
+def buildHistogram(title, ylabel, data, order, palette, hue=None):
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x="treatment",
         y="value",
-        data=subselection_df,
+        data=data,
         palette=palette,
         ci=68,
         order=order,
@@ -287,22 +266,24 @@ def buildHistogram(compound, region, subselection_df, order, palette, hue_or_pal
         errcolor=".2",
         edgecolor=".2",
     )
+    #
+    hue, palette = list(hue.items())[0] if hue else (None, palette)
     ax = sns.swarmplot(
         x="treatment",
         y="value",
-        **hue_or_palette,
+        hue=hue,
+        palette=palette,
         order=order,
-        data=subselection_df,
+        data=data,
         edgecolor="k",
         linewidth=1,
         linestyle="-",
     )
     ax.tick_params(labelsize=24)
     ax.set_ylabel("ng/mg of tissue", fontsize=24)
-    if "/" in compound:
-        ax.set_ylabel(" ", fontsize=24)
+    ax.set_ylabel(ylabel, fontsize=24)
     ax.set_xlabel(" ", fontsize=20)  # treatments
-    ax.set_title(compound + " in " + region, y=1.04, fontsize=34)  # '+/- 68%CI'
+    ax.set_title(title, y=1.04, fontsize=34)  # '+/- 68%CI'
     sns.despine(left=False)
     return fig
 
