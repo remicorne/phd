@@ -1,4 +1,3 @@
-from module.histogram import buildHistogram
 from module.imports import *
 
 
