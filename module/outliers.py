@@ -5,24 +5,23 @@ def grubbsTest(values, p_value_threshold):
     return grubbs.test(values, alpha=p_value_threshold)
 
 
-def labelOutliers(data, test_name, p_value_threshold):
-    outlier_col_name = f"{test_name}_outlier"
+def getOutlierLabels(data, test_name, p_value_threshold):
     normal_values = OUTLIER_METHODS[test_name](data.value.values, p_value_threshold)
-    data[outlier_col_name] = data.apply(
-        lambda row: row.value not in normal_values, axis=1
-    )
-    return data
+    return data.apply(lambda row: row.value not in normal_values, axis=1)
 
 
 def labelTreatmentGroups(subselection_df, test_name, p_value_threshold):
     """calculate outliers for each treatment group and label them in the dataframe"""
     outlier_col_name = f"{test_name}_outlier"
     for treatment in subselection_df.treatment.unique():
-        treatment_df = subselection_df[subselection_df.treatment == treatment]
-        labeled_df = labelOutliers(treatment_df, test_name, p_value_threshold)
-        subselection_df.loc[labeled_df.index, outlier_col_name] = labeled_df[
-            outlier_col_name
-        ]
+        treatment_indices = subselection_df[
+            subselection_df.treatment == treatment
+        ].index
+        outlier_labels = getOutlierLabels(
+            subselection_df.loc[treatment_indices], test_name, p_value_threshold
+        )
+        subselection_df.loc[treatment_indices, outlier_col_name] = outlier_labels
+
     return subselection_df
 
 
@@ -31,18 +30,16 @@ def editOutliers(
     p_value_threshold,
 ):
     """Ask user to edit outliers for a given experiment, compound and region"""
-    edit_outliers = True
     data = getCompoundAndRatiosDf(filename)
     experimental_info = getExperimentalInfo(filename)
+    edit_outliers = True
     while edit_outliers:
-        # compound = askSelectParameter(data, "compound")
-        # region = askSelectParameter(data, "region")
-        # experiment = askMultipleChoice("Which experiment", experimental_info.keys())
-        # experiment_info = experimental_info[experiment]
-        # outlier_tests = askSelectParameter(experiment_info, "outliers")
-        processOutliers(
-            filename, "agonist_antagonist", "DA", "CC", "grubbs", p_value_threshold
-        )
+        compound = askSelectParameter(data, "compound")
+        region = askSelectParameter(data, "region")
+        experiment = askMultipleChoice("Which experiment", experimental_info.keys())
+        experiment_info = experimental_info[experiment]
+        test = askMultipleChoice("Which outliers", experiment_info["outliers"])
+        processOutliers(filename, experiment, compound, region, test, p_value_threshold)
         edit_outliers = input("Edit more outliers? (y/n)\n") == "y"
 
 
@@ -58,6 +55,9 @@ def processOutliers(
     confirmed = False
     while not confirmed:
         # Get data
+        outlier_col_name = f"{test_name}_outlier"
+        eliminated_col_name = f"{test_name}_eliminated_outlier"
+
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region, p_value_threshold
         )
@@ -67,10 +67,14 @@ def processOutliers(
             test_name,
             p_value_threshold,
         )
-        outlier_col_name = f"{test_name}_outlier"
-        eliminated_col_name = f"{test_name}_eliminated_outlier"
+        # If there are no outliers, exit
+        if not data[outlier_col_name].any():
+            print("NO OUTLIERS FOUND")
+            data[eliminated_col_name] = False
+            break
+
         hue = {f"{test_name}_outlier": {True: "red", False: "black"}}
-        # Ask user to confirm outliers
+        # Ask user to codanfirm outliers
         data[eliminated_col_name] = data.apply(
             lambda row: decideOutlier(data, row, order, palette, hue)
             if row[outlier_col_name]
@@ -106,9 +110,8 @@ def decideOutlier(data, row, order, palette, hue):
         title, ylabel, data, order, palette, hue=hue
     )  # Display figure with current outlier highlighted
     plt.show()
-    return (
-        input("Remove outlier? (y/n)\n") == "y"
-    )  # True: true outlier, None: labelled by test but no accepted by user
+    remove_outliers = input("Remove outlier? (y/n)\n") == "y"
+    return remove_outliers
 
 
 # Get compound and ratios dataframe, update outliers column in the rows that have been edited
@@ -126,7 +129,7 @@ def updateCompoundAndRatiosDf(
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     compound_and_ratios_df.loc[data.index, columns] = data[columns]
     cache(filename, "compound_and_ratios_df", compound_and_ratios_df)
-    print(f"{columns} UPDATED FOR {compound} in {region} of, {experiment} experiment")
+    print(f"{columns} UPDATED FOR {compound} in {region} of {experiment} experiment")
 
 
 OUTLIER_METHODS = {

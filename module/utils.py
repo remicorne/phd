@@ -8,20 +8,27 @@ import warnings
 from module.constants import *
 
 
-#
 def saveMetadata(
-    filename, treatment_mapping, experimental_info, region_subclassification
+    filename,
+    treatment_mapping=None,
+    experimental_info=None,
+    region_subclassification=None,
 ):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
-    saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
-    print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
-    saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
-    print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
-    saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
-    print(
-        f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE"
-    )
+    if treatment_mapping:
+        saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
+        print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
+    if experimental_info:
+        saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
+        print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
+    if region_subclassification:
+        saveJSON(
+            f"{subcache_dir}/region_subclassification.json", region_subclassification
+        )
+        print(
+            f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE"
+        )
 
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
@@ -145,26 +152,24 @@ def flatten(two_d_list):
 
 def askMultipleChoice(question, choices):
     choice_mapping = {i: choice for i, choice in enumerate(choices)}
-    return choices[
-        int(
-            input(
-                question
-                + "\n"
-                + "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
-                + "\n"
-            )
-        )
-    ]
+    choice = input(
+        question
+        + "\n"
+        + "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
+        + "\n"
+    )
+    return choice_mapping[int(choice)]
 
 
 def askSelectParameter(data, column):
-    options = data[column].unique()
+    options = set(data[column])
     answer = input(f"Which {column}?\n{', '.join(options)}\n").upper()
     while answer not in options:
         print(f".{answer}.")
         answer = input(
             f"Invalid choice, possible {column}s are:\n{', '.join(options)}\n"
         ).upper()
+    return answer
 
 
 def subselectDf(df, subselect):
