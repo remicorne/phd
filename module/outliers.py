@@ -99,6 +99,7 @@ def processOutliers(
         compound,
         region,
     )
+    return fig
 
 
 def decideOutlier(data, row, order, palette, hue):

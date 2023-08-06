@@ -221,6 +221,7 @@ def buildIdentifier(identifier_type, **kwargs):
     return eval(IDENTIFIERS[identifier_type])
 
 
+# TODO there should be seperate get and add decorators
 def get_or_add(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
@@ -238,7 +239,6 @@ def get_or_add(identifier_type):
                 saveFigure(result, identifier, identifier_type)
             else:
                 result = getCache(filename, identifier)
-            return result
 
         return wrapper
 
