@@ -1,8 +1,7 @@
 from module.imports import *
 
+
 # TODO: Handle columns and more generality
-
-
 # TODO: Plug stat methods in here
 @get_or_add("histogram")
 def histogram(
@@ -24,6 +23,31 @@ def histogram(
         palette,
     )
     return fig
+
+
+def buildHistogramData(
+    filename,
+    experiment,
+    compound,
+    region,
+    p_value_threshold,
+):
+    compound_and_ratios_df = getCompoundAndRatiosDf(
+        filename
+    )  # this is not the full ratios df, its only intra region compound ratios for nom
+    data = compound_and_ratios_df[
+        (compound_and_ratios_df.experiment == experiment)
+        & (compound_and_ratios_df.compound == compound)
+        & (compound_and_ratios_df.region == region)
+    ]
+
+    order = data.sort_values(by="group_id", ascending=True).treatment.unique()
+    palette = {
+        treatment: color
+        for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
+    }
+
+    return data, order, palette
 
 
 def buildHistogram(title, ylabel, data, order, palette, hue=None):

@@ -5,20 +5,20 @@ def grubbsTest(values, p_value_threshold):
     return grubbs.test(values, alpha=p_value_threshold)
 
 
-def getOutlierLabels(data, test_name, p_value_threshold):
-    normal_values = OUTLIER_METHODS[test_name](data.value.values, p_value_threshold)
+def labelOutliers(data, outlier_test, p_value_threshold):
+    normal_values = OUTLIER_TESTS[outlier_test](data.value.values, p_value_threshold)
     return data.apply(lambda row: row.value not in normal_values, axis=1)
 
 
-def labelTreatmentGroups(subselection_df, test_name, p_value_threshold):
+def labelTreatmentGroups(subselection_df, outlier_test, p_value_threshold):
     """calculate outliers for each treatment group and label them in the dataframe"""
-    outlier_col_name = f"{test_name}_outlier"
+    outlier_col_name = f"{outlier_test}_outlier"
     for treatment in subselection_df.treatment.unique():
         treatment_indices = subselection_df[
             subselection_df.treatment == treatment
         ].index
-        outlier_labels = getOutlierLabels(
-            subselection_df.loc[treatment_indices], test_name, p_value_threshold
+        outlier_labels = labelOutliers(
+            subselection_df.loc[treatment_indices], outlier_test, p_value_threshold
         )
         subselection_df.loc[treatment_indices, outlier_col_name] = outlier_labels
 
@@ -38,8 +38,10 @@ def editOutliers(
         region = askSelectParameter(data, "region")
         experiment = askMultipleChoice("Which experiment", experimental_info.keys())
         experiment_info = experimental_info[experiment]
-        test = askMultipleChoice("Which outliers", experiment_info["outliers"])
-        processOutliers(filename, experiment, compound, region, test, p_value_threshold)
+        outlier_test = askMultipleChoice("Which outliers", OUTLIER_TESTS.keys())
+        processOutliers(
+            filename, experiment, compound, region, outlier_test, p_value_threshold
+        )
         edit_outliers = input("Edit more outliers? (y/n)\n") == "y"
 
 
@@ -48,15 +50,16 @@ def processOutliers(
     experiment,
     compound,
     region,
-    test_name,
+    outlier_test,
     p_value_threshold,
 ):
     """Does the whole process of eliminating outliers for a given experiment, compound and region"""
     confirmed = False
     while not confirmed:
         # Get data
-        outlier_col_name = f"{test_name}_outlier"
-        eliminated_col_name = f"{test_name}_eliminated_outlier"
+
+        outlier_col_name = f"{outlier_test}_outlier"
+        eliminated_col_name = f"{outlier_test}_eliminated_outlier"
 
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region, p_value_threshold
@@ -64,7 +67,7 @@ def processOutliers(
         # Label outliers
         data = labelTreatmentGroups(
             data,
-            test_name,
+            outlier_test,
             p_value_threshold,
         )
         # If there are no outliers, exit
@@ -73,19 +76,23 @@ def processOutliers(
             data[eliminated_col_name] = False
             break
 
-        hue = {f"{test_name}_outlier": {True: "red", False: "black"}}
+        title = f"{compound} in {region}"
+        ylabel = " " if "/" in compound else "ng/mm of tissue"
+        hue = {eliminated_col_name: {True: "red", False: "black"}}
+
         # Ask user to codanfirm outliers
         data[eliminated_col_name] = data.apply(
-            lambda row: decideOutlier(data, row, order, palette, hue)
+            lambda row: decideOutlier(
+                data, row, order, outlier_col_name, title, ylabel, palette
+            )
             if row[outlier_col_name]
             else False,
             axis=1,
         )
         # Display figure with outliers highlighted
-        hue = {eliminated_col_name: {True: "red", False: "black"}}
-        fig = buildHistogram(compound, region, data, order, palette, hue=hue)
+        fig = buildHistogram(title, ylabel, data, order, palette, hue=hue)
         plt.show()
-        # Ask user to confirm outliers
+        # Ask user to confirym outliers
         confirmed = (
             input(f"Confirm {len(data[data[eliminated_col_name]])} outliers? (y/n)\n")
             == "y"
@@ -102,14 +109,15 @@ def processOutliers(
     return fig
 
 
-def decideOutlier(data, row, order, palette, hue):
+def decideOutlier(data, row, order, outlier_col_name, title, ylabel, palette):
     """Ask user to confirm outlier"""
-    data[data.mouse_id == row.mouse_id].is_outlier = f"current ({row.mouse_id})"
-    title = f"{row.compound} in {row.region}"
-    ylabel = " " if "/" in row.compound else "ng/mm of tissue"
+    current_label = f"current (id={row.mouse_id})"
+    hue = {outlier_col_name: {True: "white", False: "black", current_label: "red"}}
+    data.loc[row.name, outlier_col_name] = current_label
     fig = buildHistogram(
         title, ylabel, data, order, palette, hue=hue
     )  # Display figure with current outlier highlighted
+    data.loc[row.name, outlier_col_name] = True
     plt.show()
     remove_outliers = input("Remove outlier? (y/n)\n") == "y"
     return remove_outliers
@@ -133,6 +141,6 @@ def updateCompoundAndRatiosDf(
     print(f"{columns} UPDATED FOR {compound} in {region} of {experiment} experiment")
 
 
-OUTLIER_METHODS = {
+OUTLIER_TESTS = {
     "grubbs": grubbsTest,
 }
