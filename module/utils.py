@@ -7,7 +7,7 @@ import shutil
 import warnings
 from typing import Any, Callable
 
-import matplotlib
+import matplotlib.figure
 
 from module.constants import (CACHE_DIR,
                               INPUT_DIR,
