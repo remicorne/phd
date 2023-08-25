@@ -1,6 +1,8 @@
 import functools
+import os
+from typing import Callable
 
-
+from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from matplotlib import patche as mpatches
 import seaborn as sns
@@ -11,6 +13,7 @@ import numpy as np
 
 from module.constants import (CACHE_DIR,
                               INPUT_DIR,
+                              COLUMN_ORDER
                               )
 
 from module.metadata import applyTreatmentMapping
@@ -22,10 +25,11 @@ from module.utils import (isCached,
                           getJSON,
                           dictToFilename,
                           flatten,
+                          saveQuantitativeSummaryFig
                           )
 
 
-def getOrBuildDf(filename, df_identifier, builder_cb):
+def getOrBuildDf(filename : str, df_identifier : str, builder_cb : Callable) -> pd.DataFrame:
     filename_no_extension = filename.split(".")[0]
     # Check cache to avoid recalcuating from scratch if alreasy done
     if isCached(filename_no_extension, df_identifier):
@@ -40,58 +44,58 @@ def getOrBuildDf(filename, df_identifier, builder_cb):
 # The three getters that follow just used the generic function to get the df if cached, injecting their own specific functions to build the df in the case where its not chached
 
 
-def getMetadata(filename, metadata_type):
+def getMetadata(filename : str, metadata_type :str) -> dict:
     return getJSON(f"{CACHE_DIR}/{filename.split('.')[0]}/{metadata_type}.json")
 
 
-def getTreatmentMapping(filename):
+def getTreatmentMapping(filename : str) -> dict:
     return getMetadata(filename, "treatment_mapping")
 
 
-def getExperimentalInfo(filename):
+def getExperimentalInfo(filename : str) -> dict:
     return getMetadata(filename, 'experimental_info')
     
     
-def getRegionSubclassification(filename):
+def getRegionSubclassification(filename : str) -> dict:
     return getMetadata(filename, 'region_subclassification')
     
 
-def getRawDf(filename):
+def getRawDf(filename : str) -> pd.DataFrame:
     return getOrBuildDf(filename, "raw_df", buildRawDf)
 
 
-def getCompoundDf(filename):  # TODO: rename to compounds later
+def getCompoundDf(filename : str) -> pd.DataFrame:  # TODO: rename to compounds later
     return getOrBuildDf(filename, "compound_df", buildCompoundDf)
 
 
-def getCompoundAndRatiosDf(filename):  # TODO: rename to compounds later
+def getCompoundAndRatiosDf(filename: str) -> pd.DataFrame:  # TODO: rename to compounds later
     return getOrBuildDf(filename, "compound_and_ratios_df", buildCompoundAndRatiosDf)
 
 
-def getRatiosDf(filename):
+def getRatiosDf(filename : str) -> pd.DataFrame:
     return getOrBuildDf(filename, "ratios_df", buildRatiosDf)
 
 
-def getRatiosPerRegion(filename, ratios_mapping):
-    cache_filename = dictToFilename(ratios_mapping)
-    builder_callback_with_param = functools.partial(
+def getRatiosPerRegion(filename : str, ratios_mapping : dict) -> Callable:
+    cache_filename : str = dictToFilename(ratios_mapping)
+    builder_callback_with_param : Callable = functools.partial(
         buildRatiosPerRegionDf, ratios_mapping=ratios_mapping
     )
     return getOrBuildDf(filename, cache_filename, builder_callback_with_param)
 
 
-def getCompoundAggregateStatsDf(filename):
+def getCompoundAggregateStatsDf(filename : str) -> Callable:
     return getAggregateStatsDf(filename, "compound")
 
 
-def getRatioAggregateStatsDf(filename):
+def getRatioAggregateStatsDf(filename : str) -> Callable:
     return getAggregateStatsDf(filename, "ratio")
 
 
-def getAggregateStatsDf(filename, df_type):
+def getAggregateStatsDf(filename : str, df_type : str) -> Callable:
     if df_type not in ["ratio", "compound"]:
         raise Exception("DF TYPE MUST BE IN ['ratio', 'compound']")
-    builder_callback_with_param = functools.partial(
+    builder_callback_with_param : Callable = functools.partial(
         buildAggregateStatsDf, df_type=df_type
     )
     return getOrBuildDf(
@@ -99,10 +103,11 @@ def getAggregateStatsDf(filename, df_type):
     )
 
 
-def getQuantitativeStats(filename, p_value_threshold, from_scratch=False):
-    identifier = "quantitative_stats"
+def getQuantitativeStats(filename : str, p_value_threshold : float, from_scratch : bool =False) -> pd.DataFrame:
+    identifier : str = "quantitative_stats"
+    quantitative_stats_df : pd.DataFrame = None
     if from_scratch or not isCached(filename, identifier):
-        quantitative_stats_df = buildQuantitativeStatsDf(filename, p_value_threshold)
+        quantitative_stats_df  = buildQuantitativeStatsDf(filename, p_value_threshold)
         cache(filename, identifier, quantitative_stats_df)
     else:
         quantitative_stats_df = getCache(filename, identifier)
@@ -114,7 +119,7 @@ def getRawHeadTwitchDf(filename):
 ######### BUILDERS #######
 
 
-def buildRawDf(filename):
+def buildRawDf(filename : str) -> pd.DataFrame:
     file_name, file_type = filename.split(".")
     if not file_type == "csv":
         raise Exception(f'METHOD TO DEAL WITH FILE TYPE "{file_type}" ABSENT')
@@ -127,9 +132,9 @@ def buildRawDf(filename):
 # contains the logic to build the df in the new format based on raw df
 
 
-def buildCompoundDf(filename):
-    raw_df = getRawDf(filename)
-    new_format_df = raw_df.melt(
+def buildCompoundDf(filename : str) -> pd.DataFrame:
+    raw_df : pd.DataFrame = getRawDf(filename)
+    new_format_df : pd.DataFrame = raw_df.melt(
         id_vars=["mouse_id", "group_id"], value_vars=raw_df.columns[2:]
     )
     new_format_df[["compound", "region"]] = new_format_df.apply(
@@ -142,9 +147,9 @@ def buildCompoundDf(filename):
 # Contains the logic to build the ratios df based on the df with the new format
 
 
-def buildCompoundAndRatiosDf(filename):
-    compound_df = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
-    ratios_df = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
+def buildCompoundAndRatiosDf(filename : str) -> pd.DataFrame:
+    compound_df : pd.DataFrame = getCompoundDf(filename) #.iloc[0:100] #To speed up testing
+    ratios_df : pd.DataFrame = pd.merge(left=compound_df, right=compound_df, on=['mouse_id', 'group_id', 'region', 'experiment', 'color', 'treatment'], suffixes=['_1', '_2']) #merge every compound to every other for each mouse
     ratios_df = ratios_df[(ratios_df.compound_1 != ratios_df.compound_2)]
     ratios_df[["compound", "value"]] = ratios_df.apply(
         lambda x: [
@@ -164,9 +169,9 @@ def buildCompoundAndRatiosDf(filename):
 
 
 # Contains the logic to build the ratios df based on the df with the new format
-def buildRatiosDf(filename):
-    compound_df = getCompoundDf(filename)  # .iloc[0:100] #To speed up testing
-    merged = pd.merge(
+def buildRatiosDf(filename : str) -> pd.DataFrame:
+    compound_df : pd.DataFrame = getCompoundDf(filename)  # .iloc[0:100] #To speed up testing
+    merged : pd.DataFrame = pd.merge(
         left=compound_df, right=compound_df, on="mouse_id", suffixes=["_1", "_2"]
     )  # merge every region/compound combo to every other for each mouse
     # eliminate duplicates (region1 == region2 & C1 == C2)
@@ -195,9 +200,9 @@ def buildRatiosDf(filename):
 # Function to get the specific rations (intra region) that you use based on a ratios dictionnary
 
 
-def buildRatiosPerRegionDf(filename, ratios_mapping):
-    ratios_df = getRatiosDf(filename)
-    compound_ratios = []
+def buildRatiosPerRegionDf(filename : str, ratios_mapping : dict) -> pd.DataFrame:
+    ratios_df : pd.DataFrame = getRatiosDf(filename)
+    compound_ratios : list = []
     for compound_1, compound_2_list in ratios_mapping.items():
         for compound_2 in compound_2_list:
             compound_ratios.append(
@@ -212,9 +217,9 @@ def buildRatiosPerRegionDf(filename, ratios_mapping):
 # returns df columns = ['treatment', 'region', 'compound', 'F_value', 'p_value']
 
 
-def buildAggregateStatsDf(filename, df_type):
-    working_df = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
-    result_ls = []
+def buildAggregateStatsDf(filename : str, df_type : str) -> pd.DataFrame:
+    working_df : pd.DataFrame = getCompoundDf(filename) if df_type == 'compound' else getRatiosDf(filename)
+    result_ls : list = []
     for treat_region_comp, groupby_df in working_df.groupby(
         by=["treatment", "region", "compound", "experiment"]
     ):
@@ -252,13 +257,13 @@ def buildAggregateStatsDf(filename, df_type):
 # returns df columns = ['treatment', 'region', 'compound', 'F_value', 'p_value']
 
 
-def testBuildAggregateStatsDf(filename, df_type):
-    working_df = (
+def testBuildAggregateStatsDf(filename : str, df_type : str) -> pd.DataFrame:
+    working_df : tuple[pd.DataFrame] = (
         getCompoundDf(filename) if df_type == "compound" else getRatiosDf(filename)
     )
     # this one is just describing every region/compound/treament combo
-    descriptive_stats_ls = []
-    proper_stats_ls = []  # this one really comparing groups
+    descriptive_stats_ls : list = []
+    proper_stats_ls : list = []  # this one really comparing groups
 
     for region_comp, region_comp_groupby_df in working_df.groupby(
         by=["region", "compound"]
@@ -303,11 +308,11 @@ def testBuildAggregateStatsDf(filename, df_type):
     )
     
     
-def buildQuantitativeStatsDf(filename, p_value_threshold):
-    experimental_info = getExperimentalInfo(filename)
-    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
-    data_keys = ["experiment", "compound", "region"]
-    quantitative_stats = []
+def buildQuantitativeStatsDf(filename : str, p_value_threshold : float) -> pd.DataFrame:
+    experimental_info : dict = getExperimentalInfo(filename)
+    compound_and_ratios_df : pd.DataFrame = getCompoundAndRatiosDf(filename)
+    data_keys : list = ["experiment", "compound", "region"]
+    quantitative_stats : list = []
     for experiment_compound_region, data in compound_and_ratios_df.groupby(
         by=data_keys
     ):
@@ -344,8 +349,8 @@ def buildQuantitativeStatsDf(filename, p_value_threshold):
         ],
     )
 
-def buildRawHeadTwitchDf(filename):
-    file_name, file_type = filename.split(".")
+def buildRawHeadTwitchDf(filename : str) -> pd.DataFrame:
+    file_name, file_type : tuple[str,str]= filename.split(".")
     if not file_type == "csv":
         raise Exception(f'METHOD TO DEAL WITH FILE TYPE "{file_type}" ABSENT')
     if not os.path.isfile(f"{INPUT_DIR}/{filename}"):
@@ -355,35 +360,36 @@ def buildRawHeadTwitchDf(filename):
     )  # to set all 0 to Nan
 
 
-def getQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER, from_scratch=None):
-    identifier = f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
+def getQuantitativeSummaryFig(filename : str, experiment : str ='dose_response', value_type : str = 'ratio', value : str = '5HIAA/5HT', regions_to_plot : dict =COLUMN_ORDER, from_scratch=None):
+    identifier : str = f"{experiment}_for_{value.replace('/', ':')}_{(',').join(regions_to_plot)}"
     from_scratch = from_scratch if from_scratch is not None else input("Recalculate figure even if previous version exists? (y/n)") == 'y'
+    fig : Figure = None
     if from_scratch or not isCached(filename, identifier):
-        fig = buildQuantitativeSummaryFig(filename, experiment=experiment, value_type=value_type, value=value, regions_to_plot=regions_to_plot)
+        fig  = buildQuantitativeSummaryFig(filename, experiment=experiment, value_type=value_type, value=value, regions_to_plot=regions_to_plot)
         cache(filename, identifier, fig)
         saveQuantitativeSummaryFig(fig, identifier)
     else : fig = getCache(filename, identifier)
     fig.show() 
 
-def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type = 'ratio', value = '5HIAA/5HT', regions_to_plot=COLUMN_ORDER):
+def buildQuantitativeSummaryFig(filename : str, experiment : str ='dose_response', value_type : str = 'ratio', value : str = '5HIAA/5HT', regions_to_plot : dict =COLUMN_ORDER) -> Figure:
 #FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
 #REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
     #get aggstats df
-    values_df = getAggregateStatsDf(filename, df_type=value_type)
+    values_df : pd.DataFrame = getAggregateStatsDf(filename, df_type=value_type)
 
     #slice df to experiment and vale 
-    treatment_mapping = getTreatmentMapping(filename)
-    experimental_df = values_df[(values_df['region'].isin(regions_to_plot)) & (values_df['experiment']== experiment) & (values_df['compound']== value) ] #select only relevent treatments AND REGIONS
+    treatment_mapping : dict = getTreatmentMapping(filename)
+    experimental_df : pd.DataFrame = values_df[(values_df['region'].isin(regions_to_plot)) & (values_df['experiment']== experiment) & (values_df['compound']== value) ] #select only relevent treatments AND REGIONS
 
     #create a new column % of control mean/control_mean * 100
     experimental_df.loc[:, 'percentage_of_vehicles'] = experimental_df.groupby('region')['mean'].transform(lambda x: (x / x.loc[experimental_df['treatment'] == 'vehicles'].values[0]) * 100)
 
     #order and reshape df to plot 
     experimental_df = experimental_df.loc[experimental_df['region'].isin(regions_to_plot)].assign(region=lambda x: pd.Categorical(x['region'], categories=regions_to_plot, ordered=True)).sort_values('region')
-    plot_experimental_df = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
+    plot_experimental_df : pd.DataFrame = pd.melt(experimental_df, id_vars=['region', 'treatment'], value_vars=['percentage_of_vehicles'])
 
     #load pallette and open fig
-    treatment_palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+    treatment_palette : dict = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
     fig, ax = plt.subplots(figsize=(12, 9))
     # sns.set_style("whitegrid")
     sns.set_style("white")
@@ -393,12 +399,12 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
     sns.lineplot(data=plot_experimental_df, x='region', y='value', hue='treatment', palette=treatment_palette)
 
     #add markers for each region 
-    marker_mapping = {value['treatment']: value['markers'] for value in treatment_mapping.values() if
+    marker_mapping : dict = {value['treatment']: value['markers'] for value in treatment_mapping.values() if
                     experiment in value['experiments']}
 
     # Define the minimum and maximum marker sizes
-    min_marker_size = 20
-    max_marker_size = 100
+    min_marker_size : int = 20
+    max_marker_size : int = 100
 
     # Calculate the marker sizes based on the difference from 100
     plot_experimental_df['marker_size'] = abs(plot_experimental_df['value'] - 100)
@@ -425,8 +431,8 @@ def buildQuantitativeSummaryFig(filename, experiment='dose_response', value_type
     )
 
     # Add axvspan to each grouping
-    region_subclassification = getRegionSubclassification(filename)
-    region_subclassification = {group.replace("_", " "): properties for group, properties in region_subclassification.items()}
+    region_subclassification : dict = getRegionSubclassification(filename)
+    region_subclassification : dict = {group.replace("_", " "): properties for group, properties in region_subclassification.items()}
     for group, properties in region_subclassification.items():
         regions = properties['regions']
         color = properties['color']

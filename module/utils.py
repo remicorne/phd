@@ -5,13 +5,16 @@ import os
 import pickle
 import shutil
 import warnings
+from typing import Any, Callable
+
+import matplotlib
 
 from module.constants import (CACHE_DIR,
                               INPUT_DIR,
                               OUTPUT_DIR)
 
-# 
-def saveMetadata(filename, treatment_mapping, experimental_info, region_subclassification):
+
+def saveMetadata(filename : str, treatment_mapping : dict, experimental_info : dict, region_subclassification : str) -> None:
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
     saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
@@ -25,20 +28,20 @@ def saveMetadata(filename, treatment_mapping, experimental_info, region_subclass
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
 
 
-def saveJSON(path, dict_to_save):
+def saveJSON(path : str, dict_to_save : dict) -> None:
     with open(path, "w", encoding="utf8") as json_file:
         json.dump(dict_to_save, json_file)
 
 
     
 #This function gets JSON files and makes them into python dictionnaries
-def getJSON(path):
+def getJSON(path : str) -> dict:
     with open(path) as outfile:
-        loaded_json = json.load(outfile)
+        loaded_json : dict = json.load(outfile)
     return loaded_json
 
 
-def checkFileSystem(filepath):
+def checkFileSystem(filepath : str) -> None:
     if not os.path.exists(filepath):
         os.mkdir(filepath)
 
@@ -46,7 +49,7 @@ def checkFileSystem(filepath):
 # This checks that the filesystem has all the requisite folders (input, cache, etc..) and creates them if not
 
 
-def initiateFileSystem():
+def initiateFileSystem() -> None:
     checkFileSystem(INPUT_DIR)
     checkFileSystem(CACHE_DIR)
     checkFileSystem(OUTPUT_DIR)
@@ -55,7 +58,7 @@ def initiateFileSystem():
 # This function deletes all cached files, it is used when you want to start from square one because all intermediary results will be cached
 
 
-def resetCache():
+def resetCache() -> None:
     shutil.rmtree(CACHE_DIR)
     os.mkdir(CACHE_DIR)
     print("CACHE CLEARED")
@@ -64,9 +67,9 @@ def resetCache():
 # This function cahces (aka saves in a easily readable format) all dataframes used
 
 
-def cache(filename, identifier, to_cache):
-    filename = filename.split(".")[0]
-    cache_subdir = f"{CACHE_DIR}/{filename}"
+def cache(filename : str, identifier : str, to_cache : Any) -> None:
+    filename  = filename.split(".")[0]
+    cache_subdir : str = f"{CACHE_DIR}/{filename}"
     checkFileSystem(cache_subdir)
     with open(f"{cache_subdir}/{identifier}.pkl", "wb") as file:
         pickle.dump(to_cache, file)
@@ -76,7 +79,7 @@ def cache(filename, identifier, to_cache):
 # This function gets the dataframes that are cached
 
 
-def getCache(filename, identifier):
+def getCache(filename : str, identifier : str) -> Any :
     filename = filename.split(".")[0]
     print(f'GETTING "{identifier}" FROM "{filename}" CACHE')
     with open(f"{CACHE_DIR}/{filename}/{identifier}.pkl", "rb") as file:
@@ -86,13 +89,13 @@ def getCache(filename, identifier):
 # This checks if a particulat dataframe/dataset is cached, return boolean
 
 
-def isCached(filename, identifier):
+def isCached(filename : str, identifier : str) -> bool:
     filename = filename.split(".")[0]
     return os.path.isfile(f"{CACHE_DIR}/{filename}/{identifier}.pkl")
 
 
-def saveFigure(fig, identifier, fig_type):
-    output_subdir = f"{OUTPUT_DIR}/{fig_type}"
+def saveFigure(fig : matplotlib.figure.Figure, identifier : str, fig_type : str) -> None:
+    output_subdir : str = f"{OUTPUT_DIR}/{fig_type}"
     checkFileSystem(output_subdir)
     fig.savefig(f"{output_subdir}/{identifier}.svg")  # dpi also?
     print(f"SAVED {output_subdir}/{identifier}.svg")
@@ -101,25 +104,25 @@ def saveFigure(fig, identifier, fig_type):
     print(f"SAVED {output_subdir}/{identifier}.png")
 
 
-def saveCorrelogram(fig, identifier):
+def saveCorrelogram(fig : matplotlib.figure.Figure, identifier : str):
     saveFigure(fig, identifier, "correlograms")
 
 
-def saveHistogram(fig, identifier):
+def saveHistogram(fig : matplotlib.figure.Figure, identifier : str):
     saveFigure(fig, identifier, "histograms")
 
 
-def saveHeadTwitchHistogram(fig, identifier):
+def saveHeadTwitchHistogram(fig : matplotlib.figure.Figure, identifier : str):
     saveFigure(fig, identifier, "head_twitch_histograms")
 
 
-def saveQuantitativeSummaryFig(fig, identifier):
+def saveQuantitativeSummaryFig(fig : matplotlib.figure.Figure, identifier : str):
     saveFigure(fig, identifier, 'QuantitativeSummaryFigs')
 
 
 
-def dictToFilename(dict_to_stringify):
-    result = str(dict_to_stringify)
+def dictToFilename(dict_to_stringify : dict) -> str :
+    result : str = str(dict_to_stringify)
     for replacement in [
         ["{", ""],
         ["}", ""],
@@ -134,12 +137,12 @@ def dictToFilename(dict_to_stringify):
         result = result.replace(*replacement)
     return result
     
-def flatten(two_d_list):
+def flatten(two_d_list : list[list[Any]]) -> list[Any]:
     return list(itertools.chain.from_iterable(two_d_list))
 
 
 
-def askMultipleChoice(question, choices):
+def askMultipleChoice(question : str, choices : dict):
     return choices[
         int(
             input(
@@ -159,7 +162,7 @@ def askMultipleChoice(question, choices):
 # Which one(s) they need. If we don't do this, we will be rejected when passing unexpected arguments to the function
 # The decorator will look at the function definition to get only the relevant ones from the kwargs variable (keyword args)
 # We could also have used **kwargs in all the stat functions and done the parameter selection after that but the decorator saves codelines and also its cool
-def select_params(stat_function):
+def select_params(stat_function : Callable) -> Callable:
     def wrapper(*args, **kwargs):
         warnings.filterwarnings(
             "error"

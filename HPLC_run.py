@@ -28,6 +28,7 @@ Created on Sat May 14 15:15:02 2022
 # %% OPEN DATA
 import os
 import time
+from collections.abc import Mapping
 
 import numpy as np
 import pandas as pd
@@ -44,12 +45,12 @@ from HPLC_module import (get_summary_of_exsisting_data,
                          pearson_correlations_within_BR,
                          pearson_correlations_within_compound)   # must be in the same directory
 
-path = os.getcwd() + '/input/TCB2_data_HPLC.csv'  # TCB2 #using current working directory plus file name 
+path : str = os.getcwd() + '/input/TCB2_data_HPLC.csv'  # TCB2 #using current working directory plus file name 
 
 
-df_raw = pd.read_csv(path, header=0)
+df_raw : pd.DataFrame = pd.read_csv(path, header=0)
 
-df = df_raw.copy() #cworking df 
+df : pd.DataFrame = df_raw.copy() #cworking df 
 df = df.replace(np.nan, 0) # to set all 0 to Nan
 
 # #%%  DEVELOPING POS2.0 new df structure
@@ -75,24 +76,24 @@ df = df.replace(np.nan, 0) # to set all 0 to Nan
 
 # %% CREATE WORKING DF
 
-index_brain_region = list(df.head(0))
+index_brain_region : list = list(df.head(0))
 
 # first two elements are mouse and group info
-ideal_headers = [i.split('_') for i in index_brain_region]
+ideal_headers : list = [i.split('_') for i in index_brain_region]
 compound_list, brain_region_list = zip(*ideal_headers[2:])
 
 
 # separate column headers into multi index
 df.columns = pd.MultiIndex.from_tuples(ideal_headers)
 
-list_of_brain_regions = np.unique(brain_region_list)  # TCB2 == 32
-list_of_compounds = np.unique(compound_list)  # TCB2 == 26
-list_of_groups = np.unique(df['group', 'no'])
-list_of_mice = np.unique(df['mouse', 'no'])
+list_of_brain_regions : np.ArrayLike = np.unique(brain_region_list)  # TCB2 == 32
+list_of_compounds : np.ArrayLike = np.unique(compound_list)  # TCB2 == 26
+list_of_groups : np.ArrayLike = np.unique(df['group', 'no'])
+list_of_mice : np.ArrayLike = np.unique(df['mouse', 'no'])
 
 
 # create dict of existing indicies to handel missing values in data set
-exist_dict = get_summary_of_exsisting_data(
+exist_dict : dict = get_summary_of_exsisting_data(
     df, list_of_brain_regions, list_of_groups, list_of_mice)
 
 
@@ -107,7 +108,7 @@ ratios are then ceated and appended to df_inc_ratios and a dictionary is created
 
 # ratios to be included in analysis
 
-compound_ratio_dict = {'DOPAC': ['DA'],     # TCB2
+compound_ratio_dict : dict = {'DOPAC': ['DA'],     # TCB2
                        '5HIAA': ['5HT'],
                        '3MT': ['DA'],
                        'HVA': ['DA', '3MT', 'DOPAC'],
@@ -118,12 +119,12 @@ compound_ratio_dict = {'DOPAC': ['DA'],     # TCB2
 #                   '5HI' : ['5HT'],
 #                   'HVA' : ['DA', 'DO']}
 
-df_inc_ratios_raw, list_of_ratios, ratio_match_ind_dict = create_ratios_for_each_BR(df,
-                                                                                    list_of_brain_regions,
-                                                                                    compound_ratio_dict,
-                                                                                    exist_dict,
-                                                                                    len(df.index),
-                                                                                    list_of_groups)
+df_inc_ratios_raw , list_of_ratios , ratio_match_ind_dict : tuple[pd.DataFrame,np.Arraylike, dict] = create_ratios_for_each_BR(df,
+                                                                                                        list_of_brain_regions,
+                                                                                                        compound_ratio_dict,
+                                                                                                        exist_dict,
+                                                                                                        len(df.index),
+                                                                                                        list_of_groups)
 
 
 
@@ -136,12 +137,12 @@ df_inc_ratios_raw, list_of_ratios, ratio_match_ind_dict = create_ratios_for_each
 # palette_labeled = { 'young_WT': 'white',  'young_AD': 'orange',                                       #ALZ_mice
 #                     'old_WT': 'grey', 'old_AD': 'red'}
 
-treatment_dict = {1: 'vehicles', 2: '10mg/kgTCB', 3: '3mg/kgTCB',
+treatment_dict : dict = {1: 'vehicles', 2: '10mg/kgTCB', 3: '3mg/kgTCB',
                   4: '0.3mg/kgTCB', 5: 'TCB+MDL', 6: '0.2mg/kgMDL'}  # TCB2
 
 # treatment_dict = { 1: 'WT', 2 : 'SNORD_115116_KO'}       #SNORD115116
 
-palette_labeled = {'vehicles': "white",  # TCB2
+palette_labeled : dict = {'vehicles': "white",  # TCB2
                    '10mg/kgTCB': "firebrick",
                    '3mg/kgTCB': "red",
                    '0.3mg/kgTCB': "salmon",
@@ -151,10 +152,10 @@ palette_labeled = {'vehicles': "white",  # TCB2
 # palette_labeled = { 'WT': 'white',        #SNORD115116
 #                     'SNORD_115116_KO': 'red'}
 
-df_inc_ratios = df_inc_ratios_raw.copy()
+df_inc_ratios : pd.DataFrame = df_inc_ratios_raw.copy()
 # %% TEST FOR OUTLIERS, Grubbs test (same as graphpad outliers)
 
-df_inc_ratios = df_inc_ratios_raw.copy()
+df_inc_ratios : pd.DataFrame = df_inc_ratios_raw.copy()
 
 # GRUBBS TEST
 
@@ -168,15 +169,15 @@ input:
 '''
 
 # reporting and removing data from all  BR and compound combinations
-df_inc_ratios, outlier_dict = grubbs_test(
+df_inc_ratios, outlier_dict : tuple[pd.DataFrame,dict] = grubbs_test(
     df_inc_ratios, exist_dict, list_of_groups, treatment_dict, p_value=0.05, remove_all=True)
 
 # reporting and removing data from all BR ratio combinations
-df_inc_ratios, outlier_dict_ratio = grubbs_test(
+df_inc_ratios, outlier_dict_ratio : tuple[pd.DataFrame,dict] = grubbs_test(
     df_inc_ratios, ratio_match_ind_dict, list_of_groups, treatment_dict, p_value=0.05, remove_all=False)
 
 #EXIST DICT WITH GRUBS VALUES REMOVED use with df_inc_ratios
-exist_dict_grubbs = get_summary_of_exsisting_data(
+exist_dict_grubbs : dict = get_summary_of_exsisting_data(
     df_inc_ratios, list_of_brain_regions, list_of_groups, list_of_mice)
 #TO USE NOT REMOVED OUTLIERS use exist_dict and  df_inc_ratios_raw
 
@@ -191,9 +192,9 @@ Just seems to make global vairables not saved, do we use them later or why gener
 So, this is not currently in use but was use to graph with SEM rathere than with CI (as our data is largly not parametric) POS2.0 will resolve this issue for now only use it to get number if needed 
 '''
 
-df_compound_mean, df_compound_SD, df_compound_SEM = calculate_mean_SD_SEM(
+df_compound_mean, df_compound_SD, df_compound_SEM : tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] = calculate_mean_SD_SEM(
     df_inc_ratios, exist_dict)
-df_comp_ratios_mean, df_comp_ratios_SD, df_comp_ratios_SEM = calculate_mean_SD_SEM(
+df_comp_ratios_mean, df_comp_ratios_SD, df_comp_ratios_SEM : tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]  = calculate_mean_SD_SEM(
     df_inc_ratios, ratio_match_ind_dict)
 
 # WARNING
@@ -211,8 +212,8 @@ df_comp_ratios_mean, df_comp_ratios_SD, df_comp_ratios_SEM = calculate_mean_SD_S
 #                                     ratio = False)
 
 #saving as csv
-list_df_to_save = [df_compound_mean, df_compound_SD, df_compound_SEM, df_comp_ratios_mean, df_comp_ratios_SD, df_comp_ratios_SEM ]
-list_names = ['df_compound_mean', 'df_compound_SD', 'df_compound_SEM', 'df_comp_ratios_mean', 'df_comp_ratios_SD', 'df_comp_ratios_SEM']
+list_df_to_save : list = [df_compound_mean, df_compound_SD, df_compound_SEM, df_comp_ratios_mean, df_comp_ratios_SD, df_comp_ratios_SEM ]
+list_names : list = ['df_compound_mean', 'df_compound_SD', 'df_compound_SEM', 'df_comp_ratios_mean', 'df_comp_ratios_SD', 'df_comp_ratios_SEM']
 
 for  df, name  in zip(list_df_to_save, list_names):
     
@@ -306,7 +307,7 @@ Outputs :
     
 '''
 
-start_time = time.perf_counter()
+start_time : float = time.perf_counter()
 
 
 # ######ALZ_mice######
@@ -349,7 +350,7 @@ plot_hist_comparing_treatment_CI(treatment_dict, ratio_match_ind_dict, df_inc_ra
                                  test_path=os.getcwd() + '/output/one_way_ANOVA_ifsig_Tukey_ratios.xlsx', ratio=True, mouse_id=False)
 
 
-end_time = time.perf_counter()
+end_time : float = time.perf_counter()
 
 print(f"Execution Time :  {end_time - start_time:0.6f}")
 '''
@@ -392,8 +393,8 @@ Output:
          ratio_correlograms_within_BR.pdf
 '''
 
-MA = ['A', 'NA', 'VMA', 'DA', 'DOPAC', 'LDOPA', 'HVA', '3MT', '5HT', '5HIAA', '5HTP']
-AA = [x for x in list_of_compounds if x not in MA]
+MA : list = ['A', 'NA', 'VMA', 'DA', 'DOPAC', 'LDOPA', 'HVA', '3MT', '5HT', '5HIAA', '5HTP']
+AA : list = [x for x in list_of_compounds if x not in MA]
 
 # Pearson product correlograms with only compunds in column_order  ###### NOT WORKING FOR AA
 pearson_correlations_within_BR(list_of_groups, exist_dict, df_inc_ratios, treatment_dict, name='MonoAmine', p_value=0.05,
@@ -426,7 +427,7 @@ Output:
 #        'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
 #        'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]  #pdd august 2023 #including IC, SL6, SR6
 
-col_order = ['OF', 'PL', 'CC', 'M', 'SJ', 'SL1', 'SR1', 'AC', 'V' , 
+col_order : list = ['OF', 'PL', 'CC', 'M', 'SJ', 'SL1', 'SR1', 'AC', 'V' , 
        'Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL', 'MD', 'VPL', 'VPR', 'DG', 
        'Y', 'SC', 'SN', 'VTA', 'DR', 'MR', 'CE' ]  #pdd 28 April 2023
 

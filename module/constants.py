@@ -1,12 +1,12 @@
 import os
 
 
-ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
-INPUT_DIR = f"{ROOT}/input"
-OUTPUT_DIR = f"{ROOT}/output"
-CACHE_DIR = f"{INPUT_DIR}/cache"
+ROOT : str = os.getcwd()  # This gives terminal location (terminal working dir)
+INPUT_DIR : str = f"{ROOT}/input"
+OUTPUT_DIR : str = f"{ROOT}/output"
+CACHE_DIR : str = f"{INPUT_DIR}/cache"
 
-COLUMN_ORDER = {
+COLUMN_ORDER : dict = {
     "region": [
         "OF",
         "PL",
@@ -44,7 +44,7 @@ COLUMN_ORDER = {
 }
 
 
-CORRELOGRAM_COLUMN_ORDER = {
+CORRELOGRAM_COLUMN_ORDER : dict = {
     "compound": COLUMN_ORDER["region"],
     "region": COLUMN_ORDER["compound"],
 }

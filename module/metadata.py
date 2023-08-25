@@ -1,18 +1,21 @@
 import os
+
+import pandas as pd
+
 from module.constants import CACHE_DIR
 from module.utils import getJSON
 
-def applyTreatmentMapping(df, filename):
+def applyTreatmentMapping(df : pd.Dataframe, filename : str) -> pd.DataFrame:
     filename = filename.split(".")[0]
-    treatment_mapping_path = f"{CACHE_DIR}/{filename}/treatment_mapping.json"
+    treatment_mapping_path : str = f"{CACHE_DIR}/{filename}/treatment_mapping.json"
     # Check treatment mapping is present
     if not os.path.isfile(treatment_mapping_path):
         raise Exception(
             "TREATMENT INFORMATION ABSENT, TO SAVE TREATMENT MAPPING RUN 'setTreatment(filename, treatment_mapping)'"
         )
-    treatment_mapping = getJSON((treatment_mapping_path))
+    treatment_mapping : dict = getJSON((treatment_mapping_path))
     # Get the future column names from one of the treatments
-    new_columns = list(list(treatment_mapping.values())[0].keys())
+    new_columns : list = list(list(treatment_mapping.values())[0].keys())
     df[new_columns] = df.apply(
         lambda x: treatment_mapping[str(int(x["group_id"]))].values(),
         axis=1,

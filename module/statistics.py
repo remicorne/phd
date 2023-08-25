@@ -1,18 +1,20 @@
 import warnings
+from typing import Callable
 
 import pingouin as pg
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
+import numpy as np
 import pandas as pd
 
-from module.utils import select_params,
+from module.utils import select_params
 
 
 
 
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
 # This is a classic design pattern of which i forget the name again.
-def isSignificant(stat_method_cb, pval_threshold=0.05):
+def isSignificant(stat_method_cb : callable, pval_threshold : float =0.05) -> Callable:
     # As you can see here it will return a function. NOT CALL THE FUNCTION, but return it. The point here is to inject variables in the function that is returned.
     # when isSignificant(callback, pval_threshold) is called, it declare the anonymous function (lambda) passing the variables, and returns this declaration
     # this means that when the lambda function is called later on these will be 'harcoded' in the sense that they are no longer variables to be passed
@@ -25,20 +27,20 @@ def isSignificant(stat_method_cb, pval_threshold=0.05):
 # The
 
 
-def getPearson(x, y):
+def getPearson(x : np.ArrayLike, y : np.ArrayLike) -> object:
     return scipy.stats.pearsonr(x, y)
 
 
-def getPearsonR(x, y):
+def getPearsonR(x : np.ArrayLike, y : np.ArrayLike) -> float:
     return getPearson(x, y).statistic
 
 
-def getPearsonPValue(x, y):
+def getPearsonPValue(x, y) -> float:
     return getPearson(x, y).pvalue
 
 
 @select_params
-def getTukey(data, p_value_threshold):
+def getTukey(data : pd.DataFrame, p_value_threshold : float ) -> pd.DataFrame:
     columns, *stats_data = pairwise_tukeyhsd(
         endog=data["value"], groups=data["treatment"], alpha=p_value_threshold
     )._results_table.data
@@ -46,8 +48,8 @@ def getTukey(data, p_value_threshold):
 
 
 @select_params
-def getOneWayAnova(data):
-    F_value, p_value = scipy.stats.f_oneway(
+def getOneWayAnova(data : pd.DataFrame)  -> pd.DataFrame:
+    F_value, p_value : tuple[float,float]= scipy.stats.f_oneway(
         *[list(group_df["value"]) for treatment, group_df in data.groupby("treatment")]
     )
     # print(f'oneWAY_ANOVA F_value: {F_value}, p_value: {p_value}')
@@ -55,7 +57,7 @@ def getOneWayAnova(data):
 
 
 @select_params
-def getTwoWayAnova(data, independant_vars):
+def getTwoWayAnova(data : pd.DataFrame, independant_vars : dict) -> pd.DataFrame:
     data[independant_vars] = data.apply(
         lambda x: [var in x["treatment"] for var in independant_vars],
         axis=1,
@@ -69,7 +71,7 @@ def getTwoWayAnova(data, independant_vars):
     ).round(3)
 
 
-def doRawDfGrubbs(raw_df):
+def doRawDfGrubbs(raw_df : pd.DataFrame) -> list :
     result_list = []
     for group in raw_df.groupby("treatment"):
         result_list.append(
@@ -85,13 +87,13 @@ def grubbsTest(group_list):  # include the vairable type in name i.e. group_list
 
 
 
-QUANTITATIVE_STAT_METHODS = {
+QUANTITATIVE_STAT_METHODS : dict = {
     "twoway_anova": getTwoWayAnova,
     "oneway_anova": getOneWayAnova,
     "tukey": getTukey,
 }
 
 
-QUALITATIVE_STAT_METHODS = {"pearson": getPearson}
+QUALITATIVE_STAT_METHODS : dict = {"pearson": getPearson}
 
 

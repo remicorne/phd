@@ -1,4 +1,6 @@
+import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 import seaborn as sns
 
@@ -33,9 +35,13 @@ from statannotations.Annotator import Annotator
 # TODO: Handle columns and more generality
 
 
-def getAndPlotMultipleCorrelograms(
-    filename, selector, p_value_threshold=0.05, n_minimum=5, from_scratch=None
-):
+### multiple input with unknown typing
+def getAndPlotMultipleCorrelograms(filename : str, 
+                                   selector, 
+                                   p_value_threshold : float =0.05, 
+                                   n_minimum : int =5, 
+                                   from_scratch=None) -> None:
+    
     experiment = selector.pop("experiment", None)
     for (
         correlogram_type,
@@ -54,16 +60,16 @@ def getAndPlotMultipleCorrelograms(
 
 
 def getAndPlotSingleCorrelogram(
-    filename,
-    experiment=None,
-    correlogram_type=None,
-    to_correlate=None,
-    p_value_threshold=0.05,
-    n_minimum=5,
-    columns=None,
-    from_scratch=None,
-):
-    experiments = getExperimentalInfo(filename)
+                                filename : str ,
+                                experiment=None,
+                                correlogram_type=None,
+                                to_correlate=None,
+                                p_value_threshold : float = 0.05,
+                                n_minimum : int = 5,
+                                columns=None,
+                                from_scratch=None,
+                                ) -> None:
+    experiments :dict = getExperimentalInfo(filename)
     experiment = (
         experiment
         if experiment
@@ -114,14 +120,14 @@ def getAndPlotSingleCorrelogram(
 
 
 def buildSingleCorrelogram(
-    filename,
-    experiment,
-    correlogram_type,
-    to_correlate,
-    p_value_threshold,
-    n_minimum,
-    columns,
-):
+                            filename : str,
+                            experiment,
+                            correlogram_type,
+                            to_correlate,
+                            p_value_threshold : float,
+                            n_minimum : int,
+                            columns,
+                        ) -> Figure:
     # this is not the full ratios df, its only intra region compound ratios for nom
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     value_type = {"compound": "region", "region": "compound"}[correlogram_type]
@@ -138,8 +144,8 @@ def buildSingleCorrelogram(
     pivot_column_value = (
         to_correlate if len(to_correlate) == 2 else to_correlate + to_correlate
     )
-    correlograms = []
-    treatment_mapping = getTreatmentMapping(filename)
+    correlograms : list  = []
+    treatment_mapping : dict = getTreatmentMapping(filename)
     order = [
         treatment_mapping[str(group)]["treatment"]
         for group in getExperimentalInfo(filename)[experiment]["groups"]
@@ -175,12 +181,12 @@ def buildSingleCorrelogram(
         correlograms.append(
             [correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate]
         )
-    fig = plotCorrelograms(correlograms)
+    fig : Figure = plotCorrelograms(correlograms)
     return fig
 
 
 
-def plotCorrelograms(correlograms):
+def plotCorrelograms(correlograms: list) -> Figure:
     fig, axs = plt.subplots(2, 2, figsize=(22,22))
     axs = flatten(axs) # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(correlograms, axs):
@@ -189,7 +195,7 @@ def plotCorrelograms(correlograms):
     return fig
 
 
-def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
+def plotCorrelogram(correlogram_df : pd.DataFrame, p_value_mask, treatment, subvalues, ax):
     if np.array_equal(correlogram_df, correlogram_df.T): #remove duplicate data
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
@@ -208,10 +214,14 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     
     
 
-def getSingleHistogram(
-    filename, experiment, compound, region, p_value_threshold, from_scratch=False
-):
-    identifier = f"{experiment}_for_{compound}_in_{region}"
+def getSingleHistogram(filename : str, 
+                       experiment, 
+                       compound, 
+                       region, 
+                       p_value_threshold : float, 
+                       from_scratch=False
+                       ) -> None:
+    identifier : str = f"{experiment}_for_{compound}_in_{region}"
     from_scratch = (
         from_scratch
         if from_scratch is not None
@@ -228,7 +238,7 @@ def getSingleHistogram(
     fig.show()
 
 
-def buildSingleHistogram(filename, experiment, compound, region, p_value_threshold):
+def buildSingleHistogram(filename : str, experiment, compound, region, p_value_threshold : float) -> Figure:
     compound_and_ratios_df = getCompoundAndRatiosDf(filename) #this is not the full ratios df, its only intra region compound ratios for nom
     subselection_df = compound_and_ratios_df[(compound_and_ratios_df.experiment == experiment) & (compound_and_ratios_df.compound==compound) & (compound_and_ratios_df.region==region)]
     subselection_df = subselection_df[['value', 'mouse_id', 'treatment']]
@@ -284,13 +294,13 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
 
 
 def getHeadTwitchHistogram(
-    filename,
-    head_twitch_filename,
-    experiment="dose_responce",
-    p_value_threshold=0.05,
-    to_plot=[],
-    from_scratch=None,
-):
+                            filename : str,
+                            head_twitch_filename,
+                            experiment : str ="dose_responce",
+                            p_value_threshold : float =0.05,
+                            to_plot : list =[],
+                            from_scratch=None,
+                        ) -> None:
     identifier = f"head_twitch_Histogram_{experiment}_for_{to_plot}"
     from_scratch = (
         from_scratch
@@ -313,7 +323,7 @@ def getHeadTwitchHistogram(
     fig.show()
 
 
-def buildHeadTwitchHistogram(filename, HT_filename, experiment='agonist_antagonist', p_value_threshold=0.05, to_plot=['HT_20']):
+def buildHeadTwitchHistogram(filename : str , HT_filename : str , experiment : str ='agonist_antagonist', p_value_threshold : float =0.05, to_plot : list =['HT_20']):
     HT_df = getRawHeadTwitchDf(HT_filename)
     applyTreatmentMapping(HT_df, filename)
     treatment_mapping = getTreatmentMapping(filename)
