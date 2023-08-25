@@ -26,10 +26,23 @@ Created on Sat May 14 15:15:02 2022
 
 
 # %% OPEN DATA
+import os
+import time
 
-from sklearn.preprocessing import StandardScaler # mean = 0 vairance =1
-from sklearn.decomposition import PCA
-from HPLC_module import *  # must be in the same directory
+import numpy as np
+import pandas as pd
+
+from HPLC_module import (get_summary_of_exsisting_data, 
+                         create_ratios_for_each_BR,
+                         grubbs_test,
+                         save_outlier_info,
+                         save_shapiro_data_for_all_treatments,
+                         calculate_mean_SD_SEM,
+                         onewayANOVA_Tukeyposthoc,
+                         twoway_ANOVA_oneway_ANOVA_ifsig_Tukey,
+                         plot_hist_comparing_treatment_CI,
+                         pearson_correlations_within_BR,
+                         pearson_correlations_within_compound)   # must be in the same directory
 
 path = os.getcwd() + '/input/TCB2_data_HPLC.csv'  # TCB2 #using current working directory plus file name 
 
@@ -61,7 +74,7 @@ df = df.replace(np.nan, 0) # to set all 0 to Nan
 
 
 # %% CREATE WORKING DF
-print(ind, row)
+
 index_brain_region = list(df.head(0))
 
 # first two elements are mouse and group info

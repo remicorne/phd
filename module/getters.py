@@ -1,13 +1,29 @@
 import functools
+
+
 from matplotlib import pyplot as plt
+from matplotlib import patche as mpatches
 import seaborn as sns
 import scipy
-from module.metadata import applyTreatmentMapping
-from module.statistics import *
-from module.utils import *
 import pandas as pd
 import numpy as np
-import matplotlib.patches as mpatches
+
+
+from module.constants import (CACHE_DIR,
+                              INPUT_DIR,
+                              )
+
+from module.metadata import applyTreatmentMapping
+from module.statistics import QUANTITATIVE_STAT_METHODS
+
+from module.utils import (isCached,
+                          getCache,
+                          cache,
+                          getJSON,
+                          dictToFilename,
+                          flatten,
+                          )
+
 
 def getOrBuildDf(filename, df_identifier, builder_cb):
     filename_no_extension = filename.split(".")[0]

@@ -1,6 +1,6 @@
 import os
-from module.constants import *
-from module.utils import *
+from module.constants import CACHE_DIR
+from module.utils import getJSON
 
 def applyTreatmentMapping(df, filename):
     filename = filename.split(".")[0]

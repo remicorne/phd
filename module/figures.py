@@ -1,10 +1,32 @@
 from matplotlib import pyplot as plt
 import numpy as np
-from module.utils import *
-from module.getters import *
-from module.statistics import *
-from module.metadata import *
 import seaborn as sns
+
+from module.getters import (getExperimentalInfo,
+                            getCompoundAndRatiosDf,
+                            getTreatmentMapping,
+                            getRawHeadTwitchDf)
+
+from module.statistics import (getPearsonR,
+                               isSignificant,
+                               getPearsonPValue,
+                               )
+
+from module.metadata import (askMultipleChoice,
+                             applyTreatmentMapping)
+
+from module.utils import (isCached,
+                          cache,
+                          saveCorrelogram,
+                          getCache,
+                          flatten,
+                          saveHistogram,
+                          saveHeadTwitchHistogram,
+                          )
+
+from module.constants import (COLUMN_ORDER,
+                             CORRELOGRAM_COLUMN_ORDER)
+
 from statannotations.Annotator import Annotator
 
 
@@ -234,29 +256,29 @@ def buildSingleHistogram(filename, experiment, compound, region, p_value_thresho
     return fig 
 
 
-def put_significnce_stars(
-    stat_data,
-    ax,
-    treatment_dict,
-    test_path,
-    data=None,
-    x=None,
-    y=None,
-    order=None,
-    sheet="5HT_DL",
-):  # , p_values):
-    if len(df_significant.index) > 0:
-        print(df_significant)
-        p_values = df_significant["p-adj"].values
-        pairs = [
-            (treatment_dict[i[1]["group1"]], treatment_dict[i[1]["group2"]])
-            for i in df_significant.iterrows()
-        ]
+# def put_significnce_stars(
+#     stat_data,
+#     ax,
+#     treatment_dict,
+#     test_path,
+#     data=None,
+#     x=None,
+#     y=None,
+#     order=None,
+#     sheet="5HT_DL",
+# ):  # , p_values):
+#     if len(df_significant.index) > 0:
+#         print(df_significant)
+#         p_values = df_significant["p-adj"].values
+#         pairs = [
+#             (treatment_dict[i[1]["group1"]], treatment_dict[i[1]["group2"]])
+#             for i in df_significant.iterrows()
+#         ]
 
-        annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)
-        # https://stackoverflow.com/questions/64081570/matplotlib-marker-annotation-fontsize-not-shrinking-below-1pt-in-pdf
-        annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
-        annotator.set_pvalues_and_annotate(p_values)
+#         annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)
+#         # https://stackoverflow.com/questions/64081570/matplotlib-marker-annotation-fontsize-not-shrinking-below-1pt-in-pdf
+#         annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+#         annotator.set_pvalues_and_annotate(p_values)
 
     return ax
 

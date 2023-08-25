@@ -5,7 +5,10 @@ import os
 import pickle
 import shutil
 import warnings
-from module.constants import *
+
+from module.constants import (CACHE_DIR,
+                              INPUT_DIR,
+                              OUTPUT_DIR)
 
 # 
 def saveMetadata(filename, treatment_mapping, experimental_info, region_subclassification):

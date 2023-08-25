@@ -1,9 +1,12 @@
 import warnings
+
 import pingouin as pg
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import pandas as pd
-from module.utils import *
+
+from module.utils import select_params,
+
 
 
 
