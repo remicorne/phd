@@ -76,7 +76,7 @@ def getTwoWayAnova(data, independant_vars, p_value_threshold):
         between=independant_vars,
         detailed=True,
     ).round(3)
-    return results["p-unc"].apply(lambda p: p <= p_value_threshold).any(), results
+    return results["p-unc"][2], results
 
 
 QUANTITATIVE_STAT_METHODS = {

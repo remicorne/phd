@@ -66,25 +66,16 @@ def quantitativeHistogram(
     experimental_info = getExperimentalInfo(filename)
     exit_loop = False
     while not exit_loop:
-        compound = compound or askSelectParameter(data, "compound")
-        region = region or askSelectParameter(data, "region")
-        experiment = experiment or askMultipleChoice(
-            "Select experiment", experimental_info.keys()
-        )
-        outlier_test = outlier_test or askMultipleChoice(
-            "Select outlier test", OUTLIER_TESTS.keys()
-        )
-        p_value_threshold = p_value_threshold or askMultipleChoice(
-            "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
-        )
         # We use keyword params here even though they actually are mandatory for the decorator
         singleQuantitativeHistogram(
             filename,
-            experiment=experiment,
-            compound=compound,
-            region=region,
-            outlier_test=outlier_test,
-            p_value_threshold=p_value_threshold,
+            experiment=askMultipleChoice("Select experiment", experimental_info.keys()),
+            compound=askSelectParameter(data, "compound"),
+            region=askSelectParameter(data, "region"),
+            outlier_test=askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys()),
+            p_value_threshold=askMultipleChoice(
+                "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
+            ),
             from_scratch=from_scratch,
         )
         exit_loop = askYesorNo("Exit?")
@@ -109,14 +100,15 @@ def singleQuantitativeHistogram(
     """
     confirmed = False
     experiment_info = getExperimentalInfo(filename)[experiment]
+    eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
     while not confirmed:
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region
         )
 
         if (
-            f"eliminated_{outlier_test}_outlier" not in data
-            or data[f"eliminated_{outlier_test}_outlier"].isna().any()
+            eliminated_outlier_col_name not in data
+            or data[eliminated_outlier_col_name].isna().any()
             or askYesorNo("Redo outlier selection?")
         ):
             data = processOutliers(
@@ -128,6 +120,7 @@ def singleQuantitativeHistogram(
                 p_value_threshold,
             )
 
+        data = data[data[eliminated_outlier_col_name] == False]
         # the last quantitative test is coded to return the labels directly, thus the need for the bool
         (
             is_significant,

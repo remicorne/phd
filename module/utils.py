@@ -131,7 +131,7 @@ def flatten(two_d_list):
 def askMultipleChoice(question, choices):
     choice_mapping = {f"{i}": choice for i, choice in enumerate(choices)}
     options = "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
-    choice = input(f"question\n{options}\n")
+    choice = input(f"{question}\n{options}\n")
     while choice not in choice_mapping.keys():
         choice = input(f"Invalid choice, possibilities are:\{options}\n")
     return choice_mapping[choice]
