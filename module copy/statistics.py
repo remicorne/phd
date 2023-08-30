@@ -1,10 +1,12 @@
+import warnings
 import pingouin as pg
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import pandas as pd
+from module.utils import *
+from module.getters import *
 from outliers import smirnov_grubbs as grubbs
 import matplotlib.pyplot as plt
-from module.utils import select_params
 
 
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
@@ -37,19 +39,7 @@ def getTukey(data, p_value_threshold):
         endog=data["value"], groups=data["treatment"], alpha=p_value_threshold
     )._results_table.data
     results = pd.DataFrame(stats_data, columns=columns)
-    significance_infos = pd.DataFrame(
-        list(
-            results[results.reject].apply(
-                lambda res: [(res.group1, res.group2), res["p-adj"]], axis=1
-            )
-        ),
-        columns=["pairs", "p_values"],
-    )
-    return (
-        len(significance_infos) > 0,
-        results,
-        [significance_infos.pairs.tolist(), significance_infos.p_values.tolist()],
-    )
+    return results
 
 
 @select_params
@@ -64,7 +54,7 @@ def getOneWayAnova(data, p_value_threshold):
 
 
 @select_params
-def getTwoWayAnova(data, independant_vars, p_value_threshold):
+def getTwoWayAnova(data, independant_vars):
     data[independant_vars] = data.apply(
         lambda x: [var in x["treatment"] for var in independant_vars],
         axis=1,
@@ -76,7 +66,7 @@ def getTwoWayAnova(data, independant_vars, p_value_threshold):
         between=independant_vars,
         detailed=True,
     ).round(3)
-    return results["p-unc"].apply(lambda p: p <= p_value_threshold).any(), results
+    return results
 
 
 QUANTITATIVE_STAT_METHODS = {

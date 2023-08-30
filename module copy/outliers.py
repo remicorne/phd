@@ -1,8 +1,4 @@
-from outliers import smirnov_grubbs as grubbs
-import matplotlib.pyplot as plt
-from module.getters import getCompoundAndRatiosDf
-from module.histogram import buildHistogram, buildHistogramData
-from module.utils import askYesorNo, cache
+from module.imports import *
 
 
 def grubbsTest(values, p_value_threshold):
@@ -27,6 +23,40 @@ def labelOutliers(subselection_df, outlier_test, p_value_threshold):
         subselection_df.loc[treatment_indices, outlier_col_name] = outlier_labels
 
     return subselection_df
+
+
+# def quantitativeHistogram(
+#     filename,
+#     experiment=None,
+#     compound=None,
+#     region=None,
+#     outlier_test=None,
+#     p_value_threshold=None,
+# ):
+#     """
+#     Ask user histogram parameters and go through the process
+#     outliers -> stats -> display and save fig
+
+#     """
+#     data = getCompoundAndRatiosDf(filename)
+#     experimental_info = getExperimentalInfo(filename)
+#     edit_outliers = True
+#     while edit_outliers:
+#         compound = compound or askSelectParameter(data, "compound")
+#         region = region or askSelectParameter(data, "region")
+#         experiment = experiment or askMultipleChoice(
+#             "Select experiment", experimental_info.keys()
+#         )
+#         outlier_test = outlier_test or askMultipleChoice(
+#             "Select outlier test", OUTLIER_TESTS.keys()
+#         )
+#         p_value_threshold = p_value_threshold or askMultipleChoice(
+#             "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
+#         )
+#         processQuantitativeData(
+#             filename, experiment, compound, region, outlier_test, p_value_threshold
+#         )
+#         edit_outliers = askYesorNo("Edit more outliers?")
 
 
 def processOutliers(
@@ -57,7 +87,7 @@ def processOutliers(
         # If there are no outliers, exit
         if not data[outlier_col_name].any():
             print("NO OUTLIERS FOUND")
-            data.loc[data.index, eliminated_outlier_col_name] = False
+            data[eliminated_outlier_col_name] = False
             break
 
         title = f"{compound} in {region}"
@@ -65,17 +95,9 @@ def processOutliers(
         hue = {eliminated_outlier_col_name: {True: "red", False: "black"}}
 
         # Ask user to codanfirm outliers
-        data.loc[:, eliminated_outlier_col_name] = False
-        data[data[outlier_col_name]].apply(
+        data[eliminated_outlier_col_name] = data.apply(
             lambda row: decideOutlier(
-                data,
-                row,
-                order,
-                outlier_col_name,
-                eliminated_outlier_col_name,
-                title,
-                ylabel,
-                palette,
+                data, row, order, outlier_col_name, title, ylabel, palette
             )
             if row[outlier_col_name]
             else False,
@@ -100,16 +122,7 @@ def processOutliers(
     return data
 
 
-def decideOutlier(
-    data,
-    row,
-    order,
-    outlier_col_name,
-    eliminated_outlier_col_name,
-    title,
-    ylabel,
-    palette,
-):
+def decideOutlier(data, row, order, outlier_col_name, title, ylabel, palette):
     """Ask user to confirm outlier"""
     current_label = f"current (id={row.mouse_id})"
     hue = {outlier_col_name: {True: "white", False: "black", current_label: "red"}}
@@ -119,7 +132,8 @@ def decideOutlier(
     )  # Display figure with current outlier highlighted
     data.loc[row.name, outlier_col_name] = True
     plt.show()
-    data.loc[row.name, eliminated_outlier_col_name] = askYesorNo("Remove outlier?")
+    remove_outliers = askYesorNo("Remove outlier?")
+    return remove_outliers
 
 
 # Get compound and ratios dataframe, update outliers column in the rows that have been edited

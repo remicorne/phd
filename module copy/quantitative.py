@@ -1,19 +1,4 @@
-from matplotlib import pyplot as plt
-import pandas as pd
-import scipy
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from module.getters import getCompoundAndRatiosDf, getExperimentalInfo
-from module.histogram import buildHistogram, buildHistogramData
-from module.outliers import OUTLIER_TESTS, processOutliers
-from module.statistics import QUANTITATIVE_STAT_METHODS
-from module.utils import (
-    askMultipleChoice,
-    askSelectParameter,
-    askYesorNo,
-    get_or_add,
-    select_params,
-)
-import pingouin as pg
+from module.imports import *
 
 
 @select_params
@@ -55,7 +40,6 @@ def quantitativeHistogram(
     region=None,
     outlier_test=None,
     p_value_threshold=None,
-    from_scratch=None,
 ):
     """
     Ask user histogram parameters and go through the process
@@ -64,8 +48,8 @@ def quantitativeHistogram(
     """
     data = getCompoundAndRatiosDf(filename)
     experimental_info = getExperimentalInfo(filename)
-    exit_loop = False
-    while not exit_loop:
+    edit_outliers = True
+    while edit_outliers:
         compound = compound or askSelectParameter(data, "compound")
         region = region or askSelectParameter(data, "region")
         experiment = experiment or askMultipleChoice(
@@ -77,29 +61,21 @@ def quantitativeHistogram(
         p_value_threshold = p_value_threshold or askMultipleChoice(
             "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
         )
-        # We use keyword params here even though they actually are mandatory for the decorator
-        singleQuantitativeHistogram(
-            filename,
-            experiment=experiment,
-            compound=compound,
-            region=region,
-            outlier_test=outlier_test,
-            p_value_threshold=p_value_threshold,
-            from_scratch=from_scratch,
+
+        processQuantitativeData(
+            filename, experiment, compound, region, outlier_test, p_value_threshold
         )
-        exit_loop = askYesorNo("Exit?")
+        edit_outliers = askYesorNo("Edit more outliers?")
 
 
-# We use keyword params here even though they actually are mandatory for the decorator
 @get_or_add("histogram")
-def singleQuantitativeHistogram(
+def processQuantitativeData(
     filename,
-    experiment=None,
-    compound=None,
-    region=None,
-    outlier_test=None,
-    p_value_threshold=None,
-    from_scratch=None,
+    experiment,
+    compound,
+    region,
+    outlier_test,
+    p_value_threshold,
 ):
     """
     Does the whole process of eliminating outliers for a given experiment,
@@ -108,65 +84,51 @@ def singleQuantitativeHistogram(
     and handling of multiple deffently parametered figures is the users responsability
     """
     confirmed = False
-    experiment_info = getExperimentalInfo(filename)[experiment]
     while not confirmed:
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region
         )
 
-        if (
-            f"eliminated_{outlier_test}_outlier" not in data
-            or data[f"eliminated_{outlier_test}_outlier"].isna().any()
-            or askYesorNo("Redo outlier selection?")
-        ):
-            data = processOutliers(
-                filename,
-                experiment,
-                compound,
-                region,
-                outlier_test,
-                p_value_threshold,
+        if data[f"eliminated_{outlier_test}_outlier"].notna().all():
+            if askYesorNo("Redo outlier selection?"):
+                data = processOutliers(
+                    filename,
+                    experiment,
+                    compound,
+                    region,
+                    outlier_test,
+                    p_value_threshold,
+                )
+
+            is_significant, stats_results = processQuantitativeStats(
+                filename, data, p_value_threshold
             )
 
-        # the last quantitative test is coded to return the labels directly, thus the need for the bool
-        (
-            is_significant,
-            significance_infos,
-        ) = processQuantitativeStats(experiment_info, data, p_value_threshold)
+            if is_significant:
+                title = f"{compound} in {region}"
+                ylabel = " " if "/" in compound else "ng/mm of tissue"
+                fig = buildHistogram(title, ylabel, data, order, palette, stats_results)
 
-        title = f"{compound} in {region} {experiment_info['quantitative_statistics'].keys()}"
-        ylabel = " " if "/" in compound else "ng/mm of tissue"
-        fig = buildHistogram(
-            title,
-            ylabel,
-            data,
-            order,
-            palette,
-            significance_infos=significance_infos if is_significant else None,
-        )
+            plt.show()
 
-        plt.show()
-
-        return fig
+            return fig
 
 
-def processQuantitativeStats(experiment_info, data, p_value_threshold):
+def processQuantitativeStats(
+    filename, data, experiment, compound, region, p_value_threshold
+):
+    experiment_info = getExperimentalInfo(filename)[experiment]
     # TODO: replace with independant var and factor logic
     # Implement test passing choice logic
 
     for test in experiment_info["quantitative_statistics"]:
-        is_significant, stats_results, *significance_infos = QUANTITATIVE_STAT_METHODS[
-            test
-        ](
+        is_significant, stats_results = QUANTITATIVE_STAT_METHODS[test](
             data=data,
             independant_vars=experiment_info["independant_vars"],
             p_value_threshold=p_value_threshold,
         )
-        print()
-        print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
-        print(stats_results)
         if not is_significant:
             if not askYesorNo(f"{test} FAILED, proceed?"):
-                return False, None
+                break
 
-    return is_significant, significance_infos[0]
+    return is_significant, stats_results

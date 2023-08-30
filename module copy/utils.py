@@ -6,7 +6,30 @@ import pickle
 import shutil
 import warnings
 from module.constants import *
-from PIL import Image
+
+
+def saveMetadata(
+    filename,
+    treatment_mapping=None,
+    experimental_info=None,
+    region_subclassification=None,
+):
+    subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
+    checkFileSystem(subcache_dir)
+    if treatment_mapping:
+        saveJSON(f"{subcache_dir}/treatment_mapping.json", treatment_mapping)
+        print(f"TREATMENT MAPPING {treatment_mapping} SAVED TO {subcache_dir} SUBCACHE")
+    if experimental_info:
+        saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
+        print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
+    if region_subclassification:
+        saveJSON(
+            f"{subcache_dir}/region_subclassification.json", region_subclassification
+        )
+        print(
+            f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE"
+        )
+
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
 
@@ -83,7 +106,6 @@ def saveFigure(fig, identifier, fig_type):
     print(f"SAVED {output_subdir}/{identifier}.svg")
     # https://stackoverflow.com/questions/7906365/matplotlib-savefig-plots-different-from-show
     fig.savefig(f"{output_subdir}/{identifier}.png", dpi=fig.dpi)
-    # Image.open(f"{output_subdir}/{identifier}.png").show()
     print(f"SAVED {output_subdir}/{identifier}.png")
 
 
@@ -179,10 +201,10 @@ def select_params(stat_function):
             warnings.simplefilter("always")
             try:
                 result = stat_function(*selected_args)
-                if w and issubclass(w[-1].category, Warning):
-                    print("WARNING")
-                    print(w[-1].message)
-                return result
+                return [
+                    "WARNING" if w and issubclass(w[-1].category, Warning) else "OK",
+                    result,
+                ]
             except Exception as e:
                 return ["ERROR", str(e)]
 
@@ -222,3 +244,26 @@ def get_or_add(identifier_type):
         return wrapper
 
     return decorator
+
+
+# I want to do this as wel but I don't know how to do it in a way that is not too complicated
+
+# MUTILPLE_CHOICE_PARAMS = {
+#     "experiment": [
+#         "Which experiment?",
+#         {i: experiment for i, experiment in enumerate(getExperimentalInfo(filename))},
+#     ]
+# }
+#
+# def multipleChoice(param_name):
+#     def decorator(builder_func):
+#         def wrapper(*args, **kwargs):
+#             if kwargs.get(param_name) is None:
+#                 kwargs[param_name] = askMultipleChoice(
+#                     f"Choose {param_name}", kwargs[param_name + "s"]
+#                 )
+#             return builder_func(*args, **kwargs)
+
+#         return wrapper
+
+#     return decorator

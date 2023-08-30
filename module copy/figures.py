@@ -1,14 +1,11 @@
 from matplotlib import pyplot as plt
 import numpy as np
+from module.utils import *
+from module.getters import *
+from module.statistics import *
+from module.metadata import *
+from module.getters import *
 import seaborn as sns
-from module.getters import (
-    getExperimentalInfo,
-    getTreatmentMapping,
-    getCompoundAndRatiosDf,
-)
-from module.utils import askMultipleChoice, flatten, get_or_add
-from module.statistics import getPearsonR, getPearsonPValue, isSignificant
-from module.constants import CORRELOGRAM_COLUMN_ORDER, COLUMN_ORDER
 from statannotations.Annotator import Annotator
 import pandas as pd
 

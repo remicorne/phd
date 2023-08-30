@@ -2,21 +2,10 @@ import functools
 from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy
-import os
-from module.statistics import QUANTITATIVE_STAT_METHODS
-from module.utils import (
-    flatten,
-    isCached,
-    getCache,
-    cache,
-    getJSON,
-    dictToFilename,
-    askYesorNo,
-    subselectDf,
-    saveQuantitativeSummaryFig,
-)
-from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
-from module.metadata import applyTreatmentMapping
+from module.figures import *
+from module.metadata import *
+from module.statistics import *
+from module.utils import *
 import pandas as pd
 import numpy as np
 import matplotlib.patches as mpatches
@@ -62,12 +51,7 @@ def getCompoundDf(filename):  # TODO: rename to compounds later
 
 
 def getCompoundAndRatiosDf(filename):  # TODO: rename to compounds later
-    if "compound_and_ratios_df" not in globals():
-        global compound_and_ratios_df
-        compound_and_ratios_df = getOrBuildDf(
-            filename, "compound_and_ratios_df", buildCompoundAndRatiosDf
-        )
-    return compound_and_ratios_df
+    return getOrBuildDf(filename, "compound_and_ratios_df", buildCompoundAndRatiosDf)
 
 
 def getRatiosDf(filename):
@@ -169,7 +153,7 @@ def buildCompoundAndRatiosDf(filename):
 
     def calculateRatio(row):
         ratio_name = f"{row.compound_1}/{row.compound_2}"
-        print("CALCULATING", row.name, "OF", len(ratios_df), "RATIOS")
+        print("CALCULATING", row.name, "OF", len(ratios_df))
         return [
             ratio_name,
             row.value_1 / row.value_2 if row.value_2 else np.NaN,
@@ -274,6 +258,104 @@ def buildAggregateStatsDf(filename, df_type):
             "values",
         ],
     )
+
+
+# returns df columns = ['treatment', 'region', 'compound', 'F_value', 'p_value']
+
+
+def testBuildAggregateStatsDf(filename, df_type):
+    working_df = (
+        getCompoundDf(filename)
+        if df_type == "compound"
+        else getCompoundAndRatiosDf(filename)
+    )
+    # this one is just describing every region/compound/treament combo
+    descriptive_stats_ls = []
+    proper_stats_ls = []  # this one really comparing groups
+
+    for region_comp, region_comp_groupby_df in working_df.groupby(
+        by=["region", "compound"]
+    ):
+        for treatment, treatment_groupby_df in region_comp_groupby_df.groupby(
+            by=["treatment"]
+        ):
+            F, p, is_valid = (
+                [*scipy.stats.shapiro(treatment_groupby_df["value"]), True]
+                if len(treatment_groupby_df) >= 3
+                else [np.NaN, np.NaN, False]
+            )
+            mean, std, sem, values = [
+                treatment_groupby_df.value.mean(),
+                treatment_groupby_df.value.std(),
+                treatment_groupby_df.value.sem(),
+                list(treatment_groupby_df.value),
+            ]
+            # start unpacks the list of strings
+            descriptive_stats_ls.append(
+                [*[treatment, *region_comp], F, p, is_valid, mean, std, sem, values]
+            )
+
+        f_one, p_one = scipy.stats.f_oneway(g1, g2, g3)  # pseudo code
+        f_two, p_two = scipy.stats.f_twoway(g1, g2, g3)  # pseudo code
+        proper_stats_ls.append([treatment, region_comp, F, p])  # pseudo code
+
+    return pd.DataFrame(
+        descriptive_stats_ls,
+        columns=[
+            "treatment",
+            "region",
+            "compound",
+            "shapiro_F",
+            "shapiro_p",
+            "is_valid",
+            "mean",
+            "std",
+            "sem",
+            "values",
+        ],
+    )
+
+
+# def oldBuildQuantitativeStatsDf(filename, p_value_threshold):
+#     experimental_info = getExperimentalInfo(filename)
+#     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+#     data_keys = ["experiment", "compound", "region"]
+#     quantitative_stats = []
+#     groupbys = compound_and_ratios_df.groupby(by=data_keys)
+#     for i, (experiment_compound_region, data) in list(enumerate(groupbys))[:100]:
+#         print("CALULATING", i, "OF", len(groupbys), "GROUPBYS")
+#         experiment, compound, region = experiment_compound_region
+#         if (
+#             experiment == "dose_response"
+#         ):  ## TODO: Remove when info mapping is completed
+#             continue
+#         experiment_info = experimental_info[experiment]
+#         current_result = [
+#             experiment,
+#             compound,
+#             region,
+#         ]
+#         for test in experiment_info["quantitative_statistics"]:
+#             current_result.extend(
+#                 QUANTITATIVE_STAT_METHODS[test](
+#                     data=data,
+#                     independant_vars=experiment_info["independant_vars"],
+#                     p_value_threshold=p_value_threshold,
+#                 )
+#             )
+#         quantitative_stats.append(current_result)
+#     return pd.DataFrame(
+#         quantitative_stats,
+#         columns=[
+#             data_keys
+#             + flatten(
+#                 [
+#                     [f"{test}_status", f"{test}_result"]
+#                     for test in experiment_info["quantitative_statistics"]
+#                 ]
+#             )
+#         ],
+#     )
 
 
 # Change experiment param to none when experiment info mapping is complete
