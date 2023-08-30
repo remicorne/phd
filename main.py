@@ -1,4 +1,5 @@
 from module.quantitative import quantitativeHistogram
+from module.correlogram import correlogram
 from module.utils import initiateFileSystem
 from module.metadata import saveMetadata
 
