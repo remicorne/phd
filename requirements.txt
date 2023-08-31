@@ -9,7 +9,7 @@ numpy
 openpyxl
 pandas
 outlier_utils
-matplotlib
+matplotlib=3.6
 pingouin
 scipy
 seaborn
