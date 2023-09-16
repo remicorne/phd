@@ -43,10 +43,8 @@ COLUMN_ORDER = {
     "compound": ["DA", "DOPAC", "HVA", "3MT", "5HT", "5HIAA", "GLU", "GLN"],
 }
 
-
-CORRELOGRAM_COLUMN_ORDER = {
-    "compound": COLUMN_ORDER["region"],
-    "region": COLUMN_ORDER["compound"],
-}
+CORRELOGRAM_TYPE_CONVERTER = {"region": "compound", "compound": "region"}
 
 
+def getCorrelogramColumns(correlogram_type):
+    return COLUMN_ORDER[CORRELOGRAM_TYPE_CONVERTER[correlogram_type]]

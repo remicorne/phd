@@ -6,10 +6,9 @@ from module.getters import (
     getTreatmentMapping,
     getCompoundAndRatiosDf,
 )
-from module.utils import askMultipleChoice, flatten, get_or_add
+from module.utils import askMultipleChoice, flatten, get_or_add, inputEscape
 from module.statistics import getPearsonR, getPearsonPValue, isSignificant
-from module.constants import CORRELOGRAM_COLUMN_ORDER, COLUMN_ORDER
-from statannotations.Annotator import Annotator
+from module.constants import getCorrelogramColumns, CORRELOGRAM_TYPE_CONVERTER
 import pandas as pd
 
 # TODO: Handle columns and more generality
@@ -45,6 +44,7 @@ def correlogram(
     columns=None,
     from_scratch=None,
 ):
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     experiments = getExperimentalInfo(filename)
     experiment = (
         experiment
@@ -65,12 +65,13 @@ def correlogram(
         else input(
             f"""Which {correlogram_type}?
                     (Enter simple {correlogram_type} or {correlogram_type}/{correlogram_type} for ratio,
-                    Use {correlogram_type} or {correlogram_type}/q{correlogram_type} for simple correlogram, or {correlogram_type}-{correlogram_type} or {correlogram_type}/{correlogram_type}-{correlogram_type} for square correlogram
-                    Possibilities: {COLUMN_ORDER[correlogram_type]}
+                    Use {correlogram_type} or {correlogram_type}/{correlogram_type} for simple correlogram, or {correlogram_type}-{correlogram_type} or {correlogram_type}/{correlogram_type}-{correlogram_type} for square correlogram
+                    Possibilities: {set(compound_and_ratios_df[correlogram_type])}
                     """
-        )
+        ).upper()
     )
-    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
+    columns = askColumnsToUser(correlogram_type)
+
     buildSingleCorrelogram(
         filename,
         experiment=experiment,
@@ -195,3 +196,34 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     elif len(subvalues) == 2:
         ax.set_ylabel(subvalues[0])
         ax.set_xlabel(subvalues[1])
+
+
+def askColumnsToUser(correlogram_type):
+    compound_and_ratios_df = globals()["compounds_and_ratios_df"]
+    col_name = CORRELOGRAM_TYPE_CONVERTER[correlogram_type]
+    columns = getCorrelogramColumns[correlogram_type]
+    answer = input(
+        f"""Default {col_name} are: {','.join(columns)}. 
+                   Press enter to confirm or write new column list in the same format"""
+    )
+    if answer:
+        columns = answer.upper().replace(" ", "").split(",")
+        errors = filter(
+            lambda i, col: col not in set(compound_and_ratios_df[col_name]),
+            enumerate(columns),
+        )
+        while errors:
+            columns = (
+                inputEscape(
+                    f"""Unknown {col_name}s {','.join(errors)}
+                Please retype"""
+                )
+                .upper()
+                .replace(" ", "")
+                .split(",")
+            )
+            errors = filter(
+                lambda i, col: col not in set(compound_and_ratios_df[col_name]),
+                enumerate(columns),
+            )
+    return columns

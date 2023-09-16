@@ -62,7 +62,7 @@ def processOutliers(
 
         title = f"{compound} in {region}"
         ylabel = " " if "/" in compound else "ng/mm of tissue"
-        hue = {eliminated_outlier_col_name: {True: "red", False: "black"}}
+        hue = {eliminated_outlier_col_name: {True: "red", False: "white"}}
 
         # Ask user to codanfirm outliers
         data.loc[:, eliminated_outlier_col_name] = False

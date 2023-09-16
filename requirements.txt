@@ -9,10 +9,11 @@ numpy
 openpyxl
 pandas
 outlier_utils
-matplotlib=3.6
+matplotlib<=3.6
 pingouin
 scipy
 seaborn
+setuptools<=60
 statannotations
 statannot
 statsmodels

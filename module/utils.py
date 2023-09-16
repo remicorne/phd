@@ -4,6 +4,7 @@ import json
 import os
 import pickle
 import shutil
+import sys
 import warnings
 from module.constants import *
 from PIL import Image
@@ -128,28 +129,36 @@ def flatten(two_d_list):
     return list(itertools.chain.from_iterable(two_d_list))
 
 
+def inputEscape(question):
+    answer = input(question)
+    if answer == "":
+        if input("EXIT PROGRAM? (y/n)") == "y":
+            sys.exit()
+    return answer
+
+
 def askMultipleChoice(question, choices):
     choice_mapping = {f"{i}": choice for i, choice in enumerate(choices)}
     options = "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
-    choice = input(f"{question}\n{options}\n")
+    choice = inputEscape(f"{question}\n{options}\n")
     while choice not in choice_mapping.keys():
-        choice = input(f"Invalid choice, possibilities are:\{options}\n")
+        choice = inputEscape(f"Invalid choice, possibilities are:\{options}\n")
     return choice_mapping[choice]
 
 
 def askSelectParameter(data, column):
     options = set(data[column])
-    answer = input(f"Select {column}?\n{', '.join(options)}\n").upper()
+    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").upper()
     while answer not in options:
         print(f".{answer}.")
-        answer = input(
+        answer = inputEscape(
             f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n"
         ).upper()
     return answer
 
 
 def askYesorNo(question):
-    return input(f"{question} (y/n)\n").upper() == "Y"
+    return inputEscape(f"{question} (y/n)\n").upper() == "Y"
 
 
 def subselectDf(df, subselect):
