@@ -70,7 +70,7 @@ def correlogram(
                     """
         ).upper()
     )
-    columns = askColumnsToUser(correlogram_type)
+    columns = askColumnsToUser(correlogram_type, compound_and_ratios_df)
 
     buildSingleCorrelogram(
         filename,
@@ -198,10 +198,9 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         ax.set_xlabel(subvalues[1])
 
 
-def askColumnsToUser(correlogram_type):
-    compound_and_ratios_df = globals()["compounds_and_ratios_df"]
+def askColumnsToUser(correlogram_type, compound_and_ratios_df):
     col_name = CORRELOGRAM_TYPE_CONVERTER[correlogram_type]
-    columns = getCorrelogramColumns[correlogram_type]
+    columns = getCorrelogramColumns(correlogram_type)
     answer = input(
         f"""Default {col_name} are: {','.join(columns)}. 
                    Press enter to confirm or write new column list in the same format"""
