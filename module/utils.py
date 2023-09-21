@@ -133,6 +133,7 @@ def inputEscape(question):
     answer = input(question)
     if answer == "":
         if input("EXIT PROGRAM? (y/n)") == "y":
+            print("EXITING PROGRAM")
             sys.exit()
     return answer
 
