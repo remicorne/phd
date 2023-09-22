@@ -122,14 +122,6 @@ def singleQuantitativeHistogram(
                 p_value_threshold,
             )
 
-        #REMI the order is important and incorrect i have implimented this here to overwrite buildHistogramData 
-        #  I WANT TO NOT HAVE PROMPTS wen i already specified
-        #here is where I believe the implimenting of order should be done as follows:
-        treatment_mapping = getTreatmentMapping(filename)
-        experimental_info = getExperimentalInfo(filename)[experiment]
-        palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-        order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
-
         data = data[data[eliminated_outlier_col_name] == False]
         # the last quantitative test is coded to return the labels directly, thus the need for the bool
         (
