@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-import matplotlib.cm as cm
+import matplotlib
 import numpy as np
 import seaborn as sns
 from module.getters import (
@@ -76,7 +76,7 @@ def correlogram(
                     """
         ).upper()
     )
-    columns = askColumnsToUser(correlogram_type, compound_and_ratios_df)
+    columns = askColumnsToUser(correlogram_type, compound_and_ratios_df) #REMI: for me I would like to be able to manuely code these in pls ass the if not assigned, danke
 
     buildSingleCorrelogram(
         filename,
@@ -160,6 +160,7 @@ def buildSingleCorrelogram(
 
 
 def plotCorrelograms(correlograms):
+    #JJB might be nice to have one color bar for all figures
     fig, axs = plt.subplots(2, 2, figsize=(22, 22))
     axs = flatten(axs)  # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(
@@ -171,12 +172,18 @@ def plotCorrelograms(correlograms):
 
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
-    if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data
+    
+
+    if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data for triangle correlograms
+        title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
+
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
         np.fill_diagonal(
             p_value_mask.values, False
-        )  # this maked the diagonal correlations of 1 visible
+        )  # this makes the diagonal correlations of 1 visible
+    else:
+        title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=1)  # Adjust the y position of the title manually for square correlogram
 
     heatmap = sns.heatmap(
         correlogram_df,
@@ -184,17 +191,15 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         vmax=1,
         square=True,
         annot=True,
-        cmap=cm.get_cmap("BrBG"),
+        cmap=matplotlib.colormaps['BrBG'],
         mask=p_value_mask,
         annot_kws={"size": 6},
         ax=ax,
+        cbar_kws={"shrink": 0.8} #adj color bar size
     )
     ax.set_xticklabels(
         ax.get_xticklabels()
     )  # rotation=45, horizontalalignment='right',
-    title = ax.set_title(
-        f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9
-    )  # Adjust the y position of the title manually
 
     if len(subvalues) == 1:
         ax.set_ylabel("")

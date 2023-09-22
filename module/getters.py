@@ -93,14 +93,12 @@ def getRatioAggregateStatsDf(filename):
     return getAggregateStatsDf(filename, "ratio")
 
 
-def getAggregateStatsDf(filename, df_type):
-    if df_type not in ["ratio", "compound"]:
-        raise Exception("DF TYPE MUST BE IN ['ratio', 'compound']")
+def getAggregateStatsDf(filename):
     builder_callback_with_param = functools.partial(
-        buildAggregateStatsDf, df_type=df_type
+        buildAggregateStatsDf, df_type='compound_and_ratios_df'
     )
     return getOrBuildDf(
-        filename, f"{df_type}_aggregate_stats", builder_callback_with_param
+        filename, "compound_and_ratios_df_aggregate_stats", builder_callback_with_param
     )
 
 

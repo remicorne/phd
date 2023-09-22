@@ -22,7 +22,7 @@ def buildHistogramData(
         & (compound_and_ratios_df.region == region)
     ]
 
-    order = data.sort_values(by="group_id", ascending=True).treatment.unique()
+    order = data.sort_values(by="group_id", ascending=True).treatment.unique() #JJB REMI what is this why this order i fic later in the plotting of the fig cause its wrong but maybe you need this order for something else?
     palette = {
         treatment: color
         for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
@@ -34,9 +34,13 @@ def buildHistogramData(
 def buildHistogram(
     title, ylabel, data, order, palette, hue=None, significance_infos=None
 ):
-    # JASMINE: in what case would the x and y be variables?
+    # JASMINE: in what case would the x and y be variables? #REMI we need to talk about this func as it should be more general 
+   
     x = "treatment"
     y = "value"
+
+
+
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x=x,

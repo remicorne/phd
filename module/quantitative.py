@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from module.getters import getCompoundAndRatiosDf, getExperimentalInfo
+from module.getters import getCompoundAndRatiosDf, getExperimentalInfo, getTreatmentMapping 
 from module.histogram import buildHistogram, buildHistogramData
 from module.outliers import OUTLIER_TESTS, processOutliers
 from module.statistics import QUANTITATIVE_STAT_METHODS
@@ -67,7 +67,7 @@ def quantitativeHistogram(
     exit_loop = False
     while not exit_loop:
         # We use keyword params here even though they actually are mandatory for the decorator
-        singleQuantitativeHistogram(
+        singleQuantitativeHistogram( #REMI i think this is where the endless prompts come fom re hist 
             filename,
             experiment=askMultipleChoice("Select experiment", experimental_info.keys()),
             compound=askSelectParameter(data, "compound"),
@@ -101,6 +101,8 @@ def singleQuantitativeHistogram(
     confirmed = False
     experiment_info = getExperimentalInfo(filename)[experiment]
     eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
+
+
     while not confirmed:
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region
@@ -120,6 +122,14 @@ def singleQuantitativeHistogram(
                 p_value_threshold,
             )
 
+        #REMI the order is important and incorrect i have implimented this here to overwrite buildHistogramData 
+        #  I WANT TO NOT HAVE PROMPTS wen i already specified
+        #here is where I believe the implimenting of order should be done as follows:
+        treatment_mapping = getTreatmentMapping(filename)
+        experimental_info = getExperimentalInfo(filename)[experiment]
+        palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
+        order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
+
         data = data[data[eliminated_outlier_col_name] == False]
         # the last quantitative test is coded to return the labels directly, thus the need for the bool
         (
@@ -127,8 +137,12 @@ def singleQuantitativeHistogram(
             significance_infos,
         ) = processQuantitativeStats(experiment_info, data, p_value_threshold)
 
-        title = f"{compound} in {region} {experiment_info['quantitative_statistics'].keys()}"
+        #JJB ok for the title its nice to show the stats that are significant/shown by stars not all tests done as it was
+        #i.e. if its two factor (agonist antagonist) and two way anova is calculated you have this choice to continue even if you failed the two way in this case perhaps we add '(failed two-way-anova)' to title
+        title = f"{compound} in {region} " #{experiment_info['quantitative_statistics'].keys()}
         ylabel = " " if "/" in compound else "ng/mm of tissue"
+
+        
         fig = buildHistogram(
             title,
             ylabel,
