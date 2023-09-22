@@ -3,22 +3,6 @@
 # Make sure you have last versions of pip and setuptools with : "pip3 install -U pip" then "pip3 install -U setuptools" in venv
 # Use command "pip install -r requirements.txt" to install
 
-# Cython
-# wheel
-# numpy
-# openpyxl
-# pandas
-# outlier_utils
-# matplotlib<=3.6
-# pingouin
-# scipy
-# seaborn
-# setuptools<=60
-# statannotations
-# statannot
-# statsmodels
-# weasyprint
-
 asttokens==2.2.1
 autopep8==2.0.2
 backcall==0.2.0
