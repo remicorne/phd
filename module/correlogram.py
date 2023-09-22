@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+import matplotlib.cm as cm
 import numpy as np
 import seaborn as sns
 from module.getters import (
@@ -183,7 +184,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         vmax=1,
         square=True,
         annot=True,
-        cmap="BrBG",
+        cmap=cm.get_cmap("BrBG"),
         mask=p_value_mask,
         annot_kws={"size": 6},
         ax=ax,
