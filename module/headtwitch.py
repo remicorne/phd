@@ -7,6 +7,9 @@ from module.utils import get_or_add
 import seaborn as sns
 
 
+## TODO: modularize with generic histogram funcs
+
+
 @get_or_add("head_twitch_histogram")
 def headTwitchHistogram(
     filename,

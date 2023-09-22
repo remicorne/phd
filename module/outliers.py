@@ -4,18 +4,30 @@ from module.getters import getCompoundAndRatiosDf
 from module.histogram import buildHistogram, buildHistogramData
 from module.utils import askYesorNo, cache
 
+########### FUNCTIONS THAT DEAL WITH THE OUTLIER PROCESSING LOGIC ###########
+
 
 def grubbsTest(values, p_value_threshold):
+    """
+    Takes a list of values on which to perform the test and returns normal values
+    """
     return grubbs.test(values, alpha=p_value_threshold)
 
 
 def getOutliers(data, outlier_test, p_value_threshold):
+    """
+    Takes a series containing the values and returns a series with T/F outlier labels
+    The outlier test called must return the list of normal values for this to work
+    """
     normal_values = OUTLIER_TESTS[outlier_test](data.value.values, p_value_threshold)
     return data.apply(lambda row: row.value not in normal_values, axis=1)
 
 
 def labelOutliers(subselection_df, outlier_test, p_value_threshold):
-    """calculate outliers for each treatment group and label them in the dataframe"""
+    """
+    calculate outliers for each treatment group and label them in the dataset
+    Return labelled dataset
+    """
     outlier_col_name = f"{outlier_test}_outlier"
     for treatment in subselection_df.treatment.unique():
         treatment_indices = subselection_df[
@@ -39,7 +51,8 @@ def processOutliers(
 ):
     """
     Does the whole process of eliminating outliers for a given experiment,
-    compound and region, and calculating the stats and figure based on this"""
+    compound and region, and calculating the stats and figure based on this
+    """
     confirmed = False
     while not confirmed:
         outlier_col_name = f"{outlier_test}_outlier"

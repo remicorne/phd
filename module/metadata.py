@@ -2,6 +2,9 @@ import os
 from module.constants import CACHE_DIR
 from module.utils import checkFileSystem, getJSON, saveJSON
 
+####### FUNCTION THAT DEAL WITH SAVING INFORMATIONS ABOUT EXPERIMENTS ###########
+# TODO: replace with user friendly interactive process
+
 
 def applyTreatmentMapping(df, filename):
     filename = filename.split(".")[0]

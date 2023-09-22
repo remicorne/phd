@@ -4,6 +4,8 @@ from module.getters import getCompoundAndRatiosDf
 import seaborn as sns
 from statannotations.Annotator import Annotator
 
+########## GENERIC HISTOGRAM FUNCTIONS MEANT TO BE USED TO BUILD ANY HISTOGRAM #########
+
 
 def buildHistogramData(
     filename,

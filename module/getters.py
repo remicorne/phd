@@ -21,6 +21,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.patches as mpatches
 
+######### GETTERS THAT DEAL WITH THE RAW DATA #########
+## TODO Seperate and finalize aggregate stats functions
+
 
 def getOrBuildDf(filename, df_identifier, builder_cb):
     filename_no_extension = filename.split(".")[0]

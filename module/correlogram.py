@@ -34,6 +34,7 @@ def getAndPlotMultipleCorrelograms(
             )
 
 
+##TOOD: make more interactive with loop for user to be able to calibrate correlogram as desired
 def correlogram(
     filename,
     experiment=None,
@@ -44,6 +45,10 @@ def correlogram(
     columns=None,
     from_scratch=None,
 ):
+    """
+    This is the function that is called by the user, it will call buildSingleCorrelogram that builds a signle correlogram
+    The function can be called with parameters, user input will be required if not
+    """
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     experiments = getExperimentalInfo(filename)
     experiment = (
@@ -199,6 +204,9 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
 
 
 def askColumnsToUser(correlogram_type, compound_and_ratios_df):
+    """ "
+    Asks user for columns to display and correlogram
+    """
     col_name = CORRELOGRAM_TYPE_CONVERTER[correlogram_type]
     columns = getCorrelogramColumns(correlogram_type)
     answer = input(
