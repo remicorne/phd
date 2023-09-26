@@ -112,9 +112,8 @@ def getQuantitativeStats(filename, p_value_threshold, from_scratch=False):
     return quantitative_stats_df
 
 
-def getRawHeadTwitchDf(filename):
-    return getOrBuildDf(filename, "raw_head_twitch_df", buildRawDf)
-
+def getHeadTwitchDf(filename):
+    return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
 
 ######### BUILDERS #######
 
@@ -129,7 +128,11 @@ def buildRawDf(filename):
     return pd.read_csv(f"{INPUT_DIR}/{filename}", header=0).replace(np.nan, 0)
 
 
-# contains the logic to build the df in the new format based on raw df
+# contains the logic to build the df in the new format based on raw df 
+
+def buildHeadTwitchDf(HT_filename):
+    new_format_df=applyTreatmentMapping(getRawDf(HT_filename), HT_filename)
+    return new_format_df
 
 
 def buildCompoundDf(filename):

@@ -202,7 +202,7 @@ def select_params(stat_function):
 IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
-    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{to_plot}"',
+    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
 }
 
 
