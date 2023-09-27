@@ -20,7 +20,7 @@ def headTwitchHistogram(
     from_scratch=None,
 ):
     HT_data=getHeadTwitchDf(HT_filename)
-    data, order, palette = buildHeadTwitchHistogramData(HT_filename, 'agonist_antagonist', vairable)
+    data, order, palette = buildHeadTwitchHistogramData(HT_filename, experiment, vairable)
 
     title = vairable.replace('_', ' at ') + ' min'
     ylabel = 'events / min'
