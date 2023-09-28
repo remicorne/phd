@@ -2,12 +2,12 @@ from main import *
 from module.headtwitch import *
 
 treatment_mapping = (
-    {  
+    {  # TO DO : change name to treatment_info and add columns in df REMI
         1: {"treatment": "vehicles",
             "color": "white",
             "experiments": ["dose_response", "agonist_antagonist"],
             },
-        2: {"treatment": "10mg/kgTCB",
+        2: {"treatment": "0.3mg/kgTCB",
             "color": "firebrick",
             "experiments": ["dose_response"],
             },
@@ -15,11 +15,11 @@ treatment_mapping = (
             "color": "red",
             "experiments": ["dose_response", "agonist_antagonist"],
             },
-        4: {"treatment": "0.3mg/kgTCB",
+        4: {"treatment": "10mg/kgTCB",
             "color": "salmon",
             "experiments": ["dose_response"],
             },
-        5: {"treatment": "0.2mg/kgMDL",
+        5: {"treatment": "0.3mg/kgMDL",
             "color": "black",
             "experiments": ["agonist_antagonist"],
             },
@@ -67,6 +67,23 @@ saveMetadata(
 )
 
 #26/9/23 running
+
+# Exception has occurred: OptionError
+# "No such keys(s): 'mode.use_inf_as_null'"
+#   File "/Users/jasminebutler/Desktop/phd/debug.py", line 73, in <module>
+#     sns.lineplot(data=rando_df, x='x',y='y')
+# pandas._config.config.OptionError: "No such keys(s): 'mode.use_inf_as_null'"
+
+# rando_df= pd.DataFrame({'x':[1,2,1,3], 'y': [3,3,3,5]})
+
+# sns.lineplot(data=rando_df, x='x',y='y')
+
+
+print('ja, genau')
+
+#building 
+# @get_or_add("quantitative_summary")
+# def singleQuantitativeSummaryFig(
 from module.constants import COLUMN_ORDER
 
 filename

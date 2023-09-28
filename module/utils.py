@@ -152,7 +152,7 @@ def askSelectParameter(data, column):
     while answer not in options:
         print(f".{answer}.")
         answer = inputEscape(
-            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n"
+            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n" #this mans after one invalid choice the posibilities change to uppercase? or just the display?
         ).upper()
     return answer
 
