@@ -147,7 +147,8 @@ def askMultipleChoice(question, choices):
 
 def askSelectParameter(data, column):
     options = set(data[column])
-    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").upper()
+    print(options)
+    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")#.upper()# i cant access vH, dH ect
     while answer not in options:
         print(f".{answer}.")
         answer = inputEscape(
