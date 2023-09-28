@@ -5,7 +5,7 @@ from module.correlogram import correlogram
 from module.utils import initiateFileSystem
 from module.metadata import saveMetadata
 from module.utils import subselectDf
-from module.getters import getCompoundAndRatiosDf, getAggregateStatsDf, getHeadTwitchDf
+from module.getters import getCompoundAndRatiosDf, getAggregateStatsDf, getHeadTwitchDf, getQuantitativeSummaryFig, getRegionSubclassification
 
 
 #

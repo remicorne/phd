@@ -67,7 +67,7 @@ def quantitativeHistogram(
     exit_loop = False
     while not exit_loop:
         # We use keyword params here even though they actually are mandatory for the decorator
-        singleQuantitativeHistogram( #REMI i think this is where the endless prompts come fom re hist 
+        singleQuantitativeHistogram(
             filename,
             experiment=askMultipleChoice("Select experiment", experimental_info.keys()),
             compound=askSelectParameter(data, "compound"),
@@ -129,9 +129,8 @@ def singleQuantitativeHistogram(
             significance_infos,
         ) = processQuantitativeStats(experiment_info, data, p_value_threshold)
 
-        #JJB ok for the title its nice to show the stats that are significant/shown by stars not all tests done as it was
-        #i.e. if its two factor (agonist antagonist) and two way anova is calculated you have this choice to continue even if you failed the two way in this case perhaps we add '(failed two-way-anova)' to title
-        title = f"{compound} in {region} " #{experiment_info['quantitative_statistics'].keys()}
+        #JJB ok for the title would like to have either:  " passes: twowayANOVA, onewayANOVA " oder "failed: two-way-anova"
+        title = f"{compound} in {region} "
         ylabel = " " if "/" in compound else "ng/mm of tissue"
 
         

@@ -350,7 +350,7 @@ def buildGroupbyQuantitativeStats(
         ]
     )
 
-
+#replacing in the quantitative.py as only builder should be here no?
 def getQuantitativeSummaryFig(
     filename,
     experiment="dose_response",
@@ -371,8 +371,7 @@ def getQuantitativeSummaryFig(
         fig = buildQuantitativeSummaryFig(
             filename,
             experiment=experiment,
-            value_type=value_type,
-            value=value,
+            compound=value,
             regions_to_plot=regions_to_plot,
         )
         cache(filename, identifier, fig)
@@ -382,24 +381,28 @@ def getQuantitativeSummaryFig(
     fig.show()
 
 
+
+# @get_or_add("quantitative_summary")
+# def singleQuantitativeSummaryFig(
+
 def buildQuantitativeSummaryFig(
     filename,
     experiment="dose_response",
-    value_type="ratio",
-    value="5HIAA/5HT",
-    regions_to_plot=COLUMN_ORDER,
+    compound="5HIAA/5HT",
+    regions=COLUMN_ORDER,
 ):
     # FIX ME: build in scafolding so if experiment is not in experiments in treatmentmapping then raise error: use 'dose_response' or 'agonist_antagonist'
     # REMI: i guess you will also want me to modularise this, and we need to unify naming for different plots
     # get aggstats df
-    values_df = getAggregateStatsDf(filename, df_type=value_type)
+    # compound_type= 'ratio' if '/' in compound else 'compound'#redundant with new agg stats getter?
+    values_df = getAggregateStatsDf(filename)
 
     # slice df to experiment and vale
     treatment_mapping = getTreatmentMapping(filename)
     experimental_df = values_df[
-        (values_df["region"].isin(regions_to_plot))
+        (values_df["region"].isin(regions))
         & (values_df["experiment"] == experiment)
-        & (values_df["compound"] == value)
+        & (values_df["compound"] == compound)
     ]  # select only relevent treatments AND REGIONS
 
     # create a new column % of control mean/control_mean * 100
@@ -412,14 +415,15 @@ def buildQuantitativeSummaryFig(
 
     # order and reshape df to plot
     experimental_df = (
-        experimental_df.loc[experimental_df["region"].isin(regions_to_plot)]
+        experimental_df.loc[experimental_df["region"].isin(regions)]
         .assign(
             region=lambda x: pd.Categorical(
-                x["region"], categories=regions_to_plot, ordered=True
+                x["region"], categories=regions, ordered=True
             )
         )
         .sort_values("region")
     )
+
     plot_experimental_df = pd.melt(
         experimental_df,
         id_vars=["region", "treatment"],
@@ -430,6 +434,8 @@ def buildQuantitativeSummaryFig(
     treatment_palette = {
         info["treatment"]: info["color"] for number, info in treatment_mapping.items()
     }
+
+
     fig, ax = plt.subplots(figsize=(12, 9))
     # sns.set_style("whitegrid")
     sns.set_style("white")
@@ -530,6 +536,8 @@ def buildQuantitativeSummaryFig(
                 )
 
     # Set x-ticks and labels
+    #    compound_type= 'ratio' if '/' in compound else 'compound'#redundant with new agg stats getter?
+
     if value_type == "ratio":
         y_label = "ratio"
     elif value_type == "compound":
