@@ -1,5 +1,6 @@
 from main import * 
 from module.headtwitch import *
+from module.getters import getTreatmentMapping
 
 treatment_mapping = (
     {  # TO DO : change name to treatment_info and add columns in df REMI
