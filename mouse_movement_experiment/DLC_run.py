@@ -7,55 +7,69 @@ Created on Wed Feb  2 14:56:14 2022
 """
 #%%
 
+import os
+from typing import Tuple
 
-from DLC_module import * ## must be in the same directory
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from DLC_module import (create_empty_df_summaries, 
+                        read_DLC_file,
+                        check_video_length_long_enough,
+                        get_cage_coords,
+                        normalize_cage_coords,
+                        pre_process_df,
+                        cal_time_spent_percentage,
+                        calculate_distance_traveled,
+                        fill_df_summaries,
+                        drop_extra_rows_df,
+                        list_all_data_files,
+                        create_dict_of_file_names,
+                        grubbs_test_DLC,
+                        save_box_plot_quadrent_data,
+                        save_table_of_quadrent_time,
+                        save_dist_traveled_box_plot,
+                        save_table_of_distance_traveled,
+                        produce_heat_map_all_groups,
+                        produce_trajectory_all_groups
+                        ) ## must be in the same directory
 
 
 # %% Loop File Function
 
 
-
-def loop_over_files(column_names, column_names_sns, n_files, 
-                    filename_dict, folder_path, n_min_to_keep, 
-                    side_length_cm, fps = 30):
+### this function should be monadic
+def loop_over_files(column_names : list, column_names_sns : list, n_files : int, 
+                    filename_dict : dict, folder_path:str, n_min_to_keep:int, 
+                    side_length_cm : int, fps : int = 30):
     
-    df_summary, df_summary_sns = create_empty_df_summaries(column_names, column_names_sns, n_files)
+    df_summary, df_summary_sns  = create_empty_df_summaries(column_names, column_names_sns, n_files)
     
-    count = 0
-    filename_dict_one_group = {'1': filename_dict['1']}
+    count : int = 0
     
     for group, filename_list in filename_dict.items():
-    # for group, filename_list in filename_dict_one_group.items():
 
-        
         n_files_in_group = len(filename_list)
         
-        # create empty df to be filled for one group
-        df_one_group = pd.DataFrame( np.zeros(( int(n_files_in_group * n_pts_to_keep), 3)), columns = ['x', 'y', 'mouse_no'])
-        last_time_pts = 0
+        df_one_group : pd.DataFrame = pd.DataFrame( np.zeros(( int(n_files_in_group * n_pts_to_keep), 3)), columns = ['x', 'y', 'mouse_no'])
+        last_time_pts : int = 0
         
         for n_f, filename in enumerate(filename_list):
-        # for n_f, filename in enumerate(filename_list[:2]):
 
-            # print(filename)
-
-            # if count > 1: 
-
-            #     break
-            mouse_no =  filename[1:3]
+            mouse_no : str =  filename[1:3]
             
-            # i use filename later to keep track of each mouse refering filename[0:5] therefore need it to be defined in the loop over files
-            filepath = os.path.join(folder_path, filename)
+            filepath : str = os.path.join(folder_path, filename)
             
-            df = read_DLC_file(filepath)
+            df : pd.DataFrame = read_DLC_file(filepath)
             
-            video_not_long_enough = check_video_length_long_enough(df, threshold = n_min_to_keep, fps = fps)
+            video_not_long_enough : bool = check_video_length_long_enough(df, threshold = n_min_to_keep, fps = fps)
             
             if video_not_long_enough: # skip if video not long enough
                 print(' insufficient length')
                 continue
 
-            cage_coord = get_cage_coords(df, coord_list = [ 'x', 'y'], 
+            cage_coord : dict = get_cage_coords(df, coord_list = [ 'x', 'y'], 
                                 label_list = ['Center', 'ULCorner',  'URCorner',  
                                               'LLCorner',  'LRCorner'],
                                 p_cutoff = 0.95)
@@ -93,111 +107,116 @@ def loop_over_files(column_names, column_names_sns, n_files,
             
          
             
-        df_one_group = df_one_group[ df_one_group['x'] != 0 ]   
+        df_one_group : pd.DataFrame = df_one_group[ df_one_group['x'] != 0 ]   
         df_one_group.to_csv(os.path.join(folder_path, 'CM_analysis', group + '_CM_x_y.csv')) # saving CM data from heatmapping later 
             
             
     
     print('number of videos analyzed = ', count)
     
-    df_summary = drop_extra_rows_df(df_summary, col_name_to_check_if_filled = 'mouse_no')
+    df_summary : pd.DataFrame = drop_extra_rows_df(df_summary, col_name_to_check_if_filled = 'mouse_no')
     df_summary_sns = drop_extra_rows_df(df_summary_sns, col_name_to_check_if_filled = 'mouse_no')
     
     return df_summary, df_summary_sns, cage_coord_normalized, df_filtered
 
-#%% VAIRABLES 
-fps = 30
-n_min_to_keep = 5 # minutes to keep from video
-n_pts_to_keep = n_min_to_keep * fps * 60
-side_length_cm = 33
-folder_path = './input/'
-# folder_path = '/home/shiva/Desktop/Jas/DLC_analysis_org'
-all_data_files_list = list_all_data_files(folder_path, extensions = ['csv'])
-n_files = len(all_data_files_list)
-filename_dict = create_dict_of_file_names(all_data_files_list)   
 
 
 
-column_names = ["mouse_no", 'group', "quad_0", "quad_1", "quad_2", "quad_3", 'n_pts_lost', 'longest_gap', 'distance_traveled']
-column_names_sns = ["mouse_no", 'group', "quad", "time"]
+if __name__ == "__main__":
+
+    #%% VAIRABLES 
+    fps : int = 30
+    n_min_to_keep : int  = 5 # minutes to keep from video
+    n_pts_to_keep : int = n_min_to_keep * fps * 60
+    side_length_cm : int = 33
+    folder_path : str = './input/'
+    
 
 
-#%% RUN
-
-'''
-(needs normalsation between treatment groups for lost data due to DLC poor detection)
-
-'''
-
-
-df_summary, df_summary_sns, cage_coord_normalized, df_filtered = loop_over_files(column_names, column_names_sns, n_files, 
-                                             filename_dict, folder_path,
-                                             n_min_to_keep, side_length_cm, 
-                                             fps = fps)   
-
-
-
-treatment_dict = { 1: 'vehicles', 2 : '10mg/kgTCB', 3 : '3mg/kgTCB', 4 : '0.3mg/kgTCB',5 : 'TCB+MDL', 6 : '0.2mg/kgMDL' }     #TCB2
+    all_data_files_list : list = list_all_data_files(folder_path, extensions = ['csv'])
+    n_files : int = len(all_data_files_list)
+    filename_dict : dict = create_dict_of_file_names(all_data_files_list)   
 
 
 
-palette_labeled ={'vehicles': "white",      #TCB2
-                  '10mg/kgTCB': "firebrick", 
-                  '3mg/kgTCB': "red", 
-                  '0.3mg/kgTCB': "salmon",
-                  'TCB+MDL': "grey",
-                  '0.2mg/kgMDL': "black"}
+    column_names : list = ["mouse_no", 'group', "quad_0", "quad_1", "quad_2", "quad_3", 'n_pts_lost', 'longest_gap', 'distance_traveled']
+    column_names_sns : list = ["mouse_no", 'group', "quad", "time"]
 
 
-list_of_groups = np.unique( df_summary['group'])
+    #%% RUN
 
-# outlier detection
+    '''
+    (needs normalsation between treatment groups for lost data due to DLC poor detection)
 
-df_summary_raw = df_summary.copy()
-df_summary = grubbs_test_DLC(df_summary_raw, treatment_dict, list_of_groups, p_value = 0.05, remove_all = False)
+    '''
 
 
- # Producing 
-
-'''
-Quadrent Analysis: 
-    save_box_plot_quadrent_data - generates a box and wisker plot for number of data points in each quadrent, 
-                                    for each treatent group followed by a dunns test 
-                                    
-    save_table_of_quadrent_time - generates table of time spent in each quadrent for each treatent group including SEM
-'''
-save_box_plot_quadrent_data(df_summary_sns)  #OUTLIERS ARE NOT REMOVED FROM df_summary_sns
-save_table_of_quadrent_time (df_summary)
-
-'''
-Distance Traveled: 
-         save_dist_traveled_box_plot - creates a box plot of the distance traveled for each treatent group 
-                                     (plot 1 : all 6 groups, plot 2: dose responce, plot 3: agonist antagonist)
-                                     
-         save_table_of_distance_traveled - enerates table of distance traveled for each treatent group
-'''
-
-save_dist_traveled_box_plot (df_summary) # also saves histogram 
-
-save_table_of_distance_traveled (df_summary, plot_hist = True)
+    df_summary, df_summary_sns, cage_coord_normalized, df_filtered = loop_over_files(column_names, column_names_sns, n_files, 
+                                                filename_dict, folder_path,
+                                                n_min_to_keep, side_length_cm, 
+                                                fps = fps)   
 
 
 
-'''
-Heat Mapping: 
-         using previously save CM (x,y) values to create and save heat maps for  each group and trajectory plots 
-'''
-
-X_Y_df_file_list = list_all_data_files(os.path.join(folder_path, 'CM_analysis')) #creates list of files to be accessed for CM data 
-
-plt.close('all')
+    treatment_dict : dict = { 1: 'vehicles', 2 : '10mg/kgTCB', 3 : '3mg/kgTCB', 4 : '0.3mg/kgTCB',5 : 'TCB+MDL', 6 : '0.2mg/kgMDL' }     #TCB2
 
 
-produce_heat_map_all_groups(X_Y_df_file_list, treatment_dict, folder_path, name = '5_min_')
 
-produce_trajectory_all_groups(X_Y_df_file_list, cage_coord_normalized, folder_path, name = '_5_min_')
+    palette_labeled : dict ={'vehicles': "white",      #TCB2
+                    '10mg/kgTCB': "firebrick", 
+                    '3mg/kgTCB': "red", 
+                    '0.3mg/kgTCB': "salmon",
+                    'TCB+MDL': "grey",
+                    '0.2mg/kgMDL': "black"}
 
 
+    list_of_groups : np.ndarray = np.unique( df_summary['group'])
+
+    # outlier detection
+
+    df_summary_raw : pd.DataFrame = df_summary.copy()
+    df_summary : pd.DataFrame = grubbs_test_DLC(df_summary_raw, treatment_dict, list_of_groups, p_value = 0.05, remove_all = False)
+
+
+    # Producing 
+
+    '''
+    Quadrent Analysis: 
+        save_box_plot_quadrent_data - generates a box and wisker plot for number of data points in each quadrent, 
+                                        for each treatent group followed by a dunns test 
+                                        
+        save_table_of_quadrent_time - generates table of time spent in each quadrent for each treatent group including SEM
+    '''
+    save_box_plot_quadrent_data(df_summary_sns)  #OUTLIERS ARE NOT REMOVED FROM df_summary_sns
+    save_table_of_quadrent_time(df_summary)
+
+    '''
+    Distance Traveled: 
+            save_dist_traveled_box_plot - creates a box plot of the distance traveled for each treatent group 
+                                        (plot 1 : all 6 groups, plot 2: dose responce, plot 3: agonist antagonist)
+                                        
+            save_table_of_distance_traveled - enerates table of distance traveled for each treatent group
+    '''
+
+    save_dist_traveled_box_plot(df_summary) # also saves histogram 
+
+    save_table_of_distance_traveled(df_summary, plot_hist = True)
+
+
+
+    '''
+    Heat Mapping: 
+            using previously save CM (x,y) values to create and save heat maps for  each group and trajectory plots 
+    '''
+
+    X_Y_df_file_list : list = list_all_data_files(os.path.join(folder_path, 'CM_analysis')) #creates list of files to be accessed for CM data 
+
+    plt.close('all')
+
+
+    produce_heat_map_all_groups(X_Y_df_file_list, treatment_dict, folder_path, name = '5_min_')
+
+    produce_trajectory_all_groups(X_Y_df_file_list, cage_coord_normalized, folder_path, name = '_5_min_')
 
 
 #%%## run all funcs for one file

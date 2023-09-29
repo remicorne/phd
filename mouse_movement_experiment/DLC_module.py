@@ -13,43 +13,38 @@ Functions for the analysis of mouse video data
 '''
 #%% INSTALATIONS
 
-import pandas as pd
+
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-import statistics
-import seaborn as sns
-from matplotlib.backends.backend_pdf import PdfPages
-from scipy import stats
-import warnings
-#pip install scikit-posthocs
-import scikit_posthocs as sp
-#pip install statannot
-from statannot import add_stat_annotation
 import warnings
 warnings.filterwarnings("ignore")
-from matplotlib.pyplot import cm
-from matplotlib.colors import LogNorm
-import matplotlib.colors as mcolors
-from scipy.stats import kde
 
+import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
+from matplotlib.backends.backend_pdf import PdfPages
+import statistics
+import seaborn as sns
+from scipy import stats
+import scikit_posthocs as sp
 from outliers import smirnov_grubbs as grubbs
-import scipy.stats as stats
+
+
+
 #%% FUNCTIONS
 
 
-def list_all_data_files(path, extensions = ['csv']):
+def list_all_data_files(path : str, extensions : list = ['csv']) -> list:
     
     '''get all the files with extention in the path where you want to search'''
     
-    files = [x for x in os.listdir(path) if not x.startswith('.')]
+    files : list = [x for x in os.listdir(path) if not x.startswith('.')]
     files.sort()
     videofile_path = [ fi for fi in files if fi.endswith( tuple(extensions)) ]
     
     return videofile_path
 
-def create_dict_of_file_names(all_data_files_list):
+def create_dict_of_file_names(all_data_files_list : list) -> dict:
     
     '''
     create a dictionary of filenames with keys corresponding to the group number
@@ -61,7 +56,7 @@ def create_dict_of_file_names(all_data_files_list):
     
     return filename_dict
 
-def avg_high_likelihoods(df, label, coord, p_cutoff = 0.8):
+def avg_high_likelihoods(df : pd.DataFrame, label : str, coord, p_cutoff : float = 0.8):
     
     ''' Return the average of the <coord> coordinate of the <label> trackings 
         having detection likelihood above a certain p_cutoff'''
@@ -72,13 +67,13 @@ def avg_high_likelihoods(df, label, coord, p_cutoff = 0.8):
 
 
 
-def get_cage_coords(df, coord_list = [ 'x', 'y'], 
-                    label_list = ['Center', 'ULCorner',  'URCorner',  
+def get_cage_coords(df : pd.DataFrame, coord_list : list = [ 'x', 'y'], 
+                    label_list : list = ['Center', 'ULCorner',  'URCorner',  
                                   'LLCorner',  'LRCorner'],
-                    p_cutoff = 0.8):
+                    p_cutoff : float = 0.8) -> dict:
     ''' Return a dictionary of the high likelihood averaged coordinates of cage corners and center'''
     
-    cage_coord = {}
+    cage_coord : dict = {}
     
     for label in label_list:
         for coord in coord_list:
@@ -88,7 +83,7 @@ def get_cage_coords(df, coord_list = [ 'x', 'y'],
             
     return cage_coord
 
-def read_DLC_file(filepath):
+def read_DLC_file(filepath : str) -> pd.DataFrame:
     
     ''' Read the DLC file, discard the first Row and consider two lines as headers'''
     
@@ -138,24 +133,24 @@ def read_DLC_file(filepath):
 
 ###  Filter data 
 
-def filter_body_parts_based_on_p_cutoff(df, p_cutoff = 0.7, bin_length = 30, 
-                                        plot_missing_dist = False):
+def filter_body_parts_based_on_p_cutoff(df : pd.DataFrame, p_cutoff : float = 0.7, bin_length : int = 30, 
+                                        plot_missing_dist : bool = False):
     
-    total_length_of_video = len(df.index)
-    high_p_ind = (( df['Nose']['likelihood'] > p_cutoff) & 
+    total_length_of_video : int = len(df.index)
+    high_p_ind : tuple = (( df['Nose']['likelihood'] > p_cutoff) & 
                   ( df['Tail']['likelihood'] > p_cutoff) &
                   ( df['LEar']['likelihood'] > p_cutoff) &
                   ( df['REar']['likelihood'] > p_cutoff) )
    
     
-    df_filtered= df [ high_p_ind ]
+    df_filtered : pd.DataFrame = df [ high_p_ind ]
     
     if plot_missing_dist:
         plot_missing_hist(high_p_ind, int( total_length_of_video / bin_length))
         
-    df_filtered = df_filtered.drop( columns = df_filtered.columns[1:10], axis = 1) # drop info on cage
+    df_filtered : pd.DataFrame = df_filtered.drop( columns = df_filtered.columns[1:10], axis = 1) # drop info on cage
     longest_gap = frames_missing_consec( np.where( high_p_ind ))
-    n_data_pts_lost = len(df) - len(df_filtered)
+    n_data_pts_lost : int = len(df) - len(df_filtered)
     
     
     # print('ratio of low likelihoods = ', len(df_filtered.index)/ total_length_of_video )
@@ -163,7 +158,7 @@ def filter_body_parts_based_on_p_cutoff(df, p_cutoff = 0.7, bin_length = 30,
     
     return df_filtered, n_data_pts_lost, longest_gap
 
-def frames_missing_consec(chosen_inds, fps = 30):
+def frames_missing_consec(chosen_inds, fps : int = 30):
     
     '''
         rerturn the longest gap (in s) produced by filter in likliohood
@@ -175,7 +170,7 @@ def frames_missing_consec(chosen_inds, fps = 30):
     
     return longest_gap
     
-def plot_missing_hist(high_p_ind, bins, fps = 30):
+def plot_missing_hist(high_p_ind, bins, fps : int = 30):
     '''
     plot histogram in seconds
 
@@ -184,12 +179,12 @@ def plot_missing_hist(high_p_ind, bins, fps = 30):
     # bins here  is the number of frames for each bin 1sec = 30
     ax.hist( np.where(high_p_ind)[0] / fps, bins = bins)
 
-def plot_trajectory(df_filtered):
+def plot_trajectory(df_filtered : pd.DataFrame):
         
     fig, ax = plt.subplots()
     ax.plot(df_filtered['CM','x'], df_filtered['CM','y'], '-o', markersize= 7)
     
-def plot_time_points(df_filtered):
+def plot_time_points(df_filtered : pd.DataFrame):
     
     ''' to see discrepencies - location of removed data '''
     
@@ -197,21 +192,21 @@ def plot_time_points(df_filtered):
     fig, ax = plt.subplots()
     ax.plot(coords, np.full_like(coords, 1), 'o', markersize= 1)
 
-def trim_df(df, n_pts_to_keep, fps = 30):
+def trim_df(df : pd.DataFrame, n_pts_to_keep : int, fps : int = 30) -> pd.DataFrame:
     
     return df.drop( np.arange(n_pts_to_keep, len(df.index)))
 
 ##### Find CM
-def calculate_and_add_mouse_CM(df_filtered, plot_missing_time_pts = True, 
-                               plot_trajectory = False):
+def calculate_and_add_mouse_CM(df_filtered : pd.DataFrame, plot_missing_time_pts : bool = True, 
+                               plot_trajectory : bool = False) -> pd.DataFrame:
     
     
     if plot_missing_time_pts:
         plot_time_points(df_filtered)
     
-    body_parts = ['Nose', 'Tail', 'REar', 'LEar']    
-    x_columns = [[value, 'x']  for value in body_parts]
-    y_columns = [[value, 'y']  for value in body_parts]
+    body_parts : list = ['Nose', 'Tail', 'REar', 'LEar']    
+    x_columns : list = [[value, 'x']  for value in body_parts]
+    y_columns : list = [[value, 'y']  for value in body_parts]
     
     df_filtered['CM','x'] = df_filtered[x_columns].mean(axis = 1) # filling info on CM
     df_filtered['CM','y'] = df_filtered[y_columns].mean(axis = 1)
@@ -258,7 +253,7 @@ def find_mid_lines(cage_coord):
 
 
 
-def find_which_quad(df_filtered, cage_coord):
+def find_which_quad(df_filtered : pd.DataFrame, cage_coord) -> pd.DataFrame:
     
     '''
         finds the quadrent of the data point and appends a column [which][quad]
@@ -304,7 +299,7 @@ def find_which_quad(df_filtered, cage_coord):
 
 #### time spent in each quadrent
 
-def time_spent_in_each_quad (df_filtered):
+def time_spent_in_each_quad (df_filtered : pd.DataFrame):
 
     '''calculates the tpercentage of time spent in each quadrent from the filtered data'''
     quads = np.arange(4)
@@ -407,15 +402,15 @@ def save_box_plot_quadrent_data(df_summary_sns):
     return 
 
 
-def remove_groups_from_df (df,  groups_to_drop = []):
+def remove_groups_from_df (df : pd.DataFrame,  groups_to_drop : list = []) -> pd.DataFrame:
     # to use groups to drop must be a list of strings refering to group i.e.  for dose responce  = ['5'.'6']
-    df_croped = df.copy()   
+    df_croped : pd.DataFrame = df.copy()   
     for i in groups_to_drop:
         
         df_croped.drop(df_croped.index[df_croped['group'] == i], inplace=True)
     return df_croped
 
-def save_dist_traveled_box_plot (df_summary):
+def save_dist_traveled_box_plot (df_summary : pd.DataFrame) -> None:
     
     pdf = PdfPages(os.path.join("./output",'distance_traveled_by_group.pdf'))
     
@@ -511,7 +506,7 @@ def save_dist_traveled_box_plot (df_summary):
 
 #### Save table of mean percentage time and SEM in each quadrent for each treatment group
 
-def save_table_of_quadrent_time (df_summary):
+def save_table_of_quadrent_time (df_summary : pd.DataFrame):
     
     #get average of groupwise proportionality for each quadrent +- SEM
     mean_quadrent_percentage = df_summary.groupby('group', as_index=False)[['quad_0', 'quad_1','quad_2', 'quad_3']].mean()
@@ -526,7 +521,7 @@ def save_table_of_quadrent_time (df_summary):
     
     return average_SEM_percentage_quadrent_data
 
-def save_table_of_distance_traveled (df_summary, plot_hist = True):
+def save_table_of_distance_traveled (df_summary : pd.DataFrame, plot_hist : bool = True):
     
     #get average of groupwise proportionality for each quadrent +- SEM
     mean_distance_traveled = df_summary.groupby('group', as_index=False)[['distance_traveled']].mean()
@@ -884,7 +879,7 @@ def draw_cage(cage_coord_normalized, ax):
                 [ cage_coord_normalized[corner[0],'y'], cage_coord_normalized[corner[1],'y']], '-o', c = 'k')
     ##
     
-def produce_heat_map_all_groups(X_Y_df_file_list, teratment_dict,  folder_path, name = '_'):
+def produce_heat_map_all_groups(X_Y_df_file_list : list, teratment_dict,  folder_path, name = '_') -> None:
     
     pdf = PdfPages( os.path.join("./output",name +'Heat_Maps_per_treatment.pdf'))
     
@@ -938,62 +933,7 @@ def produce_heat_map_all_groups(X_Y_df_file_list, teratment_dict,  folder_path, 
         
 
 
-
-###
-
-# def produce_heat_map_all_groups(X_Y_df_file_list, folder_path, name = '_'):
-    
-#     pdf = PdfPages( name +'Heat_Maps_per_treatment.pdf')
-    
-#     for filename in X_Y_df_file_list:
-        
-#         filepath = os.path.join(folder_path, 'CM_analysis', filename)
-#         df = pd.read_csv(filepath, header = [0])
-        
-#         fig, ax = plt.subplots()
-        
-#         ###### need to scale for the number of points lost # use max occurnce with 1 square for max of colour map np.hist2D
-#         print ('mouse = ', filename, ' n = ', len(df))
-        
-#         # ### to see the max and min x and y checking for scaling and withing cage words:
-#         # print ('x min / max = ', min(df['x']), max(df['x']))
-#         # print ('y min / max = ', min(df['y']), max(df['y']))
-        
-#         # #Using simple hist 
-#         h = ax.hist2d(df['x'], df['y'], bins=50, density = True)  #, range = [[0, 33], [0, 33]])   
-#         ##### NEEDS NORALISATION WITH COLOURBAR .....   norm = mcolors.PowerNorm(1) /   norm = LogNorm()
-#         # https://stackoverflow.com/questions/72462395/how-to-normalize-a-2d-histogram-in-python
-        
-#         fig.colorbar(h[3], ax=ax) 
-#         ax.set_title('Tretment Group ' + filename[0:1])
-            
-#         ax.invert_yaxis() # making same as video
-        
-#         pdf.savefig(fig)
-        
-#         plt.close(fig)
-
-#     pdf.close()
-    
-    
-
-#     return 
-
-# produce_heat_map_all_groups(X_Y_df_file_list)
-
-# # #Using Gaussian kernel.  too slow to run    https://zbigatron.com/generating-heatmaps-from-coordinates/
-# # ax = sns.kdeplot(df['x'], df['y'], cmap="Blues", shade=True, shade_lowest=False)
-# # ax = sns.kdeplot(df['x'], df['y'], kernel="gau",thresh=0.05, bw = 25, cmap="Reds", n_levels = 50, gridsize=100)
-# # plot your KDE
-# ax.set_frame_on(False)
-# plt.xlim(0, 704)
-# plt.ylim(576, 0)
-# plt.axis('off')
-# plt.show()
-
-
-
-def produce_trajectory_all_groups(X_Y_df_file_list, cage_coord_normalized, folder_path, name = '_'):
+def produce_trajectory_all_groups(X_Y_df_file_list : list, cage_coord_normalized, folder_path: str, name : str = '_') -> None:
     
     pdf = PdfPages(os.path.join("./output", name +'Trajectory_per_treatment.pdf'))
 
