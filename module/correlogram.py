@@ -193,7 +193,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         annot=True,
         cmap=matplotlib.colormaps['BrBG'],
         mask=p_value_mask,
-        annot_kws={"size": 6},
+        annot_kws={"size": 8}, #, 'fontweight':'bold'
         ax=ax,
         cbar_kws={"shrink": 0.8} #adj color bar size
     )
