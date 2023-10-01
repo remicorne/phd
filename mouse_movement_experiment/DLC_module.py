@@ -38,31 +38,36 @@ def list_all_data_files(path : str, extensions : list = ['csv']) -> list:
     
     '''get all the files with extention in the path where you want to search'''
     
-    files : list = [x for x in os.listdir(path) if not x.startswith('.')]
+    files : list = [x for x in os.listdir(path) if not x.startswith('.') and x.endswith( tuple(extensions))]
     files.sort()
-    videofile_path = [ fi for fi in files if fi.endswith( tuple(extensions)) ]
-    
-    return videofile_path
 
-def create_dict_of_file_names(all_data_files_list : list) -> dict:
+    return files
+
+def create_dict_of_file_names(files : list) -> dict:
     
     '''
     create a dictionary of filenames with keys corresponding to the group number
     '''
-    set_of_groups = set( [ val[4:5] for val in all_data_files_list])
-    
-    filename_dict = {group: [filename for filename in all_data_files_list if filename[4:5] == group] 
-                     for group in set_of_groups}
-    
-    return filename_dict
 
-def avg_high_likelihoods(df : pd.DataFrame, label : str, coord, p_cutoff : float = 0.8):
+    def get_group_from_filename(filename):
+        return filename[4:5]
+
+    groups : set = set( [ get_group_from_filename(val) for val in files])
+    
+    filenames_groupby_group = {group: [filename for filename in files if get_group_from_filename(filename) == group] 
+                     for group in groups}
+    
+    return filenames_groupby_group
+
+def avg_high_likelihoods(df : pd.DataFrame, label_coord_pair : tuple, p_cutoff : float = 0.8) -> pd.DataFrame:
     
     ''' Return the average of the <coord> coordinate of the <label> trackings 
         having detection likelihood above a certain p_cutoff'''
-        
-    ind = df[label]['likelihood'] > p_cutoff 
-    
+    label : str = label_coord_pair[0] 
+    coord : str = label_coord_pair[1] 
+
+    ind : pd.Series = df[label]['likelihood'] > p_cutoff 
+
     return df[label][coord][ind].mean()
 
 
@@ -73,15 +78,10 @@ def get_cage_coords(df : pd.DataFrame, coord_list : list = [ 'x', 'y'],
                     p_cutoff : float = 0.8) -> dict:
     ''' Return a dictionary of the high likelihood averaged coordinates of cage corners and center'''
     
-    cage_coord : dict = {}
+
+    coord_label_pair : list = [(label,coord) for label in label_list for coord in coord_list]
     
-    for label in label_list:
-        for coord in coord_list:
-            cage_coord[ label, coord ] = avg_high_likelihoods(df, label, 
-                                                              coord, p_cutoff = p_cutoff)
-            # print(label, coord, cage_coord[ label, coord ])
-            
-    return cage_coord
+    return {pair : avg_high_likelihoods(df, pair, p_cutoff) for pair in coord_label_pair}
 
 def read_DLC_file(filepath : str) -> pd.DataFrame:
     
@@ -89,86 +89,23 @@ def read_DLC_file(filepath : str) -> pd.DataFrame:
     
     return pd.read_csv(filepath, header = [0,1], skiprows= [0])
 
-# folder_path = '/Users/jasminebutler/Desktop/DLC_Analysis_org'
-
-# filename = 'M68_2.csv'
-
-# # i use filename later to keep track of each mouse refering filename[0:5] therefore need it to be defined in the loop over files
-# filepath = os.path.join(folder_path, filename)
-
-# df = read_DLC_file(filepath)
-# cage_coord = get_cage_coords(df, coord_list = [ 'x', 'y'], 
-#                     label_list = ['Center', 'ULCorner',  'URCorner',  
-#                                   'LLCorner',  'LRCorner'],
-#                     p_cutoff = 0.8)
-
-##############
-# #%% clumsy notes not to be used for run ?
-# ### stupidly filter x and y and coord based on every body oart
-# def filter_based_on_cutoff(df, label, p_cutoff = 0.8):
-#     ''' Retuen x and y filtered based on likelihood'''
-    
-#     ind = df[label]['likelihood'] > p_cutoff
-    
-#     return df.loc[ind][label],  df.loc[ind]['bodyparts', 'coords']
 
 
-# def filtered_df_based_on_label(df, coord_list = [ 'x', 'y'], 
-#                     label_list = ['LEar', 'REar',  'Tail',  'Nose'],
-#                     p_cutoff = 0.8):
-#     '''average of points: Nose, LEar, REar, Tail for each frame'''
-    
-#     df_filtered_dict = {}
-#     for label in label_list:
-        
-#         df_filtered_dict[label, 'df'], df_filtered_dict[label, 'coords'] = filter_based_on_cutoff(df, label, p_cutoff = p_cutoff)
-#         print(label,  #df_filtered_dict[label]['bodyparts', 'coord'], 
-#               len(df.index), 'n good points = ',len(df_filtered_dict[label, 'df']))
-        
-#     return df_filtered_dict
+def filter_df (df : pd.DataFrame, high_p_ind:tuple) -> pd.DataFrame:
 
-# df_filtered_dict = filtered_df_based_on_label (df, coord_list = [ 'x', 'y'], 
-#                     label_list = ['LEar', 'REar',  'Tail',  'Nose'],
-#                     p_cutoff = 0.7)
+    df_filtered : pd.DataFrame = df[ high_p_ind ]
+    return df_filtered.drop( columns = df_filtered.columns[1:10], axis = 1) # drop info on cage
 
-###  Filter data 
 
-def filter_body_parts_based_on_p_cutoff(df : pd.DataFrame, p_cutoff : float = 0.7, bin_length : int = 30, 
-                                        plot_missing_dist : bool = False):
-    
-    total_length_of_video : int = len(df.index)
-    high_p_ind : tuple = (( df['Nose']['likelihood'] > p_cutoff) & 
-                  ( df['Tail']['likelihood'] > p_cutoff) &
-                  ( df['LEar']['likelihood'] > p_cutoff) &
-                  ( df['REar']['likelihood'] > p_cutoff) )
-   
-    
-    df_filtered : pd.DataFrame = df [ high_p_ind ]
-    
-    if plot_missing_dist:
-        plot_missing_hist(high_p_ind, int( total_length_of_video / bin_length))
-        
-    df_filtered : pd.DataFrame = df_filtered.drop( columns = df_filtered.columns[1:10], axis = 1) # drop info on cage
-    longest_gap = frames_missing_consec( np.where( high_p_ind ))
-    n_data_pts_lost : int = len(df) - len(df_filtered)
-    
-    
-    # print('ratio of low likelihoods = ', len(df_filtered.index)/ total_length_of_video )
-    # print( 'no time pts lost = ', n_data_pts_lost)
-    
-    return df_filtered, n_data_pts_lost, longest_gap
 
-def frames_missing_consec(chosen_inds, fps : int = 30):
+def frames_missing_consec(chosen_inds : np.ndarray , fps : int = 30) -> float:
     
     '''
         rerturn the longest gap (in s) produced by filter in likliohood
     '''
     
     frame_diffs = np.diff( chosen_inds)
-    longest_gap = np.max(frame_diffs) / fps
-    # print( 'longest_gap = ', longest_gap)
-    
-    return longest_gap
+    return np.max(frame_diffs) / fps
     
 def plot_missing_hist(high_p_ind, bins, fps : int = 30):
     '''
@@ -192,18 +129,13 @@ def plot_time_points(df_filtered : pd.DataFrame):
     fig, ax = plt.subplots()
     ax.plot(coords, np.full_like(coords, 1), 'o', markersize= 1)
 
-def trim_df(df : pd.DataFrame, n_pts_to_keep : int, fps : int = 30) -> pd.DataFrame:
+def trim_df(df : pd.DataFrame, n_pts_to_keep : int) -> pd.DataFrame:
     
     return df.drop( np.arange(n_pts_to_keep, len(df.index)))
 
 ##### Find CM
-def calculate_and_add_mouse_CM(df_filtered : pd.DataFrame, plot_missing_time_pts : bool = True, 
-                               plot_trajectory : bool = False) -> pd.DataFrame:
-    
-    
-    if plot_missing_time_pts:
-        plot_time_points(df_filtered)
-    
+def calculate_and_add_mouse_CM(df_filtered : pd.DataFrame) -> pd.DataFrame:
+        
     body_parts : list = ['Nose', 'Tail', 'REar', 'LEar']    
     x_columns : list = [[value, 'x']  for value in body_parts]
     y_columns : list = [[value, 'y']  for value in body_parts]
@@ -212,23 +144,10 @@ def calculate_and_add_mouse_CM(df_filtered : pd.DataFrame, plot_missing_time_pts
     df_filtered['CM','y'] = df_filtered[y_columns].mean(axis = 1)
     
     # plot CM x,y points - note: floor  90 degrees rotation anticlockwise 
-    
-    if plot_trajectory:
-        plot_trajectory(df_filtered)
-
     return df_filtered
 
 
-# df_filtered, n_data_pts_lost, longest_gap = filter_body_parts_based_on_p_cutoff(df, p_cutoff = 0.7, 
-#                                                                                 plot_missing_dist =True)
 
-
-# df_filtered = calculate_and_add_mouse_CM(df_filtered, plot_missing_time_pts = True, 
-#                                plot_trajectory = False)
-
-#df_lost need to create a df with stats for the data excluded i.e number of frames and distribution of frames
-    
-####### find in which quad and plot bar graph for each 
 
 
 def find_mid_lines(cage_coord):
@@ -253,7 +172,7 @@ def find_mid_lines(cage_coord):
 
 
 
-def find_which_quad(df_filtered : pd.DataFrame, cage_coord) -> pd.DataFrame:
+def find_which_quad(df_filtered : pd.DataFrame, cage_coord : dict) -> pd.DataFrame:
     
     '''
         finds the quadrent of the data point and appends a column [which][quad]
@@ -602,14 +521,18 @@ def check_video_length_long_enough(df, threshold = 8, fps = 30):
     
     return video_not_long_enough
 
-def create_empty_df_summaries(column_names, column_names_sns, n_files):
+def create_empty_df_summaries_sns(column_names_sns, n_files):
     
     ''' Create empty df to be filled over the loop of videos'''
     
-    df_summary = pd.DataFrame(np.zeros((n_files, len(column_names))), columns = column_names)
-    df_summary_sns = pd.DataFrame(np.zeros(( int( n_files * 4) , 4)), columns = column_names_sns)
+
+    return pd.DataFrame(np.zeros(( int( n_files * 4) , 4)), columns = column_names_sns)
+
+def create_empty_df_summaries(column_names, n_files):
     
-    return df_summary, df_summary_sns
+    ''' Create empty df to be filled over the loop of videos'''
+
+    return pd.DataFrame(np.zeros((n_files, len(column_names))), columns = column_names)
 
 ### normalize to cm
 
@@ -663,16 +586,11 @@ def cal_scale_pix_to_cm(side_length_cm, side_length_pix):
     
     return scale 
 
-def scale_df_vals_to_cm(df, scale_pix_to_cm, label_list, coord_list = ['x', 'y']):
+def scale_df_vals_to_cm(df : pd.DataFrame, scale_pix_to_cm : int, label_list : list , coord_list : list = ['x', 'y']) -> pd.DataFrame:
     
     ''' multiply each pixel value of each coordinate and label pair by the scale'''
-    
-    for label in label_list:
-        
-        for coord in coord_list:
-
-            df[label, coord] = scale_pix_to_cm * df[label, coord]
-    
+    coord_label_pair : list = [(label,coord) for label in label_list for coord in coord_list]
+    df[coord_label_pair] = df[coord_label_pair].apply(lambda x: x * scale_pix_to_cm)
     return df
 
 def normalize_cage_coords(cage_coord, side_length_cm):
@@ -699,86 +617,120 @@ def cal_time_spent_percentage(df_filtered):
             
     return time_spent_points, time_spent_percentage
 
-def pre_process_df(df, n_pts_to_keep, cage_coord_normalized, scale_pix_to_cm, p_cutoff = 0.7, 
+
+
+
+def pre_process_df(df : pd.DataFrame, n_pts_to_keep, cage_coord_normalized : dict, scale_pix_to_cm, p_cutoff = 0.7, 
                    plot_missing_dist = False):
     
+
     ''' trim data according to time,  
                                 filter with P, 
                                             scale pixels to cm, 
                                                     calculate  CM x,y and append, 
                                                                     calculate which quad and append'''
-    df_trimmed = trim_df(df, n_pts_to_keep)
-    df_filtered, n_pts_lost, longest_gap = filter_body_parts_based_on_p_cutoff(df_trimmed, p_cutoff = p_cutoff, 
-                                                                                plot_missing_dist =plot_missing_dist)
 
-    label_list = np.unique( [key[0] for key in df_filtered.columns ]) [:-1] # the last header is 'which' we don't want that 
+    def get_high_p_ind(df : pd.DataFrame) -> tuple:
 
-    df_filtered = scale_df_vals_to_cm(df_filtered.copy(), scale_pix_to_cm, label_list, coord_list = ['x', 'y'])
+        return  (( df['Nose']['likelihood'] > p_cutoff) & 
+                ( df['Tail']['likelihood'] > p_cutoff) &
+                ( df['LEar']['likelihood'] > p_cutoff) &
+                ( df['REar']['likelihood'] > p_cutoff) )
+
+    df_trimmed : pd.DataFrame = trim_df(df, n_pts_to_keep)
+
+
+    high_p_ind : tuple = get_high_p_ind(df_trimmed)
     
-    df_filtered = calculate_and_add_mouse_CM(df_filtered.copy(), plot_missing_time_pts = False, 
-                                              plot_trajectory = False)
+    df_filtered : pd.DataFrame = filter_df(df_trimmed,high_p_ind)
 
-    df_filtered, cage_coord_normalized = change_coord_rel_to_cage(df_filtered.copy(), cage_coord_normalized)
+
+    longest_gap : float = frames_missing_consec( np.where( high_p_ind ))
+
+    n_pts_lost : int = len(df_trimmed) - len(df_filtered)
+
+    if plot_missing_dist:
+        total_length_of_video : int = len(df.index)
+        bin_length: int = 30
+        plot_missing_hist(high_p_ind, int( total_length_of_video / bin_length))
+
+
+    
+    label_list : list = list(set([key[0] for key in df_filtered.columns if key[0] != 'bodyparts'])) # the last header is 'which' we don't want that -> your missing columns is bodyparts 
+
+    df_filtered : pd.DataFrame = scale_df_vals_to_cm(df_filtered, scale_pix_to_cm, label_list, coord_list = ['x', 'y'])
+    
+    plot_missing_time_pts : bool = False
+    if plot_missing_time_pts:
+        plot_time_points(df_filtered)
+
+    df_filtered = calculate_and_add_mouse_CM(df_filtered)
+
+    plot_trajectory: bool = False
+    if plot_trajectory:
+        plot_trajectory(df_filtered)
+
+    zero: dict = get_zero_coord(cage_coord_normalized)
+
+    cage_coord_normalized = {k : v - zero[k[1]] for k,v in cage_coord_normalized.items()}
+
+    df_filtered = change_coord_rel_to_cage(df_filtered, zero)
     
     df_filtered = constrain_to_cage_coord(df_filtered, cage_coord_normalized) ############# BEWARE yo won't see the miss detections anymorte with this
 
-    df_filtered = find_which_quad(df_filtered.copy(), cage_coord_normalized) ### some reoccuring warning try df_filtered[][] = [quad ] * len(df_filtered[][]) to fix SHIVA
+    df_filtered = find_which_quad(df_filtered, cage_coord_normalized) ### some reoccuring warning try df_filtered[][] = [quad ] * len(df_filtered[][]) to fix SHIVA
     
     
 
     return df_filtered,  n_pts_lost, longest_gap, cage_coord_normalized
 
-def change_coord_rel_to_cage(df_filtered, cage_coord_normalized):
+
+def get_zero_coord(cage_coord_normalized):
+    return {'x': min(cage_coord_normalized['ULCorner', 'x'], cage_coord_normalized['LLCorner', 'x']),
+            'y': min(cage_coord_normalized['ULCorner', 'y'], cage_coord_normalized['URCorner', 'y'])}
+
+def change_coord_rel_to_cage(df : pd.DataFrame, zero : dict) -> pd.DataFrame:
     
     #subtract mean ULCorner x and y from df_filtered to noemalise for heat map
-    label_list = np.unique( [key[0] for key in df_filtered.columns ]) [:-2] # the last headers are 'bodyparts' and 'which' zhich do not have x and y values to be normalised
-    coord_list = ['x', 'y']
-    zero = {'x': min(cage_coord_normalized['ULCorner', 'x'], cage_coord_normalized['LLCorner', 'x']),
-            'y': min(cage_coord_normalized['ULCorner', 'y'], cage_coord_normalized['URCorner', 'y'])}
-    
-    for coord in coord_list:
-        for label in label_list:
+    label_list : list = list(set([key[0] for key in df.columns if key[0] != 'bodyparts'])) # the last headers are 'bodyparts' and 'which' zhich do not have x and y values to be normalised
+    coord_list : list = ['x', 'y']
+    coord_label_pairs : list = [[(label,coord) for label in label_list] for coord in coord_list]
 
-        
-
-            df_filtered[label, coord] = df_filtered[label, coord] - zero[coord] #remove ULCorener from all  points 
+    for coord,coord_label_pair in zip(coord_list,coord_label_pairs):
+        df[coord_label_pair] = df[coord_label_pair].apply(lambda x : x - zero[coord])
             
+    return df
     
-    cage_coord_normalized = {k : v - zero[k[1]]
-                             for k,v in cage_coord_normalized.items()}
-
-    return df_filtered, cage_coord_normalized
+def constrain_to_cage_coord(df : pd.DataFrame, cage_coord_normalized : dict) -> pd.DataFrame:
     
-def constrain_to_cage_coord(df_filtered, cage_coord_normalized):
-    
-    right_bound = max(cage_coord_normalized['URCorner','x'], 
+    right_bound : float = max(cage_coord_normalized['URCorner','x'], 
                         cage_coord_normalized['LRCorner','x'])
-    left_bound = min(cage_coord_normalized['ULCorner','x'], 
+    left_bound : float = min(cage_coord_normalized['ULCorner','x'], 
                         cage_coord_normalized['LLCorner','x'])
-    bottom_bound = max(cage_coord_normalized['LRCorner','y'], 
+    bottom_bound : float = max(cage_coord_normalized['LRCorner','y'], 
                         cage_coord_normalized['LLCorner','y'])
-    upper_bound = min(cage_coord_normalized['URCorner','y'], 
+    upper_bound : float = min(cage_coord_normalized['URCorner','y'], 
                          cage_coord_normalized['ULCorner','y'])
     
 
     
-    ind_x_over = df_filtered['CM','x'] > right_bound - left_bound
+    ind_x_over : int = df['CM','x'] > right_bound - left_bound
     
-    ind_y_over = df_filtered['CM','y'] > bottom_bound - upper_bound
+    ind_y_over : int = df['CM','y'] > bottom_bound - upper_bound
     
-    ind_x_less = df_filtered['CM','x'] < 0
+    ind_x_less : int = df['CM','x'] < 0
     
-    ind_y_less = df_filtered['CM','y'] < 0
+    ind_y_less : int = df['CM','y'] < 0
     
     print(sum(ind_x_over), sum(ind_y_over),
           sum(ind_x_less), sum(ind_y_less))
     
-    df_filtered['CM','x'][ind_x_over] = right_bound
-    df_filtered['CM','y'][ind_y_over] = bottom_bound
-    df_filtered['CM','x'][ind_x_less] = left_bound
-    df_filtered['CM','y'][ind_y_less] = upper_bound
+    df['CM','x'][ind_x_over] = right_bound
+    df['CM','y'][ind_y_over] = bottom_bound
+    df['CM','x'][ind_x_less] = left_bound
+    df['CM','y'][ind_y_less] = upper_bound
 
-    return df_filtered
+    return df
 
 def fill_df_summaries(df_summary, df_summary_sns, mouse_no, group, time_spent_percentage, 
                       n_pts_lost, longest_gap, distance_traveled, i):

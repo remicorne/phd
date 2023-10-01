@@ -32,7 +32,8 @@ from DLC_module import (create_empty_df_summaries,
                         save_dist_traveled_box_plot,
                         save_table_of_distance_traveled,
                         produce_heat_map_all_groups,
-                        produce_trajectory_all_groups
+                        produce_trajectory_all_groups,
+                        create_empty_df_summaries_sns
                         ) ## must be in the same directory
 
 
@@ -44,18 +45,20 @@ def loop_over_files(column_names : list, column_names_sns : list, n_files : int,
                     filename_dict : dict, folder_path:str, n_min_to_keep:int, 
                     side_length_cm : int, fps : int = 30):
     
-    df_summary, df_summary_sns  = create_empty_df_summaries(column_names, column_names_sns, n_files)
-    
+    df_summary : pd.DataFrame = pd.DataFrame(np.zeros((n_files, len(column_names))), columns = column_names)
+    df_summary_sns : pd.DataFrame  = pd.DataFrame(np.zeros(( int( n_files * 4) , 4)), columns = column_names_sns)
+
+
     count : int = 0
     
     for group, filename_list in filename_dict.items():
 
-        n_files_in_group = len(filename_list)
-        
-        df_one_group : pd.DataFrame = pd.DataFrame( np.zeros(( int(n_files_in_group * n_pts_to_keep), 3)), columns = ['x', 'y', 'mouse_no'])
+        n_files_in_group : int = len(filename_list)
         last_time_pts : int = 0
+        df_one_group : pd.DataFrame = pd.DataFrame( np.zeros(( int(n_files_in_group * n_pts_to_keep), 3)), columns = ['x', 'y', 'mouse_no'])
         
-        for n_f, filename in enumerate(filename_list):
+        
+        for filename in filename_list:
 
             mouse_no : str =  filename[1:3]
             
@@ -63,9 +66,9 @@ def loop_over_files(column_names : list, column_names_sns : list, n_files : int,
             
             df : pd.DataFrame = read_DLC_file(filepath)
             
-            video_not_long_enough : bool = check_video_length_long_enough(df, threshold = n_min_to_keep, fps = fps)
+            video_not_long_enough : bool = check_video_length_long_enough(df, n_min_to_keep, fps)
             
-            if video_not_long_enough: # skip if video not long enough
+            if video_not_long_enough: 
                 print(' insufficient length')
                 continue
 
@@ -219,49 +222,4 @@ if __name__ == "__main__":
     produce_trajectory_all_groups(X_Y_df_file_list, cage_coord_normalized, folder_path, name = '_5_min_')
 
 
-#%%## run all funcs for one file
-
-# folder_path = '/Users/jasminebutler/Desktop/DLC_Analysis_org'
-# all_data_files_list = list_all_data_files(folder_path, extensions = ['csv'])
-# n_files = len(all_data_files_list)
-# filename_dict = create_dict_of_file_names(all_data_files_list)   
-
-# column_names = ["mouse_no", 'group', "quad_0", "quad_1", "quad_2", "quad_3", 'n_pts_lost', 'longest_gap']
-# df_summary = pd.DataFrame(np.zeros((n_files, len(column_names))), columns = column_names)
-# filename = 'M68_2.csv'
-# mouse_no =  filename[1:3]
-# group = filename[4:5]
-# # i use filename later to keep track of each mouse refering filename[0:5] therefore need it to be defined in the loop over files
-# filepath = os.path.join(folder_path, filename)
-
-# df = read_DLC_file(filepath)
-# cage_coord = get_cage_coords(df, coord_list = [ 'x', 'y'], 
-#                     label_list = ['Center', 'ULCorner',  'URCorner',  
-#                                   'LLCorner',  'LRCorner'],
-#                     p_cutoff = 0.8)
-# fps = 30
-# n_min_to_keep = 3 # minutes to keep from video
-# n_pts_to_keep = n_min_to_keep * fps * 60
-# df_trimmed = trim_df(df, n_pts_to_keep)
-# df_filtered, n_pts_lost, longest_gap = filter_body_parts_based_on_p_cutoff(df_trimmed, p_cutoff = 0.7, 
-#                                                                                 plot_missing_dist =True)
-
-# ##### normalize here using cage coords 
-
-# df_filtered = calculate_and_add_mouse_CM(df_filtered, plot_missing_time_pts = True, 
-#                                           plot_trajectory = False)
-
-# df_filtered = find_which_quad(df_filtered, cage_coord)
-
-# time_spent = time_spent_in_each_quad (df_filtered)
-# df_summary = fill_df_of_each_group_analysis(mouse_no, group, time_spent, 
-#                                             n_pts_lost, longest_gap, i = 0)
-
-
-
-# %% imobility ??????
-
-''' 
-calculate speed < threshold for a period of time?
-'''
 
