@@ -97,7 +97,6 @@ def saveHistogram(fig, identifier):
     saveFigure(fig, identifier, "histograms")
 
 
-
 def saveQuantitativeSummaryFig(fig, identifier):
     saveFigure(fig, identifier, "quantitative_summary")
 
@@ -130,41 +129,47 @@ def flatten(two_d_list):
 def inputEscape(question):
     answer = input(question)
     if answer == "":
-        if input("EXIT PROGRAM? (y/n)") == "y":
+        if askYesorNo("EXIT PROGRAM?"):
             print("EXITING PROGRAM")
             sys.exit()
     return answer
 
 
 def askMultipleChoice(question, choices):
+    if len(choices) == 1:
+        return list(choices)[0]
     choice_mapping = {f"{i}": choice for i, choice in enumerate(choices)}
     options = "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
     choice = inputEscape(f"{question}\n{options}\n")
     while choice not in choice_mapping.keys():
-        choice = inputEscape(f"Invalid choice, possibilities are:\{options}\n")
+        choice = inputEscape(f"""Invalid choice, possibilities are:\{options}\n""")
     return choice_mapping[choice]
 
 
 def askSelectParameter(data, column):
     options = set(data[column])
     print(options)
-    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")#.upper()# i cant access vH, dH ect
+    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")
     while answer not in options:
-        print(f".{answer}.")
         answer = inputEscape(
-            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n" #this mans after one invalid choice the posibilities change to uppercase? or just the display?
-        ).upper()
+            f"Invalid choice, possibilities are:\n{', '.join(options)}\n"
+        )
     return answer
 
 
 def askYesorNo(question):
-    return inputEscape(f"{question} (y/n)\n").upper() == "Y"
+    answer = inputEscape(f"""{question} (y/n)\n""").upper()
+    while answer not in ["Y", "N"]:
+        answer = inputEscape(f"""Invalid choice, possibilities are: (y/n)\n""").upper()
+    return answer == "Y"
 
 
 def subselectDf(df, subselect):
-    return df.query(
-        "&".join([f"{column}=='{value}'" for column, value in subselect.items()])
-    )
+    for column, value in subselect.items():
+        df = df[
+            df[column].isin(value) if isinstance(value, list) else df[column] == value
+        ]
+    return df
 
 
 # This is a decorator design pattern. Its basically a function that wraps another function and does some operations before
@@ -201,8 +206,8 @@ def select_params(stat_function):
 IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
-    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"', 
-    "quantitative_summary":'f"quantitative_summary_{experiment}_for_{compound}_in_{region}"' #REMI: i tried to add this here but dont understand yet how it works
+    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
+    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{compound}_in_{region}"',  # REMI: i tried to add this here but dont understand yet how it works
 }
 
 
@@ -216,7 +221,7 @@ def get_or_add(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
             identifier = buildIdentifier(identifier_type, **kwargs)
-            identifier=checkIdentifier(identifier)
+            identifier = checkIdentifier(identifier)
             from_scratch = (
                 kwargs.get("from_scratch")
                 if kwargs.get("from_scratch") is not None
@@ -234,10 +239,11 @@ def get_or_add(identifier_type):
 
     return decorator
 
-#checks for symbols that can be be save in name / 
+
+# checks for symbols that can be be save in name /
 def checkIdentifier(identifier):
     invalid_chars_pattern = r'[\/:*?"<>|%\&#$@!=+,;\'`~]'
-    sanitized_identifier = re.sub(invalid_chars_pattern, '_', identifier)
+    sanitized_identifier = re.sub(invalid_chars_pattern, "_", identifier)
     if re.search(invalid_chars_pattern, identifier):
         print("Invalid characters in identifier, replacing with '_' ")
     return sanitized_identifier
