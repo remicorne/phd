@@ -77,15 +77,15 @@ def getTwoWayAnova(data, independant_vars, p_value_threshold):
         detailed=True,
     ).round(3)
     return (
-        isinstance(results["p-unc"][2], int)
+        isinstance(results["p-unc"][2], float)
         and results["p-unc"][2] < p_value_threshold,
         results,
     )
 
 
 QUANTITATIVE_STAT_METHODS = {
-    "twoway_anova": getTwoWayAnova,
-    "oneway_anova": getOneWayAnova,
+    "two_way_anova": getTwoWayAnova,
+    "one_way_anova": getOneWayAnova,
     "tukey": getTukey,
 }
 
