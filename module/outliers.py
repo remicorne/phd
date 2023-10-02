@@ -66,7 +66,8 @@ def processOutliers(
             data,
             outlier_test,
             p_value_threshold,
-        )
+        ).copy()  # Copy to avoid SettingWithCopyWarning
+
         # If there are no outliers, exit
         if not data[outlier_col_name].any():
             print("NO OUTLIERS FOUND")
