@@ -2,7 +2,11 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from module.getters import getCompoundAndRatiosDf, getExperimentalInfo, getTreatmentMapping 
+from module.getters import (
+    getCompoundAndRatiosDf,
+    getExperimentalInfo,
+    getTreatmentMapping,
+)
 from module.histogram import buildHistogram, buildHistogramData
 from module.outliers import OUTLIER_TESTS, processOutliers
 from module.statistics import QUANTITATIVE_STAT_METHODS
@@ -16,36 +20,17 @@ from module.utils import (
 import pingouin as pg
 
 
-@select_params
-def getTukey(data, p_value_threshold):
-    columns, *stats_data = pairwise_tukeyhsd(
-        endog=data["value"], groups=data["treatment"], alpha=p_value_threshold
-    )._results_table.data
-    return pd.DataFrame(stats_data, columns=columns)
-
-
-@select_params
-def getOneWayAnova(data):
-    F_value, p_value = scipy.stats.f_oneway(
-        *[list(group_df["value"]) for treatment, group_df in data.groupby("treatment")]
-    )
-    # print(f'oneWAY_ANOVA F_value: {F_value}, p_value: {p_value}')
-    return pd.DataFrame([[F_value, p_value]], columns=["F", "p_value"])
-
-
-@select_params
-def getTwoWayAnova(data, independant_vars):
-    data[independant_vars] = data.apply(
-        lambda x: [var in x["treatment"] for var in independant_vars],
-        axis=1,
-        result_type="expand",
-    )
-    return pg.anova(
-        data=data,
-        dv="value",
-        between=independant_vars,
-        detailed=True,
-    ).round(3)
+def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, parametric):
+    return {
+        (False, False, False, True): ["ttest"],
+        (False, False, True, True): ["paired_ttest"],
+        (False, True, False, True): [
+            "two_way_anova",
+            "one_way_anova",
+        ],
+        (False, True, True, True): ["repeated_measures_anova", "paired_ttest"],
+        (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
+    }[(multiple_factors, multiple_treatments, paired, parametric)]
 
 
 def quantitativeHistogram(
@@ -69,11 +54,14 @@ def quantitativeHistogram(
         # We use keyword params here even though they actually are mandatory for the decorator
         singleQuantitativeHistogram(
             filename,
-            experiment=askMultipleChoice("Select experiment", experimental_info.keys()),
-            compound=askSelectParameter(data, "compound"),
-            region=askSelectParameter(data, "region"),
-            outlier_test=askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys()),
-            p_value_threshold=askMultipleChoice(
+            experiment=experiment
+            or askMultipleChoice("Select experiment", experimental_info.keys()),
+            compound=compound or askSelectParameter(data, "compound"),
+            region=region or askSelectParameter(data, "region"),
+            outlier_test=outlier_test
+            or askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys()),
+            p_value_threshold=p_value_threshold
+            or askMultipleChoice(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
             ),
             from_scratch=from_scratch,
@@ -102,7 +90,6 @@ def singleQuantitativeHistogram(
     experiment_info = getExperimentalInfo(filename)[experiment]
     eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
 
-
     while not confirmed:
         data, order, palette = buildHistogramData(
             filename, experiment, compound, region
@@ -124,16 +111,14 @@ def singleQuantitativeHistogram(
 
         data = data[data[eliminated_outlier_col_name] == False]
         # the last quantitative test is coded to return the labels directly, thus the need for the bool
-        (
-            is_significant,
-            significance_infos,
-        ) = processQuantitativeStats(experiment_info, data, p_value_threshold)
+        (is_significant, significance_infos, passed_tests) = processQuantitativeStats(
+            experiment_info, data, p_value_threshold
+        )
 
-        #JJB ok for the title would like to have either:  " passes: twowayANOVA, onewayANOVA " oder "failed: two-way-anova"
-        title = f"{compound} in {region} "
+        # JJB ok for the title would like to have either:  " passes: twowayANOVA, onewayANOVA " oder "failed: two-way-anova"
+        title = f"{compound} in {region}"
         ylabel = " " if "/" in compound else "ng/mm of tissue"
 
-        
         fig = buildHistogram(
             title,
             ylabel,
@@ -149,10 +134,28 @@ def singleQuantitativeHistogram(
 
 
 def processQuantitativeStats(experiment_info, data, p_value_threshold):
-    # TODO: replace with independant var and factor logic
-    # Implement test passing choice logic
+    """_summary_
 
-    for test in experiment_info["quantitative_statistics"]:
+    Args:
+        experiment_info (dict): experiment info mapping
+        data (df): data for signle experiment
+        p_value_threshold (float): threshold applied to all tests
+
+    Returns:
+        is_significant (bool), significance_infos (list, list): [treatment parings, pvalues]
+    """
+    multiple_factors = len(experiment_info["independant_vars"]) > 1
+    multiple_treatments = len(experiment_info["groups"]) > 1
+    paired = experiment_info["paired"]
+    parametric = experiment_info["parametric"]
+
+    tests = doQuantitativeStatLogic(
+        multiple_factors, multiple_treatments, paired, parametric
+    )
+
+    passed_tests = {True: [], False: []}
+
+    for test in tests:
         is_significant, stats_results, *significance_infos = QUANTITATIVE_STAT_METHODS[
             test
         ](
@@ -163,8 +166,5 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         print()
         print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
         print(stats_results)
-        if not is_significant:
-            if not askYesorNo(f"{test} FAILED, proceed?"):
-                return False, None
-
-    return is_significant, significance_infos[0]
+        passed_tests[is_significant].append(test)
+    return is_significant, significance_infos[0], passed_tests
