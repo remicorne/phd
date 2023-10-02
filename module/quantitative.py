@@ -24,10 +24,7 @@ def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, param
     return {
         (False, False, False, True): ["ttest"],
         (False, False, True, True): ["paired_ttest"],
-        (False, True, False, True): [
-            "two_way_anova",
-            "one_way_anova",
-        ],
+        (False, True, False, True): ["one_way_anova", "tukey"],
         (False, True, True, True): ["repeated_measures_anova", "paired_ttest"],
         (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
     }[(multiple_factors, multiple_treatments, paired, parametric)]
@@ -152,9 +149,7 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
     tests = doQuantitativeStatLogic(
         multiple_factors, multiple_treatments, paired, parametric
     )
-
-    passed_tests = {True: [], False: []}
-
+    test_results = {}
     for test in tests:
         is_significant, stats_results, *significance_infos = QUANTITATIVE_STAT_METHODS[
             test
@@ -166,5 +161,8 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         print()
         print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
         print(stats_results)
-        passed_tests[is_significant].append(test)
-    return is_significant, significance_infos[0], passed_tests
+        if is_significant in test_results:
+            test_results[is_significant].append(test)
+        else:
+            test_results[is_significant] = [test]
+    return is_significant, significance_infos[0], test_results
