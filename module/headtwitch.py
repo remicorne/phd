@@ -28,8 +28,8 @@ def headTwitchHistogram(
 
     #REMI add stats calcultaion to input to histogram builder and outlier same as for quantativeHistograms()
     # the last quantitative test is coded to return the labels directly, thus the need for the bool
-    (is_significant,
-    significance_infos,
+    (is_significant, significance_infos, test_results
+    # (is_significant,significance_infos,
     ) = processQuantitativeStats(getExperimentalInfo(HT_filename)[experiment], data, p_value_threshold)
 
     fig = buildHistogram(title, 
