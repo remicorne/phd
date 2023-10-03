@@ -7,7 +7,7 @@ from statannotations.Annotator import Annotator
 ########## GENERIC HISTOGRAM FUNCTIONS MEANT TO BE USED TO BUILD ANY HISTOGRAM #########
 
 
-def buildHistogramData(  #REMI THIS IS NOT SO GENERIC - I can not use for behavior at all as no compound or region #TODC 
+def buildHistogramData(  #REMI THIS IS NOT SO GENERIC its better in quantitative - I can not use for behavior at all as no compound or region #TODC 
     filename,
     experiment,
     compound,

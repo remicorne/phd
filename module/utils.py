@@ -207,7 +207,7 @@ IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
     "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
-    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{compound}_in_{region}"',  # REMI: i tried to add this here but dont understand yet how it works
+    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"',  # REMI: i tried to add this here but dont understand yet how it works
 }
 
 

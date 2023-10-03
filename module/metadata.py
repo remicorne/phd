@@ -41,11 +41,7 @@ def saveMetadata(
         saveJSON(f"{subcache_dir}/experimental_info.json", experimental_info)
         print(f"EXPERIMENTAL INFO {experimental_info} SAVED TO {subcache_dir} SUBCACHE")
     if region_subclassification:
-        saveJSON(
-            f"{subcache_dir}/region_subclassification.json", region_subclassification
-        )
-        print(
-            f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE"
-        )
+        saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
+        print(f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE")
 
 

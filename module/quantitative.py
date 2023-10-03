@@ -4,8 +4,10 @@ import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.getters import (
     getCompoundAndRatiosDf,
+    getAggregateStatsDf,
     getExperimentalInfo,
     getTreatmentMapping,
+    getRegionSubclassification,
 )
 from module.histogram import buildHistogram, buildHistogramData
 from module.outliers import OUTLIER_TESTS, processOutliers
@@ -18,6 +20,10 @@ from module.utils import (
     select_params,
 )
 import pingouin as pg
+
+import matplotlib.patches as mpatches
+from module.utils import subselectDf
+import seaborn as sns
 
 
 def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, parametric):
@@ -166,3 +172,120 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         else:
             test_results[is_significant] = [test]
     return is_significant, significance_infos[0], test_results
+
+
+
+
+@get_or_add("percentage_vehicles") #REMI this should probebly be singlePercentageVehiclesFig
+def percentageVehiclesFig(
+        filename,
+        experiment=None,
+        compound=None,
+        regions=None, #REMI i would ike this to work the same way it does for correlograms i.e. also specifying the order 
+        from_scratch=True ):
+            
+    #slice aggstats df 
+    experimental_df = subselectDf(getAggregateStatsDf(filename), {"compound": compound, "experiment": experiment })   #REMI can use completly omnce has list comprehension
+    experimental_df = experimental_df[experimental_df['region'].isin(regions)]
+
+    #check that COLUMN_ORDER is consistent with region_subclasification i.e. CORTEX then SUBCORT...
+    region_order = regions #TODO check that regions inputted are sorted by subclasification
+    experimental_df = experimental_df.assign(region=lambda x: pd.Categorical(x["region"], categories=region_order, ordered=True)).sort_values("region")
+
+
+    # create a new column % of control mean/control_mean * 100
+    experimental_df.loc[:, "percentage_of_vehicles"] = experimental_df.groupby(
+        "region"
+    )["mean"].transform(
+        lambda x: (x / x.loc[experimental_df["treatment"] == "vehicles"].values[0])
+        * 100
+    )
+
+    #melt df
+    plot_experimental_df = pd.melt(
+        experimental_df,
+        id_vars=["region", "treatment"],
+        value_vars=["percentage_of_vehicles"],
+    )
+
+    #palete 
+    treatment_palette = {
+            info["treatment"]: info["color"] for number, info in getTreatmentMapping(filename).items()
+        }
+
+    #BUILD
+    fig, ax = plt.subplots(figsize=(12, 9))
+    sns.set_style("white")
+    sns.set_context("notebook")
+
+
+    # plot lines for each treatment 
+    for treatment_value in plot_experimental_df["treatment"].unique():
+        treatment_data = plot_experimental_df[plot_experimental_df["treatment"] == treatment_value]
+        ax.plot(
+            treatment_data["region"],
+            treatment_data["value"],
+            marker='o',
+            markersize=2,
+            linestyle='-',
+            label=treatment_value,
+            color=treatment_palette.get(treatment_value, None),  # Use the palette if needed
+        )
+    
+    # Create custom legend handles for 'treatment' with black outline
+    order = [
+        getTreatmentMapping(filename)[str(group)]["treatment"]
+        for group in getExperimentalInfo(filename)[experiment]["groups"]
+    ]
+    legend_handles = [
+        mpatches.Patch(
+            facecolor=treatment_palette[treatment], edgecolor="black", label=treatment
+        )
+        for treatment in order
+    ]
+    # Add a legend with custom handles and formatting
+    ax.legend(handles=legend_handles, loc="upper left", frameon=False)
+
+
+
+    # Add spans for region sub-classifications
+    for subcls, info in getRegionSubclassification(filename).items():
+        regions_to_highlight = info['regions']
+        color = info['color']
+
+        # Find the indices of regions to highlight
+        indices_to_highlight = [region_order.index(region) for region in regions_to_highlight]
+
+        # Create a single span for the highlighted regions
+        start_index = indices_to_highlight[0]
+        end_index = indices_to_highlight[-1]
+        ax.axvspan(start_index - 0.5, end_index + 0.5, facecolor=color, alpha=0.1, edgecolor='none', label=subcls)
+        
+        
+        
+        # Add a label for the region sub-classification at the midpoint of the span
+        label = subcls.replace("_", " ")  # Replace underscores with spaces
+        label_x = (start_index + end_index) / 2
+        label_y = ax.get_ylim()[1] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+        # Split label into lines if it contains multiple words
+        words = label.split()
+        lines = ["\n".join(words[i:i+2]) for i in range(0, len(words), 2)]
+        label_text = "\n".join(lines)
+        ax.text(
+            label_x,
+            label_y,
+            label_text,
+            ha="center",
+            va="top",
+            fontsize=12,
+            color=color,
+            bbox=None #{'facecolor': 'white', 'edgecolor': 'none', 'alpha': 0.8}  # Add a white background for visibility
+        )
+
+    ax.set_xlim(-0.5, len(region_order) - 0.5)  # Set x-axis limits to edge of axspan
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+    ax.set_xlabel("Regions")
+    ax.set_ylabel(f"{compound} as a % of vehicles")
+
+    return fig
+
