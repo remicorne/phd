@@ -75,7 +75,7 @@ def processOutliers(
             break
 
         title = f"{compound} in {region}"
-        ylabel = " " if "/" in compound else "ng/mm of tissue"
+        ylabel = " " if "/" in compound else "ng/mg of tissue"
         hue = {eliminated_outlier_col_name: {True: "red", False: "white"}}
 
         # Ask user to codanfirm outliers

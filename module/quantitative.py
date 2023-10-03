@@ -114,7 +114,7 @@ def singleQuantitativeHistogram(
 
         # JJB ok for the title would like to have either:  " passes: twowayANOVA, onewayANOVA " oder "failed: two-way-anova"
         title = f"{compound} in {region}"
-        ylabel = " " if "/" in compound else "ng/mm of tissue"
+        ylabel = " " if "/" in compound else "ng/mg of tissue"
 
         fig = buildHistogram(
             title,
