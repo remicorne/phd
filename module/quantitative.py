@@ -9,7 +9,7 @@ from module.getters import (
     getTreatmentMapping,
     getRegionSubclassification,
 )
-from module.histogram import buildHistogram, buildHistogramData
+from module.histogram import buildHistogram, buildHistogramData, buildHueHistogram, buildQuantitativeSummaryHistogramData
 from module.outliers import OUTLIER_TESTS, processOutliers
 from module.statistics import QUANTITATIVE_STAT_METHODS
 from module.utils import (
@@ -24,7 +24,7 @@ import pingouin as pg
 import matplotlib.patches as mpatches
 from module.utils import subselectDf
 import seaborn as sns
-
+from module.correlogram import askColumnsToUser
 
 def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, parametric):
     return {
@@ -135,6 +135,79 @@ def singleQuantitativeHistogram(
 
         return fig
 
+def quantitativeSummary(
+        filename,
+        experiment=None,
+        histogram_type=None, #chose a single compound or region
+        to_plot=None, #chose a list of regions or compounds (x-axis of hist) #JASI will this stay as list or should be single value? not complex like corr
+        p_value_threshold=None,
+        columns=None,
+        from_scratch=None ):
+
+    #get df 
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    experiments = getExperimentalInfo(filename)
+
+    #JASI input loop here if you like see quantitativeHistogram()
+    #prompts for inputs if not provided 
+    experiment = (
+        experiment
+        if experiment
+        else askMultipleChoice(
+            "Which experiment?",
+            experiments.keys(),
+        )
+    )
+    histogram_type = (
+        histogram_type
+        if histogram_type
+        else askMultipleChoice("Which correlogram?", ["compound", "region"])
+    )
+    to_plot = (
+        to_plot
+        if to_plot
+        else input(
+            f"""Which {histogram_type}?
+                    Possibilities: {set(compound_and_ratios_df[histogram_type])}
+                    """
+        ).upper()
+    )
+    columns = (
+        columns if columns 
+        else askColumnsToUser(histogram_type, compound_and_ratios_df) 
+    )
+
+    buildSingleQuantitativeSummary(
+        filename,
+        experiment=experiment,
+        histogram_type=histogram_type,
+        to_plot=to_plot,
+        columns=columns,
+        from_scratch=from_scratch,  # Used in decorator
+    )
+
+@get_or_add('quantitative_summary')
+def buildSingleQuantitativeSummary(
+    filename,
+    experiment=None,
+    histogram_type=None,
+    to_plot=None,
+    columns=None,
+    from_scratch=None,  # Used in decorator
+):
+
+    title =f'' #EMPTY to feed generic plotter
+    ylabel=f'{to_plot} ng/mg +/-98CI'
+    if '/' in to_plot:
+        ylabel=f'{to_plot} +/-98CI' #ratios are not in ng/mg
+
+    data, order, hue_order, hue_palette, value_type = buildQuantitativeSummaryHistogramData(filename, experiment, histogram_type, to_plot, columns)
+
+    #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
+    fig = buildHueHistogram(title, ylabel, data, order, palette=hue_palette, x=value_type,y='value', hue='treatment', hue_order=hue_order, significance_infos=None)
+
+    return fig 
+
 
 def processQuantitativeStats(experiment_info, data, p_value_threshold):
     """_summary_
@@ -171,7 +244,7 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
             test_results[is_significant].append(test)
         else:
             test_results[is_significant] = [test]
-            
+
     return is_significant, significance_infos[0], test_results
 
 

@@ -4,6 +4,7 @@ from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
 import seaborn as sns
 from statannotations.Annotator import Annotator
 from module.constants import COLUMN_ORDER
+
 ########## GENERIC HISTOGRAM FUNCTIONS MEANT TO BE USED TO BUILD ANY HISTOGRAM #########
 
 ########## HISTOGRAM DATA BUILDERS 
@@ -141,6 +142,7 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
     ax.set_ylabel(ylabel, fontsize=24)
     ax.set_xlabel(" ", fontsize=20)  #remove x title
     ax.set_title(title, y=1.04, fontsize=34)  
+    
     sns.despine(left=False)
     return fig 
 
