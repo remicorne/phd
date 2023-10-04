@@ -76,7 +76,10 @@ def correlogram(
                     """
         ).upper()
     )
-    columns = askColumnsToUser(correlogram_type, compound_and_ratios_df) #REMI: for me I would like to be able to manuely code these in pls ass the if not assigned, danke
+    columns = (
+        columns if columns 
+        else askColumnsToUser(correlogram_type, compound_and_ratios_df) #REMI: for me I would like to be able to manuely code these in pls ass the if not assigned, danke
+    )
 
     buildSingleCorrelogram(
         filename,
@@ -109,7 +112,7 @@ def buildSingleCorrelogram(
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
     ].query("|".join([f"{correlogram_type}=='{value}'" for value in to_correlate]))
-    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
+    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]#REMI this doesnt exist anywhere?
     pivot_columns = {
         "region": ["region", "compound"],
         "compound": ["compound", "region"],

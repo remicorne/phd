@@ -88,17 +88,13 @@ def saveFigure(fig, identifier, fig_type):
     # Image.open(f"{output_subdir}/{identifier}.png").show()
     print(f"SAVED {output_subdir}/{identifier}.png")
 
-
-def saveCorrelogram(fig, identifier):
-    saveFigure(fig, identifier, "correlograms")
-
-
-def saveHistogram(fig, identifier):
-    saveFigure(fig, identifier, "histograms")
-
-
-def saveQuantitativeSummaryFig(fig, identifier):
-    saveFigure(fig, identifier, "quantitative_summary")
+#REMI this is all redundant if i understand @get_or_add ?
+# def saveCorrelogram(fig, identifier):
+#     saveFigure(fig, identifier, "correlograms")
+# def saveHistogram(fig, identifier):
+#     saveFigure(fig, identifier, "histograms")
+# def saveQuantitativeSummaryFig(fig, identifier):
+#     saveFigure(fig, identifier, "quantitative_summary")
 
 
 def dictToFilename(dict_to_stringify):
@@ -207,7 +203,8 @@ IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
     "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
-    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"',  # REMI: i tried to add this here but dont understand yet how it works
+    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"', 
+    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"' # REMI: i tried to add this here but dont understand yet how it works
 }
 
 

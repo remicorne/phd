@@ -13,7 +13,7 @@ from module.utils import (
     dictToFilename,
     askYesorNo,
     subselectDf,
-    saveQuantitativeSummaryFig,
+    
 )
 from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
