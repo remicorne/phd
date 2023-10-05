@@ -112,12 +112,12 @@ def buildSingleCorrelogram(
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
     ].query("|".join([f"{correlogram_type}=='{value}'" for value in to_correlate]))
-    columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]#REMI this doesnt exist anywhere?
+    columns = columns #if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]#REMI this doesnt exist anywhere?
     pivot_columns = {
         "region": ["region", "compound"],
         "compound": ["compound", "region"],
     }[correlogram_type]
-    # Because table is îvoted on region and compound even in the case of simple correlogram I have to duplicate the selector in that case to avoid ugly labelling
+    # Because table is înveted on region and compound even in the case of simple correlogram I have to duplicate the selector in that case to avoid ugly labelling
     pivot_column_value = (
         to_correlate if len(to_correlate) == 2 else to_correlate + to_correlate
     )
@@ -142,7 +142,7 @@ def buildSingleCorrelogram(
         # This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
         methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)]
         # order columns in desired plotting order
-        columns = columns if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]
+        columns = columns #if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type] #REMI i am pretty sure this is old code no?
         pivot_columns_ordered = sorted(
             pivot_df.columns,
             key=lambda x: columns.index(x[1]) if x[1] in columns else float("inf"),
@@ -177,7 +177,7 @@ def plotCorrelograms(correlograms):
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     
 
-    if np.array_equal(correlogram_df, correlogram_df.T):  # remove duplicate data for triangle correlograms
+    if np.array_equal(correlogram_df, correlogram_df.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
         title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
 
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)

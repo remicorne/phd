@@ -31,6 +31,8 @@ def saveMetadata(
     treatment_mapping=None,
     experimental_info=None,
     region_subclassification=None,
+    compound_subclassification=None,
+    compound_ratio_mapping=None
 ):
     subcache_dir = f"{CACHE_DIR}/{filename.split('.')[0]}"
     checkFileSystem(subcache_dir)
@@ -43,5 +45,10 @@ def saveMetadata(
     if region_subclassification:
         saveJSON(f"{subcache_dir}/region_subclassification.json", region_subclassification)
         print(f"REGION SUBCLASSIFICATION {region_subclassification} SAVED TO {subcache_dir} SUBCACHE")
-
+    if compound_subclassification:
+        saveJSON(f"{subcache_dir}/compound_subclassification.json", compound_subclassification)
+        print(f"COMPOUND SUBCLASSIFICATION {compound_subclassification} SAVED TO {subcache_dir} SUBCACHE")
+    if compound_ratio_mapping:
+        saveJSON(f"{subcache_dir}/compound_ratio_mapping.json", compound_ratio_mapping)
+        print(f"COMPOUND RATIO MAPPING {compound_ratio_mapping} SAVED TO {subcache_dir} SUBCACHE")
 
