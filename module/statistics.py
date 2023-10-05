@@ -2,7 +2,7 @@ import pingouin as pg
 import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import pandas as pd
-from outliers import smirnov_grubbs as grubbs
+# from outliers import smirnov_grubbs as grubbs #not used and having circular import shit 
 import matplotlib.pyplot as plt
 from module.utils import select_params
 
