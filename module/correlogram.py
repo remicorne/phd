@@ -77,8 +77,11 @@ def correlogram(
         ).upper()
     )
     columns = (
-        columns if columns 
-        else askColumnsToUser(correlogram_type, compound_and_ratios_df) #REMI: for me I would like to be able to manuely code these in pls ass the if not assigned, danke
+        columns
+        if columns
+        else askColumnsToUser(
+            correlogram_type, compound_and_ratios_df
+        )  # REMI: for me I would like to be able to manuely code these in pls ass the if not assigned, danke
     )
 
     buildSingleCorrelogram(
@@ -112,7 +115,7 @@ def buildSingleCorrelogram(
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
     ].query("|".join([f"{correlogram_type}=='{value}'" for value in to_correlate]))
-    columns = columns #if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]#REMI this doesnt exist anywhere?
+    columns = columns  # if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type]#REMI this doesnt exist anywhere?
     pivot_columns = {
         "region": ["region", "compound"],
         "compound": ["compound", "region"],
@@ -135,14 +138,18 @@ def buildSingleCorrelogram(
     for treatment, group_df in subselection_df_ordered.groupby(
         by=["treatment"], sort=False
     ):
-        # Here we just picot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
-        pivot_df = group_df.pivot_table(
-            values="value", index=group_df["mouse_id"], columns=pivot_columns
+        # Here we just pivot our structure to one where each column is a region or compound and each line a mouse    correlogram_df, p_value_mask = [pivot_df.corr(method=method, min_periods=n_minimum).dropna(axis=0, how='all').dropna(axis=1, how='all') for method in methods] # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
+        pivot_df = (
+            group_df[group_df.value != 0]
+            .dropna()
+            .pivot_table(
+                values="value", index=group_df["mouse_id"], columns=pivot_columns
+            )
         )
         # This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
         methods = [getPearsonR, isSignificant(getPearsonPValue, p_value_threshold)]
         # order columns in desired plotting order
-        columns = columns #if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type] #REMI i am pretty sure this is old code no?
+        columns = columns  # if columns else CORRELOGRAM_COLUMN_ORDER[correlogram_type] #REMI i am pretty sure this is old code no?
         pivot_columns_ordered = sorted(
             pivot_df.columns,
             key=lambda x: columns.index(x[1]) if x[1] in columns else float("inf"),
@@ -163,7 +170,7 @@ def buildSingleCorrelogram(
 
 
 def plotCorrelograms(correlograms):
-    #JJB might be nice to have one color bar for all figures
+    # JJB might be nice to have one color bar for all figures
     fig, axs = plt.subplots(2, 2, figsize=(22, 22))
     axs = flatten(axs)  # Put all the axes into a list at the same level
     for (correlogram_df, p_value_mask, treatment, subvalues), ax in zip(
@@ -175,10 +182,12 @@ def plotCorrelograms(correlograms):
 
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
-    
-
-    if np.array_equal(correlogram_df, correlogram_df.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
-        title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
+    if np.array_equal(
+        correlogram_df, correlogram_df.T
+    ):  # TRIANGLE CORRELOGRAMS remove duplicate data
+        title = ax.set_title(
+            f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9
+        )  # Adjust the y position of the title manually #JJB set
 
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
@@ -186,7 +195,9 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
             p_value_mask.values, False
         )  # this makes the diagonal correlations of 1 visible
     else:
-        title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=1)  # Adjust the y position of the title manually for square correlogram
+        title = ax.set_title(
+            f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=1
+        )  # Adjust the y position of the title manually for square correlogram
 
     heatmap = sns.heatmap(
         correlogram_df,
@@ -194,11 +205,11 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         vmax=1,
         square=True,
         annot=True,
-        cmap=matplotlib.colormaps['BrBG'],
+        cmap=matplotlib.colormaps["BrBG"],
         mask=p_value_mask,
-        annot_kws={"size": 8}, #, 'fontweight':'bold'
+        annot_kws={"size": 8},  # , 'fontweight':'bold'
         ax=ax,
-        cbar_kws={"shrink": 0.8} #adj color bar size
+        cbar_kws={"shrink": 0.8},  # adj color bar size
     )
     ax.set_xticklabels(
         ax.get_xticklabels()
@@ -223,12 +234,16 @@ def askColumnsToUser(correlogram_type, compound_and_ratios_df):
                    Press enter to confirm or write new column list in the same format"""
     )
     if answer:
-        columns = answer.replace(" ", "").split(",") #.upper() was this the problem a problem but not THE problem
+        columns = answer.replace(" ", "").split(
+            ","
+        )  # .upper() was this the problem a problem but not THE problem
         # errors = filter(
         #     lambda i, col: col not in set(compound_and_ratios_df[col_name]),
-        #     enumerate(columns), 
+        #     enumerate(columns),
         # )
-        errors = [col for col in columns if col not in set(compound_and_ratios_df[col_name])] #JJB this fixed TyepError: missing 1 required positional argument: 'col' when trying to actualy select cols
+        errors = [
+            col for col in columns if col not in set(compound_and_ratios_df[col_name])
+        ]  # JJB this fixed TyepError: missing 1 required positional argument: 'col' when trying to actualy select cols
 
         while errors:
             columns = (
