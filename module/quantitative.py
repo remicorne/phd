@@ -269,6 +269,7 @@ def buildSingleQuantitativeSummary(
     )
 
     #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
+    #hue hard coded to treatment for quantitativeSummary()
     fig = buildHueHistogram(
         title,
         ylabel,
