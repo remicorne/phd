@@ -295,7 +295,8 @@ def buildQuantitativeStatsDf(filename):
             "region",
             "compound",
             "test",
-            "is_signinficant",
+            "is_significant",
             "result",
         ]
     )
+

@@ -1,9 +1,6 @@
 import os
 import json
-from module.Configuration import Configuration
-from module.Dataset import Dataset
 from module.Questions import Questions
-
 
 class Filesystem:
     ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
@@ -25,14 +22,6 @@ class Filesystem:
         Filesystem.check_directory(Filesystem.OUTPUT)
 
     @staticmethod
-    def check_config_file(experiment, config_file):
-        path = f"{Filesystem.INPUT}/{experiment}/{config_file}.json"
-        if not os.path.isfile(path):
-            with open(path, "w", encoding="utf8") as json_file:
-                json.dump({}, json_file)
-            print(f"CREATED EMPTY {path} FILE, PLEASE FILL IT IN")
-
-    @staticmethod
     def check_or_add_raw_data(experiment_name, raw_data_name):
         experiment_directory = f"{Filesystem.INPUT}/{experiment_name}"
         raw_data_filename = f"{experiment_name}_{raw_data_name}.csv"
@@ -42,15 +31,19 @@ class Filesystem:
                     f"PLEASE ADD {raw_data_filename} TO {experiment_directory}. PRESS 'y' WHEN DONE or 'n' TO CONTINUE WITHOUT IT"
                 )
             ):
-                print(f"MISSING {raw_data_name} RAW DATA. CONTINUING WITHOUT IT")
+                
                 return
-        print(f"FOUND {raw_data_name} RAW DATA")
-
+        return 
+        
     @staticmethod
-    def initiate_experiment(experiment_name):
-        Filesystem.check_directory(f"{Filesystem.INPUT}/{experiment_name}")
-        Filesystem.check_directory(f"{Filesystem.OUTPUT}/{experiment_name}")
-        for configuration in Configuration.CONFIGURATIONS:
-            Filesystem.check_config_file(experiment_name, configuration)
-        for dataset_type in Dataset.DATASETS_TYPES:
-            Filesystem.check_or_add_raw_data(experiment_name, dataset_type)
+    def saveJSON(path, dict_to_save):
+        with open(path, "w", encoding="utf8") as json_file:
+            json.dump(dict_to_save, json_file)
+    
+    @staticmethod
+    def getJSON(path):
+        with open(path) as outfile:
+            loaded_json = json.load(outfile)
+        return loaded_json
+
+            

@@ -182,6 +182,11 @@ def plotCorrelograms(correlograms):
 
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
+    missing_values = correlogram_df.isna()
+    non_correlated = p_value_mask
+    correlogram_df[non_correlated] = 1 # Set non corr to white, background will be black
+    p_value_mask = missing_values # Missing values will be color of backround
+
     if np.array_equal(
         correlogram_df, correlogram_df.T
     ):  # TRIANGLE CORRELOGRAMS remove duplicate data
@@ -202,15 +207,16 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     heatmap = sns.heatmap(
         correlogram_df,
         vmin=-1,
-        vmax=1,
+        vmax=0.99,
         square=True,
         annot=True,
-        cmap=matplotlib.colormaps["BrBG"],
+        cmap=matplotlib.colormaps["BrBG"].set_over("black", 0.99),
         mask=p_value_mask,
         annot_kws={"size": 8},  # , 'fontweight':'bold'
         ax=ax,
         cbar_kws={"shrink": 0.8},  # adj color bar size
     )
+    heatmap.set_facecolor("black")
     ax.set_xticklabels(
         ax.get_xticklabels()
     )  # rotation=45, horizontalalignment='right',

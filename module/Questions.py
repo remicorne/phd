@@ -20,7 +20,7 @@ class Questions:
         choice = Questions.inputEscape(f"{question}\n{options}\n")
         while choice not in choice_mapping.keys():
             choice = Questions.inputEscape(
-                f"""Invalid choice, possibilities are:\{options}\n"""
+                f"""Invalid choice, possibilities are:\n{options}\n"""
             )
         return choice_mapping[choice]
 
