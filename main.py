@@ -6,6 +6,7 @@ from module.quantitative import (
     quantitativeHistogram,
     percentageVehiclesFig,
     quantitativeSummary,
+    justStats
 )
 from module.correlogram import correlogram
 from module.utils import initiateFileSystem
