@@ -13,7 +13,6 @@ from module.utils import (
     dictToFilename,
     askYesorNo,
     subselectDf,
-    
 )
 from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
@@ -95,25 +94,32 @@ def getRatioAggregateStatsDf(filename):
 
 def getAggregateStatsDf(filename):
     builder_callback_with_param = functools.partial(
-        buildAggregateStatsDf, df_type='compound_and_ratios_df'
+        buildAggregateStatsDf, df_type="compound_and_ratios_df"
     )
     return getOrBuildDf(
         filename, "compound_and_ratios_df_aggregate_stats", builder_callback_with_param
     )
 
 
-def getQuantitativeStats(filename, p_value_threshold, from_scratch=False):
-    identifier = "quantitative_stats"
-    if from_scratch or not isCached(filename, identifier):
-        quantitative_stats_df = buildQuantitativeStatsDf(filename, p_value_threshold)
-        cache(filename, identifier, quantitative_stats_df)
-    else:
-        quantitative_stats_df = getCache(filename, identifier)
-    return quantitative_stats_df
+def getQuantitativeStats(filename):
+    return getOrBuildDf(filename, "quantitative_stats", buildQuantitativeStatsDf)
 
 
 def getHeadTwitchDf(filename):
     return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
+
+
+########### SETTERS ######
+
+
+def updateQuantitativeStats(filename, row):
+    quantitative_stats_df = getQuantitativeStats(filename)
+    quantitative_stats_df = pd.concat(
+        [quantitative_stats_df, pd.DataFrame(row)], ignore_index=True
+    )
+    cache(filename, "quantitative_stats", quantitative_stats_df)
+    print("QUANTITATIVE STATS UPDATED")
+
 
 ######### BUILDERS #######
 
@@ -125,13 +131,14 @@ def buildRawDf(filename):
     if not os.path.isfile(f"{INPUT_DIR}/{filename}"):
         raise Exception(f'FILE {filename} IS ABSENT IN "input/" DIRECTORY')
     # to set all 0 to Nan
-    return pd.read_csv(f"{INPUT_DIR}/{filename}", header=0).replace(np.nan, 0)
+    return pd.read_csv(f"{INPUT_DIR}/{filename}", header=0).replace(0, np.nan)
 
 
-# contains the logic to build the df in the new format based on raw df 
+# contains the logic to build the df in the new format based on raw df
+
 
 def buildHeadTwitchDf(HT_filename):
-    new_format_df=applyTreatmentMapping(getRawDf(HT_filename), HT_filename)
+    new_format_df = applyTreatmentMapping(getRawDf(HT_filename), HT_filename)
     return new_format_df
 
 
@@ -280,73 +287,15 @@ def buildAggregateStatsDf(filename, df_type):
     )
 
 
-# Change experiment param to none when experiment info mapping is complete
-def buildQuantitativeStatsDf(
-    filename, subselect=None, experiment="agonist_antagonist", p_value_threshold=0.05
-):
-    experiment_info = getExperimentalInfo(filename)[experiment]
-    compound_and_ratios_df = (
-        subselectDf(getCompoundAndRatiosDf(filename), subselect)
-        if subselect
-        else getCompoundAndRatiosDf(filename)
-    )
-    compound_and_ratios_df = compound_and_ratios_df[
-        compound_and_ratios_df.experiment == experiment
-    ]  # TODO: Remove when info mapping is completed
-    data_keys = ["experiment", "compound", "region"]
-    groupbys = compound_and_ratios_df.groupby(by=data_keys)
-
+def buildQuantitativeStatsDf(filename):
     return pd.DataFrame(
-        list(
-            map(
-                buildGroupbyQuantitativeStatsMapper(
-                    experiment_info, len(groupbys), p_value_threshold
-                ),
-                list(enumerate(groupbys)),
-            )
-        ),
         columns=[
-            data_keys
-            + flatten(
-                [
-                    [f"{test}_status", f"{test}_result"]
-                    for test in experiment_info["quantitative_statistics"]
-                ]
-            )
-        ],
-    )
-
-
-def buildGroupbyQuantitativeStatsMapper(
-    experiment_info, groupby_length, p_value_threshold
-):
-    def executor(i_groupby):
-        i, groupby = i_groupby
-        print("CALULATING", i + 1, "OF", groupby_length, "GROUPBYS")
-        experiment_compound_region, data = groupby
-        experiment, compound, region = experiment_compound_region
-        return buildGroupbyQuantitativeStats(
-            experiment_info, experiment, compound, region, data, p_value_threshold
-        )
-
-    return executor
-
-
-def buildGroupbyQuantitativeStats(
-    experiment_info, experiment, compound, region, data, p_value_threshold
-):
-    return [
-        experiment,
-        compound,
-        region,
-    ] + flatten(
-        [
-            QUANTITATIVE_STAT_METHODS[test](
-                data=data,
-                independant_vars=experiment_info["independant_vars"],
-                p_value_threshold=p_value_threshold,
-            )
-            for test in experiment_info["quantitative_statistics"]
+            "data_type",
+            "experiment",
+            "region",
+            "compound",
+            "test",
+            "is_signinficant",
+            "result",
         ]
     )
-
