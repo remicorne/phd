@@ -58,12 +58,18 @@ def buildQuantitativeSummaryHistogramData(filename, experiment, histogram_type, 
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     value_type = {"compound": "region", "region": "compound"}[histogram_type]
 
+    # data = compound_and_ratios_df[
+    #     (compound_and_ratios_df.experiment == experiment)
+    #     & (compound_and_ratios_df[value_type].isin(columns))
+    #     & (compound_and_ratios_df[histogram_type]== to_plot)] #as to plot will only be one value not list
+    # # ].query("|".join([f"{histogram_type}=='{value}'" for value in to_plot])) #perhaps this is rewuired for prompt? unsure how to intergrate REMI
+
     data = compound_and_ratios_df[
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
-        & (compound_and_ratios_df[histogram_type]== to_plot)] #as to plot will only be one value not list
-    # ].query("|".join([f"{histogram_type}=='{value}'" for value in to_plot])) #perhaps this is rewuired for prompt? unsure how to intergrate REMI
-
+        & (compound_and_ratios_df[histogram_type] == to_plot)
+        & (compound_and_ratios_df.eliminated_grubbs_outlier != True)
+    ]
     order = sorted(columns, key=lambda x: COLUMN_ORDER[value_type].index(x)) #orders regions / compounds as in constants
     hue_order = data.sort_values(by="group_id", ascending=True).treatment.unique() 
 
@@ -144,7 +150,8 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
     ax.set_ylabel(ylabel, fontsize=24)
     ax.set_xlabel(" ", fontsize=20)  #remove x title
     ax.set_title(title, y=1.04, fontsize=34)  
-    
+    ax.legend(loc='upper left')
+
     sns.despine(left=False)
     return fig 
 
