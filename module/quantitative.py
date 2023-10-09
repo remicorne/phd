@@ -42,6 +42,64 @@ def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, param
         (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
     }[(multiple_factors, multiple_treatments, paired, parametric)]
 
+def justStats(filename,
+    experiments: list,
+    compounds: list,
+    regions: list,
+    p_value_threshold = 0.05,
+):
+    """User MUST provide all parameters they must be list even if single possibility (iteration on list)
+    calculates the stats for every combination of parameters and stores them in the stats df
+
+
+    Args:
+        filename (_type_): name
+        experiment (_type_, optional): _description_. Defaults to None.
+        compound (_type_, optional): _description_. Defaults to None.
+        region (_type_, optional): _description_. Defaults to None.
+        p_value_threshold (_type_, optional): _description_. Defaults to None.
+    """
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    
+    ## Iterat over every combination of parameters
+    for experiment in experiments:
+        for compound in compounds:
+            for region in regions:
+                print(f"Calculating stats for {experiment}, {compound}, {region}")
+                experiment_info = getExperimentalInfo(filename)[experiment]
+                print(compound_and_ratios_df.columns)
+                data = compound_and_ratios_df[
+                    (compound_and_ratios_df.experiment == experiment)
+                    & (compound_and_ratios_df.compound == compound)
+                    & (compound_and_ratios_df.region == region)
+                ]
+                
+                if 'eliminated_grubbs_outlier' in data.columns:
+                    data = data[~data.eliminated_grubbs_outlier]
+                # the last quantitative test is coded to return the labels directly, thus the need for the bool
+                is_significant, significance_infos, test_results = processQuantitativeStats(
+                    experiment_info, data, p_value_threshold
+                )
+
+                updateQuantitativeStats(
+                    filename,
+                    [
+                        {
+                            "data_type": "HPLC",
+                            "experiment": experiment,
+                            "compound": compound,
+                            "region": region,
+                            **test_result,
+                        }
+                        for test_result in test_results
+                    ],
+                )
+                
+    print('DONE')
+
+    
+    
+            
 
 def quantitativeHistogram(
     filename,
