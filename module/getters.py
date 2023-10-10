@@ -114,7 +114,7 @@ def getHeadTwitchDf(filename):
 
 def updateQuantitativeStats(filename, row):
     quantitative_stats_df = getQuantitativeStats(filename)
-    quantitative_stats_df = pd.concat(
+    quantitative_stats_df = pd.concat( #REMI TO DO this just keeps adding and adding 
         [quantitative_stats_df, pd.DataFrame(row)], ignore_index=True
     )
     cache(filename, "quantitative_stats", quantitative_stats_df)
@@ -296,6 +296,7 @@ def buildQuantitativeStatsDf(filename):
             "compound",
             "test",
             "is_significant",
+            "p_value",
             "result",
         ]
     )

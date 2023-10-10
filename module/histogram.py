@@ -58,12 +58,6 @@ def buildQuantitativeSummaryHistogramData(filename, experiment, histogram_type, 
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     value_type = {"compound": "region", "region": "compound"}[histogram_type]
 
-    # data = compound_and_ratios_df[
-    #     (compound_and_ratios_df.experiment == experiment)
-    #     & (compound_and_ratios_df[value_type].isin(columns))
-    #     & (compound_and_ratios_df[histogram_type]== to_plot)] #as to plot will only be one value not list
-    # # ].query("|".join([f"{histogram_type}=='{value}'" for value in to_plot])) #perhaps this is rewuired for prompt? unsure how to intergrate REMI
-
     data = compound_and_ratios_df[
         (compound_and_ratios_df.experiment == experiment)
         & (compound_and_ratios_df[value_type].isin(columns))
@@ -151,6 +145,18 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
     ax.set_xlabel(" ", fontsize=20)  #remove x title
     ax.set_title(title, y=1.04, fontsize=34)  
     ax.legend(loc='upper left')
+
+    if significance_infos is not None:
+        print(f'PLOTTING SIGNIFICANCE ') #significance_infos['test']
+        # Iterate through regions and add a '*' above each significant x value #TODO switch for p_value and stars
+        for i, row in significance_infos.iterrows():
+            region = row['region']
+            is_significant = row['is_significant']
+            if is_significant == True:
+                print (f'{region} is significant for ') #significance_infos['test']
+                ax.annotate('*', (i, data[data['region'] == region]['value'].values[0] + 1), ha='center', va='center',
+                            size=12, color='black')
+
 
     sns.despine(left=False)
     return fig 

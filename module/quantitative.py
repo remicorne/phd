@@ -9,6 +9,7 @@ from module.getters import (
     getTreatmentMapping,
     getRegionSubclassification,
     updateQuantitativeStats,
+    getQuantitativeStats,
 )
 from module.histogram import (
     buildHistogram,
@@ -75,7 +76,7 @@ def justStats(filename,
                 ]
                 
                 if 'eliminated_grubbs_outlier' in data.columns:
-                    data = data[~data.eliminated_grubbs_outlier]
+                    data = data[data.eliminated_grubbs_outlier != True]
                 # the last quantitative test is coded to return the labels directly, thus the need for the bool
                 is_significant, significance_infos, test_results = processQuantitativeStats(
                     experiment_info, data, p_value_threshold
@@ -256,10 +257,10 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
 def quantitativeSummary(
     filename,
     experiment=None,
-    histogram_type=None,  # chose a single compound or region
-    to_plot=None,  # chose a list of regions or compounds (x-axis of hist) #JASI will this stay as list or should be single value? not complex like corr
+    histogram_type=None,  #  compound or region
+    to_plot=None,  # chosen compound or region 
     p_value_threshold=None,
-    columns=None,
+    columns=None, # x values to plot 
     from_scratch=None,
 ):
     # get df
@@ -279,7 +280,7 @@ def quantitativeSummary(
     histogram_type = (
         histogram_type
         if histogram_type
-        else askMultipleChoice("Which correlogram?", ["compound", "region"])
+        else askMultipleChoice("Which histogram?", ["compound", "region"])
     )
     to_plot = (
         to_plot
@@ -308,9 +309,9 @@ def quantitativeSummary(
 def buildSingleQuantitativeSummary(
     filename,
     experiment=None,
-    histogram_type=None,
-    to_plot=None,
-    columns=None,
+    histogram_type=None, # e.g. compound 
+    to_plot=None, # DA
+    columns=None, # region list
     from_scratch=None,  # Used in decorator
 ):
     title = ""  # EMPTY to feed generic plotter
@@ -326,6 +327,29 @@ def buildSingleQuantitativeSummary(
         filename, experiment, histogram_type, to_plot, columns
     )
 
+    #create a significance mapping for the x values #RN this is T/F but will be corrected to pvalues and stars later 
+    if histogram_type == 'compound':
+        compound = to_plot
+        region = columns
+    else:
+        compound = columns
+        region = to_plot #this allows the use of the function both ways but feels fucking stupid tbh
+
+    #TO DO pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
+    experiment_info = getExperimentalInfo(filename)[experiment]
+    multiple_factors = len(experiment_info["independant_vars"]) > 1
+    multiple_treatments = len(experiment_info["groups"]) > 1
+    paired = experiment_info["paired"]
+    parametric = experiment_info["parametric"]
+
+    tests = doQuantitativeStatLogic(
+        multiple_factors, multiple_treatments, paired, parametric
+    )
+    test = tests[0]
+
+    #get stats #REMI TODO missing p_value col for non  post hoc testing
+    quant_stats_df = subselectDf(getQuantitativeStats(filename), {'experiment':experiment, 'compound':compound, 'region': region, 'test':test })
+
     #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
     #hue hard coded to treatment for quantitativeSummary()
     fig = buildHueHistogram(
@@ -338,8 +362,9 @@ def buildSingleQuantitativeSummary(
         y="value",
         hue="treatment",
         hue_order=hue_order,
-        significance_infos=None,
+        significance_infos=quant_stats_df,
     )
+
 
     return fig
 
