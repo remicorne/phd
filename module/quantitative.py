@@ -78,7 +78,7 @@ def justStats(filename,
                 if 'eliminated_grubbs_outlier' in data.columns:
                     data = data[data.eliminated_grubbs_outlier != True]
                 # the last quantitative test is coded to return the labels directly, thus the need for the bool
-                is_significant, significance_infos, test_results = processQuantitativeStats(
+                p_value, is_significant, test_results = processQuantitativeStats(
                     experiment_info, data, p_value_threshold
                 )
 
@@ -237,10 +237,10 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
     )
     test_results = []
     for test in tests:
-        is_significant, stats_results, *significance_infos = QUANTITATIVE_STAT_METHODS[
+        p_value, is_significant, stats_results = QUANTITATIVE_STAT_METHODS[
             test
         ](
-            data=data,
+            data=data[data.value.notna()],
             independant_vars=experiment_info["independant_vars"],
             p_value_threshold=p_value_threshold,
         )
@@ -248,10 +248,10 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
         print(stats_results)
         test_results.append(
-            {"test": test, "is_significant": is_significant, "result": stats_results}
+            {"test": test, "is_significant": is_significant, "result": stats_results, "p_value": p_value}
         )
 
-    return is_significant, significance_infos[0], test_results
+    return is_significant, p_value, test_results
 
 
 def quantitativeSummary(

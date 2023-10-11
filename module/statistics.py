@@ -46,9 +46,9 @@ def getTukey(data, p_value_threshold):
         columns=["pairs", "p_values"],
     )
     return (
+        [significance_infos.pairs.tolist(), significance_infos.p_values.tolist()],
         len(significance_infos) > 0,
         results,
-        [significance_infos.pairs.tolist(), significance_infos.p_values.tolist()],
     )
 
 
@@ -58,7 +58,7 @@ def getOneWayAnova(data, p_value_threshold):
         *[list(group_df["value"]) for treatment, group_df in data.groupby("treatment")]
     )
     # print(f'oneWAY_ANOVA F_value: {F_value}, p_value: {p_value}')
-    return p_value <= p_value_threshold, pd.DataFrame(
+    return p_value, p_value <= p_value_threshold, pd.DataFrame(
         [[F_value, p_value]], columns=["F", "p_value"]
     )
 
@@ -76,7 +76,7 @@ def getTwoWayAnova(data, independant_vars, p_value_threshold):
         between=independant_vars,
         detailed=True,
     ).round(3)
-    return (
+    return (results["p-unc"][2],
         isinstance(results["p-unc"][2], float)
         and results["p-unc"][2] < p_value_threshold,
         results,
