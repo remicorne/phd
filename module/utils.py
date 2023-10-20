@@ -145,12 +145,14 @@ def askMultipleChoice(question, choices):
 def askSelectParameter(data, column):
     options = set(data[column])
     print(options)
-    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")
-    while answer not in options:
-        answer = inputEscape(
-            f"Invalid choice, possibilities are:\n{', '.join(options)}\n"
-        )
-    return answer
+    answers = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").replace(' ', '').split(',')
+    for i, answer in enumerate(answers):
+        while answer not in options:
+            answer = inputEscape(
+                f"Invalid choice: '{answer}', possibilities are:\n{', '.join(options)}\n"
+            )
+            answers[i] = answer
+    return delistify(answers)
 
 
 def askYesorNo(question):
@@ -244,3 +246,9 @@ def checkIdentifier(identifier):
     if re.search(invalid_chars_pattern, identifier):
         print("Invalid characters in identifier, replacing with '_' ")
     return sanitized_identifier
+
+def listify(var):
+    return var if isinstance(var, list) else [var]
+
+def delistify(var):
+    return var[0] if isinstance(var, list) and len(var) == 1 else var

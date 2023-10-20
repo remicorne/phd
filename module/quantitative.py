@@ -25,6 +25,7 @@ from module.utils import (
     askYesorNo,
     get_or_add,
     select_params,
+    listify
 )
 import pingouin as pg
 
@@ -105,8 +106,8 @@ def justStats(filename,
 def quantitativeHistogram(
     filename,
     experiment=None,
-    compound=None,
-    region=None,
+    compounds=None,
+    regions=None,
     outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
@@ -119,22 +120,28 @@ def quantitativeHistogram(
     data = getCompoundAndRatiosDf(filename)
     experimental_info = getExperimentalInfo(filename)
     exit_loop = False
+    
     while not exit_loop:
         # We use keyword params here even though they actually are mandatory for the decorator
-        singleQuantitativeHistogram(
-            filename,
-            experiment=experiment
-            or askMultipleChoice("Select experiment", experimental_info.keys()),
-            compound=compound or askSelectParameter(data, "compound"),
-            region=region or askSelectParameter(data, "region"),
-            outlier_test=outlier_test
-            or askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys()),
-            p_value_threshold=p_value_threshold
-            or askMultipleChoice(
+        experiment=experiment or askMultipleChoice("Select experiment", experimental_info.keys())
+        compounds=listify(compounds or askSelectParameter(data, "compound"))
+        regions=listify(regions or askSelectParameter(data, "region"))
+        outlier_test=outlier_test or askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys())
+        p_value_threshold=p_value_threshold or askMultipleChoice(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
-            ),
-            from_scratch=from_scratch,
-        )
+            )
+        for region in regions:
+            for compound in compounds:
+                singleQuantitativeHistogram(
+                    filename,
+                    experiment=experiment,
+                    compound=compound,
+                    region=region,
+                    outlier_test=outlier_test,
+                    p_value_threshold=p_value_threshold,
+                    from_scratch=from_scratch,
+                    
+                )
         exit_loop = askYesorNo("Exit?")
 
 
@@ -158,6 +165,8 @@ def singleQuantitativeHistogram(
     confirmed = False
     experiment_info = getExperimentalInfo(filename)[experiment]
     eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
+    
+    print(f"PROCESSING {compound} IN {region} FOR {experiment}")
 
     while not confirmed:
         data, order, palette = buildHistogramData(
