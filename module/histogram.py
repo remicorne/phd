@@ -154,8 +154,10 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
             is_significant = row['is_significant']
             if is_significant == True:
                 print (f'{region} is significant for ') #significance_infos['test']
-                ax.annotate('*', (i, data[data['region'] == region]['value'].values[0] + 1), ha='center', va='center',
-                            size=12, color='black')
+                max_y = data[data['region'] == region]['value'].max()
+                ax.annotate('*', (i, - 2), ha='center', va='center', size=12, color='black')
+
+                
 
 
     sns.despine(left=False)
