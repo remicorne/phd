@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 import pandas as pd
+import numpy as np
 import scipy
 from module.getters import (
     getCompoundAndRatiosDf,
@@ -66,13 +67,17 @@ def singlePCA(
 
 
     #handeling and reporting NaN values
+    df_X = df_X.replace(0, np.nan) #FIX ME this should not be nessary but the df.pkl should have nan not 0
     nan_rows = []
     for index, row in df_X.iterrows():
         if row.isna().any():
             columns_with_nan = row.index[row.isna()] # Get the column names with NaN values
             nan_rows.append((index, columns_with_nan))
     for row_index, cols in nan_rows: # Print the rows with NaN values and the corresponding column names
-        print(f"Mouse id {row_index} has NaN values in columns: {', '.join(cols)}")
+        mouse=df_X.loc[row_index,'mouse_id']
+        print(f"Mouse id {mouse} has NaN values in columns: {', '.join(cols)}")
+        df_X=df_X.drop(row_index)
+        print(f"... removed mouse {mouse}")
 
 
     mouse_id = df_X[['mouse_id', 'treatment', 'color']] #  non-value columns
@@ -98,7 +103,7 @@ def singlePCA(
 
 
     # Create a figure 
-    fig_PCs, ax_PCs = plt.subplots(figsize=(12, 6))
+    fig_PCs, ax_PCs = plt.subplots(figsize=(8, 6))
 
     # Extract the explained variances for the selected PCs
     selected_variances = [explained_variance[int(pc[2:]) - 1] for pc in selected_pcs]
@@ -127,7 +132,7 @@ def singlePCA(
         print(f"Loadings (Factors) for {pc_label} (Ordered by Absolute Magnitude):")
         print(loadings_df)
 
-    #PLORT PCA 
+    #PLOT PCA 
     fig_pca, ax_pca = plt.subplots(figsize=(10, 6))
     # Calculate the sum of variances for PC1 and PC2
     summed_variance = selected_variances[0] + selected_variances[1]
