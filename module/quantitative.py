@@ -67,7 +67,7 @@ def quantitativeHistogram(
     exit_loop = False
     while not exit_loop:
         # We use keyword params here even though they actually are mandatory for the decorator
-        singleQuantitativeHistogram( #REMI i think this is where the endless prompts come fom re hist 
+        singleQuantitativeHistogram(
             filename,
             experiment=askMultipleChoice("Select experiment", experimental_info.keys()),
             compound=askSelectParameter(data, "compound"),
@@ -122,14 +122,6 @@ def singleQuantitativeHistogram(
                 p_value_threshold,
             )
 
-        #REMI the order is important and incorrect i have implimented this here to overwrite buildHistogramData 
-        #  I WANT TO NOT HAVE PROMPTS wen i already specified
-        #here is where I believe the implimenting of order should be done as follows:
-        treatment_mapping = getTreatmentMapping(filename)
-        experimental_info = getExperimentalInfo(filename)[experiment]
-        palette = {info['treatment']:info['color'] for number, info in treatment_mapping.items()}
-        order = [treatment_mapping[str(group)]['treatment'] for group in experimental_info['groups']]
-
         data = data[data[eliminated_outlier_col_name] == False]
         # the last quantitative test is coded to return the labels directly, thus the need for the bool
         (
@@ -137,9 +129,8 @@ def singleQuantitativeHistogram(
             significance_infos,
         ) = processQuantitativeStats(experiment_info, data, p_value_threshold)
 
-        #JJB ok for the title its nice to show the stats that are significant/shown by stars not all tests done as it was
-        #i.e. if its two factor (agonist antagonist) and two way anova is calculated you have this choice to continue even if you failed the two way in this case perhaps we add '(failed two-way-anova)' to title
-        title = f"{compound} in {region} " #{experiment_info['quantitative_statistics'].keys()}
+        #JJB ok for the title would like to have either:  " passes: twowayANOVA, onewayANOVA " oder "failed: two-way-anova"
+        title = f"{compound} in {region} "
         ylabel = " " if "/" in compound else "ng/mm of tissue"
 
         

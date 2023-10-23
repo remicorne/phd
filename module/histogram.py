@@ -1,13 +1,13 @@
 from matplotlib import pyplot as plt
 from module.utils import get_or_add
-from module.getters import getCompoundAndRatiosDf
+from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
 import seaborn as sns
 from statannotations.Annotator import Annotator
 
 ########## GENERIC HISTOGRAM FUNCTIONS MEANT TO BE USED TO BUILD ANY HISTOGRAM #########
 
 
-def buildHistogramData(
+def buildHistogramData(  #REMI THIS IS NOT SO GENERIC - I can not use for behavior at all as no compound or region #TODC 
     filename,
     experiment,
     compound,
@@ -22,7 +22,26 @@ def buildHistogramData(
         & (compound_and_ratios_df.region == region)
     ]
 
-    order = data.sort_values(by="group_id", ascending=True).treatment.unique() #JJB REMI what is this why this order i fic later in the plotting of the fig cause its wrong but maybe you need this order for something else?
+    order = data.sort_values(by="group_id", ascending=True).treatment.unique() 
+    palette = {
+        treatment: color
+        for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
+    }
+
+    return data, order, palette
+
+
+def  buildHeadTwitchHistogramData(
+        HT_filename, 
+        experiment, 
+        vairable #col to plot i.e. HT_20
+):
+    HT_df = getHeadTwitchDf(HT_filename)
+
+    data = HT_df[HT_df['experiment'] == experiment].rename(columns={vairable: 'value'}) #subselect experiment and set vairable col to 'value'
+
+    
+    order = data.sort_values(by="group_id", ascending=True).treatment.unique() 
     palette = {
         treatment: color
         for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
@@ -80,7 +99,7 @@ def buildHistogram(
     return fig
 
 
-# TODO pretty sure is saw its possible to have this and the stat test done using special params
+# TODO pretty sure is saw its possible to have this and the stat test done using special params #JJB: if you mean the seabourn stuff included the stats are too limited and it will not be as required
 def labelStats(ax, data, x, y, order, significance_infos):
     pairs, p_values = significance_infos
     annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)

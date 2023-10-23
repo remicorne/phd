@@ -193,7 +193,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         annot=True,
         cmap=matplotlib.colormaps['BrBG'],
         mask=p_value_mask,
-        annot_kws={"size": 6},
+        annot_kws={"size": 8}, #, 'fontweight':'bold'
         ax=ax,
         cbar_kws={"shrink": 0.8} #adj color bar size
     )
@@ -220,11 +220,13 @@ def askColumnsToUser(correlogram_type, compound_and_ratios_df):
                    Press enter to confirm or write new column list in the same format"""
     )
     if answer:
-        columns = answer.upper().replace(" ", "").split(",")
-        errors = filter(
-            lambda i, col: col not in set(compound_and_ratios_df[col_name]),
-            enumerate(columns),
-        )
+        columns = answer.replace(" ", "").split(",") #.upper() was this the problem a problem but not THE problem
+        # errors = filter(
+        #     lambda i, col: col not in set(compound_and_ratios_df[col_name]),
+        #     enumerate(columns), 
+        # )
+        errors = [col for col in columns if col not in set(compound_and_ratios_df[col_name])] #JJB this fixed TyepError: missing 1 required positional argument: 'col' when trying to actualy select cols
+
         while errors:
             columns = (
                 inputEscape(

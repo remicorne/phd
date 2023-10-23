@@ -43,7 +43,7 @@ COLUMN_ORDER = {
         "MR",
         "CE",
     ],
-    "compound": ["DA", "DOPAC", "HVA", "3MT", "5HT", "5HIAA", "GLU", "GLN"],
+    "compound": ['DA','NA','5HT','GLU','GABA','ASP','GLY'],#perhaps this should be a full list
 }
 
 # Converts keyword 'region' to 'compound' and vice versa, used in conjunction with the function below

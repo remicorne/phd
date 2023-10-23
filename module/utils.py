@@ -8,6 +8,7 @@ import sys
 import warnings
 from module.constants import *
 from PIL import Image
+import re
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
 
@@ -96,12 +97,9 @@ def saveHistogram(fig, identifier):
     saveFigure(fig, identifier, "histograms")
 
 
-def saveHeadTwitchHistogram(fig, identifier):
-    saveFigure(fig, identifier, "head_twitch_histograms")
-
 
 def saveQuantitativeSummaryFig(fig, identifier):
-    saveFigure(fig, identifier, "quantitative_summary_fig")
+    saveFigure(fig, identifier, "quantitative_summary")
 
 
 def dictToFilename(dict_to_stringify):
@@ -149,11 +147,12 @@ def askMultipleChoice(question, choices):
 
 def askSelectParameter(data, column):
     options = set(data[column])
-    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").upper()
+    print(options)
+    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")#.upper()# i cant access vH, dH ect
     while answer not in options:
         print(f".{answer}.")
         answer = inputEscape(
-            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n"
+            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n" #this mans after one invalid choice the posibilities change to uppercase? or just the display?
         ).upper()
     return answer
 
@@ -202,7 +201,8 @@ def select_params(stat_function):
 IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
-    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{to_plot}"',
+    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"', 
+    "quantitative_summary":'f"quantitative_summary_{experiment}_for_{compound}_in_{region}"' #REMI: i tried to add this here but dont understand yet how it works
 }
 
 
@@ -216,6 +216,7 @@ def get_or_add(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
             identifier = buildIdentifier(identifier_type, **kwargs)
+            identifier=checkIdentifier(identifier)
             from_scratch = (
                 kwargs.get("from_scratch")
                 if kwargs.get("from_scratch") is not None
@@ -232,3 +233,11 @@ def get_or_add(identifier_type):
         return wrapper
 
     return decorator
+
+#checks for symbols that can be be save in name / 
+def checkIdentifier(identifier):
+    invalid_chars_pattern = r'[\/:*?"<>|%\&#$@!=+,;\'`~]'
+    sanitized_identifier = re.sub(invalid_chars_pattern, '_', identifier)
+    if re.search(invalid_chars_pattern, identifier):
+        print("Invalid characters in identifier, replacing with '_' ")
+    return sanitized_identifier
