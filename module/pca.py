@@ -18,6 +18,11 @@ from module.utils import (
     subselectDf,
 )
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import pandas as pd
+import matplotlib.pyplot as plt
+
 
 def pca(
         filename,
@@ -68,12 +73,6 @@ def singlePCA(
             nan_rows.append((index, columns_with_nan))
     for row_index, cols in nan_rows: # Print the rows with NaN values and the corresponding column names
         print(f"Mouse id {row_index} has NaN values in columns: {', '.join(cols)}")
-
-    #imports
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.decomposition import PCA
-    import pandas as pd
-    import matplotlib.pyplot as plt
 
 
     mouse_id = df_X[['mouse_id', 'treatment', 'color']] #  non-value columns
