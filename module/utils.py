@@ -204,7 +204,8 @@ IDENTIFIERS = {
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
     "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
     "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"', 
-    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"' # REMI: i tried to add this here but dont understand yet how it works
+    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
+    "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"'
 }
 
 

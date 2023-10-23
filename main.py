@@ -22,7 +22,7 @@ from module.getters import (
 
 #
 from module.histogram import buildHeadTwitchHistogramData, buildHistogram
-
+from module.pca import pca
 
 ######## INIT ##########
 # Start by checking filesystem has all the folders necessary for read/write operations (cache) or create them otherwise
