@@ -147,16 +147,60 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
     ax.legend(loc='upper left')
 
     if significance_infos is not None:
-        print(f'PLOTTING SIGNIFICANCE ') #significance_infos['test']
-        # Iterate through regions and add a '*' above each significant x value #TODO switch for p_value and stars
-        for i, row in significance_infos.iterrows():
-            region = row['region']
-            is_significant = row['is_significant']
-            if is_significant == True:
-                print (f'{region} is significant for ') #significance_infos['test']
-                max_y = data[data['region'] == region]['value'].max()
-                ax.annotate('*', (i, - 2), ha='center', va='center', size=12, color='black')
+        print('PLOTTING SIGNIFICANCE')
+        
+        # Iterate through regions
+        for region, region_group in significance_infos.groupby('region'):
+            df_result = region_group['result'].values[0]  # Get df of results
+            
+# Find rows where either group1 or group2 contains 'vehicle' and p-adj is less than or equal to 0.05
+            is_vehicle_significant = df_result[(df_result['group1'].str.contains('vehicle') | df_result['group2'].str.contains('vehicle')) & (df_result['p-adj'] <= 0.05)]
 
+#get y_position for each hue #REMI / JAS this is shit! i have the p vals and stars but feeding the correct position is a bitch 
+            for i, row in df_result.iterrows():
+                p_value = row['p-adj']
+                max_y = data[data['region'] == region]['value'].max()
+                y_position = max_y + 0.2
+
+                if i in is_vehicle_significant.index:
+                    if p_value <= 0.001:
+                        asterisks = '***'
+                    elif p_value <= 0.01:
+                        asterisks = '**'
+                    elif p_value <= 0.05:
+                        asterisks = '*'
+                    else:
+                        asterisks = ''
+
+                    ax.annotate(asterisks, (i, y_position), ha='center', va='center', size=12, color='black')
+
+# #TODO this is currently done only for plotting compound in regions will not work visa verssa!
+#     if significance_infos is not None: 
+#         print('PLOTTING SIGNIFICANCE')
+#         # Iterate through regions and add asterisks based on p-values
+#         for i, row in significance_infos.iterrows():
+##             region = row['region']
+#             p_value = row['p_value']
+
+#             if p_value <= 0.001:
+#                 asterisks = '***'
+#             elif p_value <= 0.01:
+#                 asterisks = '**'
+#             elif p_value <= 0.05:
+#                 asterisks = '*'
+#             else:
+#                 asterisks = ''  # No asterisks for non-significant regions
+            
+#             # Find the x-coordinate of the xtick for the region
+#             x_coord = order.index(region)
+            
+#             # Calculate the y-coordinate above the highest hue bar
+#             max_y = data[data['region'] == region]['value'].max()  #TODO does data include outliers?
+#             y_coord = max_y + 0.001  # You can adjust the vertical position
+            
+#             ax.annotate(asterisks, (x_coord, y_coord), ha='center', va='center', size=12, color='black')
+
+  
                 
 
 
