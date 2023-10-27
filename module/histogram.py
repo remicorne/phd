@@ -149,32 +149,41 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
     if significance_infos is not None:
         print('PLOTTING SIGNIFICANCE')
         
-        # Iterate through regions
+# Iterate through regions
         for region, region_group in significance_infos.groupby('region'):
-            df_result = region_group['result'].values[0]  # Get df of results
+            df_result = region_group['result'].values[0]  #  df of posthoc results for region
             
-# Find rows where either group1 or group2 contains 'vehicle' and p-adj is less than or equal to 0.05
-            is_vehicle_significant = df_result[(df_result['group1'].str.contains('vehicle') | df_result['group2'].str.contains('vehicle')) & (df_result['p-adj'] <= 0.05)]
+# Find rows where either group1 or group2 contains 'vehicle' and p-adj is less than or equal to 0.05 #FOR TUKEY
+            is_vehicle_significant = df_result[(df_result['group1'].str.contains('vehicle') | df_result['group2'].str.contains('vehicle')) 
+                                               & (df_result['p-adj'] <= 0.05)]
+            significant_treatments = [item for sublist in [is_vehicle_significant['group1'], is_vehicle_significant['group2']] for item in sublist if item != 'vehicles']
 
-#get y_position for each hue #REMI / JAS this is shit! i have the p vals and stars but feeding the correct position is a bitch 
-            for i, row in df_result.iterrows():
-                p_value = row['p-adj']
-                max_y = data[data['region'] == region]['value'].max()
+            for treatment in significant_treatments: #loop gets x and y position and plots appropriate star
+    # Calculate the y_position based on the maximum value in the data
+                max_y = data[(data['region'] == region) & (data['treatment'] == treatment)]['value'].max()
                 y_position = max_y + 0.2
 
-                if i in is_vehicle_significant.index:
-                    if p_value <= 0.001:
-                        asterisks = '***'
-                    elif p_value <= 0.01:
-                        asterisks = '**'
-                    elif p_value <= 0.05:
-                        asterisks = '*'
-                    else:
-                        asterisks = ''
+    # Calculate the x_position based on the region and non-'vehicle' treatment          
+                for bar in ax.containers: # Iterate through the fig bars to find the x_position
+                    ax_region = bar.get_label()  #  label of the bar ie region #CHATGPT this is what i wanted but as explained in issue is the first bar
+                    ax_treatment =bar.get_x() # hue within bar ie treatment WHAT I WANTED BUT #CHAGPT doent run
 
-                    ax.annotate(asterisks, (i, y_position), ha='center', va='center', size=12, color='black')
+                    if ax_region == region and ax_treatment == treatment:
+                        x_position = bar.get_x() + bar.get_width() / 2  # get x_position #CHAGPT probably wont run
+                        p_value = is_vehicle_significant[(is_vehicle_significant['group1'] == treatment) | (is_vehicle_significant['group2'] == treatment)]['p-adj'].values[0]
 
-# #TODO this is currently done only for plotting compound in regions will not work visa verssa!
+                        if p_value <= 0.001:
+                            asterisks = '***'
+                        elif p_value <= 0.01:
+                            asterisks = '**'
+                        elif p_value <= 0.05:
+                            asterisks = '*'
+                        else:
+                            asterisks = ''
+
+                        ax.annotate(asterisks, (x_position, y_position), ha='center', va='center', size=12, color='black')
+
+# #TODO this is currently done only for plotting compound in regions will not work visa verssa! #WORKING CODE IS YOU FEED ONWWAYANOVA
 #     if significance_infos is not None: 
 #         print('PLOTTING SIGNIFICANCE')
 #         # Iterate through regions and add asterisks based on p-values
