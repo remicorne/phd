@@ -13,6 +13,7 @@ from module.utils import (
     dictToFilename,
     askYesorNo,
     subselectDf,
+    maskDf
 )
 from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
@@ -112,9 +113,15 @@ def getHeadTwitchDf(filename):
 ########### SETTERS ######
 
 
-def updateQuantitativeStats(filename, row):
+def updateQuantitativeStats(filename, rows):
     quantitative_stats_df = getQuantitativeStats(filename)
-    quantitative_stats_df = quantitative_stats_df.update(pd.DataFrame(row), overwrite=True) 
+    for row in rows:
+        data_row = pd.DataFrame([row])
+        unique_row = maskDf(quantitative_stats_df, {key: value for key, value in row.items() if key in ["data_type", "experiment", "region", "compound", "test", "p_value_threshold"]}) 
+        if unique_row.any():
+            quantitative_stats_df.loc[unique_row, ["is_significant", "p_value", "result"]] = data_row[["is_significant", "p_value", "result"]]
+        else:
+            quantitative_stats_df = pd.concat([quantitative_stats_df, data_row])
     cache(filename, "quantitative_stats", quantitative_stats_df)
     print("QUANTITATIVE STATS UPDATED")
 
@@ -293,6 +300,7 @@ def buildQuantitativeStatsDf(filename):
             "region",
             "compound",
             "test",
+            "p_value_threshold",
             "is_significant",
             "p_value",
             "result",

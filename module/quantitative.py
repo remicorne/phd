@@ -257,7 +257,7 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
         print(stats_results)
         test_results.append(
-            {"test": test, "is_significant": is_significant, "result": stats_results, "p_value": p_value}
+            {"test": test, "is_significant": is_significant, "result": stats_results, "p_value_threshold": p_value_threshold, "p_value": p_value}
         )
 
     return is_significant, p_value, test_results
