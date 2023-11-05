@@ -194,7 +194,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         vmax=1,
         square=True,
         annot=True,
-        cmap=matplotlib.colormaps['BrBG'],
+        cmap=matplotlib.colormaps['coolwarm'], #  Spectral_r
         mask=p_value_mask,
         annot_kws={"size": 8}, #, 'fontweight':'bold'
         ax=ax,
@@ -205,11 +205,13 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     )  # rotation=45, horizontalalignment='right',
 
     if len(subvalues) == 1:
-        ax.set_ylabel("")
-        ax.set_xlabel("")
+        # ax.set_ylabel("")
+        # ax.set_xlabel("")
+        ax.set_ylabel(subvalues[0], fontsize=28)
+        ax.set_xlabel(subvalues[0], fontsize=28)
     elif len(subvalues) == 2:
-        ax.set_ylabel(subvalues[0])
-        ax.set_xlabel(subvalues[1])
+        ax.set_ylabel(subvalues[0], fontsize=28)
+        ax.set_xlabel(subvalues[1], fontsize=28)
 
 
 def askColumnsToUser(correlogram_type, compound_and_ratios_df):
