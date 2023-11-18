@@ -25,10 +25,14 @@ class Cache:
         self.cache(to_cache)
 
 
-    def cache(self, to_cache):
+    def cache_pkl(self, to_cache):
         with open(self.cache_filepath, "wb") as file:
             pickle.dump(to_cache, file)
         print(f"CACHED {self.cache_filepath}.pkl")
+
+    def cache_xlsx(self, df):
+        df.to_excel(f"{self.cache_filepath}.xlsx")
+        print(f"CACHED {self.cache_filepath}.xlsx")
 
 
     def getCache(self):
