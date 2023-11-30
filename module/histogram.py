@@ -77,7 +77,15 @@ def buildQuantitativeSummaryHistogramData(filename, experiment, histogram_type, 
 ########## HISTOGRAM BUILDERS - can it be made more generic and just one? REMI
 
 def buildHistogram(
-    title, ylabel, data, order, palette, hue=None, significance_infos=None, #x='treatment',y='value' 
+    title,
+    ylabel,
+    data,
+    order,
+    hue=None,
+    palette=None,
+    swarm_hue=None,
+    swarm_palette=None,
+    significance_infos=None,  # x='treatment',y='value'
 ):
     # JASMINE: in what case would the x and y be variables? #REMI we need to talk about this func as it should be more general 
     x = "treatment"
@@ -90,26 +98,29 @@ def buildHistogram(
         x=x,
         y=y,
         data=data,
+        hue=hue,
         palette=palette,
-        ci=68,
+        errorbar=("ci", 68),
         order=order,
         capsize=0.1,
         alpha=0.8,
         errcolor=".2",
         edgecolor=".2",
+        dodge=False,
     )
-    # #REMI so this is for the outliers! I was trying to have this function work for my other histogram needs but i cant with this
-    hue, palette = list(hue.items())[0] if hue else (None, palette)
+    # #REMI so thiis for the outliers! I was trying to have this function work for my other histogram needs but i cant with this
     ax = sns.swarmplot(
         x=x,
         y=y,
-        hue=hue,
-        palette=palette,
+        hue=swarm_hue or hue,
+        palette=swarm_palette or palette,
         order=order,
         data=data,
         edgecolor="k",
         linewidth=1,
         linestyle="-",
+        dodge=False,
+        legend=True if swarm_palette else False,
     )
 
     if significance_infos:
@@ -132,7 +143,7 @@ def buildHueHistogram(title, ylabel, data, order, x=None, y=None, hue=None, pale
         data=data,
         hue=hue,
         palette=palette,
-        ci=68,
+        errorbar=("ci", 68),
         errwidth=1,
         order=order,
         hue_order=hue_order,
