@@ -54,7 +54,6 @@ def headTwitchHistogram(
         data,
         order,
         palette,
-        hue=None,
         significance_infos=significance_infos if is_significant else None,
     )
     return fig

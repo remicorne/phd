@@ -194,6 +194,7 @@ def select_params(stat_function):
                     print(w[-1].message)
                 return result
             except Exception as e:
+                print(e)
                 return ["ERROR", str(e)]
 
     return wrapper

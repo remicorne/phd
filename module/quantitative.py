@@ -25,7 +25,6 @@ from module.utils import (
     get_or_add,
     select_params,
 )
-import pingouin as pg
 
 import matplotlib.patches as mpatches
 from module.utils import subselectDf
@@ -51,6 +50,7 @@ def quantitativeHistogram(
     outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
+    do_outliers=None,
 ):
     """
     Ask user histogram parameters and go through the process
@@ -75,6 +75,7 @@ def quantitativeHistogram(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
             ),
             from_scratch=from_scratch,
+            do_outliers=do_outliers if do_outliers is not None else askYesorNo("Redo outlier selection?")
         )
         exit_loop = askYesorNo("Exit?")
 
@@ -89,6 +90,7 @@ def singleQuantitativeHistogram(
     outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
+    do_outliers=None,
 ):
     """
     Does the whole process of eliminating outliers for a given experiment,
@@ -108,7 +110,7 @@ def singleQuantitativeHistogram(
         if (
             eliminated_outlier_col_name not in data
             or data[eliminated_outlier_col_name].isna().any()
-            or askYesorNo("Redo outlier selection?")
+            or do_outliers
         ):
             data = processOutliers(
                 filename,
@@ -148,7 +150,8 @@ def singleQuantitativeHistogram(
             ylabel,
             data,
             order,
-            palette,
+            palette=palette,
+            hue="treatment",
             significance_infos=significance_infos if is_significant else None,
         )
 
