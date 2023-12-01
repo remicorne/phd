@@ -1,5 +1,5 @@
 ######### HERE WE DECLARE THE CONSTANTS USED BY OTHER FILES ############
-# Constant are meant to be constants, the should not changed, that's what wariables or user are for
+# Constant are meant to be constants, the should not changed, that's what variables or user are for
 
 import os
 
