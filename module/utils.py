@@ -11,8 +11,6 @@ from PIL import Image
 import re
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
-
-
 def saveJSON(path, dict_to_save):
     with open(path, "w", encoding="utf8") as json_file:
         json.dump(dict_to_save, json_file)
@@ -49,8 +47,6 @@ def resetCache():
 
 
 # This function cahces (aka saves in a easily readable format) all dataframes used
-
-
 def cache(filename, identifier, to_cache):
     filename = filename.split(".")[0]
     cache_subdir = f"{CACHE_DIR}/{filename}"
