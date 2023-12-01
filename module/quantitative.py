@@ -106,7 +106,6 @@ def quantitativeHistogram(
     experiment=None,
     compound=None,
     region=None,
-    outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
     do_outliers=None,
@@ -127,8 +126,6 @@ def quantitativeHistogram(
             or askMultipleChoice("Select experiment", experimental_info.keys()),
             compound=compound or askSelectParameter(data, "compound"),
             region=region or askSelectParameter(data, "region"),
-            outlier_test=outlier_test
-            or askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys()),
             p_value_threshold=p_value_threshold
             or askMultipleChoice(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
@@ -148,7 +145,6 @@ def singleQuantitativeHistogram(
     experiment=None,
     compound=None,
     region=None,
-    outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
     do_outliers=None,
@@ -161,6 +157,7 @@ def singleQuantitativeHistogram(
     """
     confirmed = False
     experiment_info = getExperimentalInfo(filename)[experiment]
+    outlier_test = experiment_info['outliers']
     eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
 
     print(f"PROCESSING {compound} IN {region} FOR {experiment}")
