@@ -194,10 +194,11 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
         vmax=1,
         square=True,
         annot=True,
-        cmap=matplotlib.colormaps['coolwarm'], #  Spectral_r
+        cmap='coolwarm', #matplotlib.colormaps['coolwarm'], #  Spectral_r
         mask=p_value_mask,
         annot_kws={"size": 8}, #, 'fontweight':'bold'
         ax=ax,
+        # fmt=".2f",
         cbar_kws={"shrink": 0.8} #adj color bar size
     )
     ax.set_xticklabels(

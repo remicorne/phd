@@ -25,9 +25,8 @@ from module.utils import (
     askYesorNo,
     get_or_add,
     select_params,
-    listify
+    listify,
 )
-import pingouin as pg
 
 import matplotlib.patches as mpatches
 from module.utils import subselectDf
@@ -44,11 +43,13 @@ def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, param
         (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
     }[(multiple_factors, multiple_treatments, paired, parametric)]
 
-def justStats(filename,
+
+def justStats(
+    filename,
     experiments: list,
     compounds: list,
     regions: list,
-    p_value_threshold = 0.05,
+    p_value_threshold=0.05,
 ):
     """User MUST provide all parameters they must be list even if single possibility (iteration on list)
     calculates the stats for every combination of parameters and stores them in the stats df
@@ -62,7 +63,7 @@ def justStats(filename,
         p_value_threshold (_type_, optional): _description_. Defaults to None.
     """
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
-    
+
     ## Iterat over every combination of parameters
     for experiment in experiments:
         for compound in compounds:
@@ -75,8 +76,8 @@ def justStats(filename,
                     & (compound_and_ratios_df.compound == compound)
                     & (compound_and_ratios_df.region == region)
                 ]
-                
-                if 'eliminated_grubbs_outlier' in data.columns:
+
+                if "eliminated_grubbs_outlier" in data.columns:
                     data = data[data.eliminated_grubbs_outlier != True]
                 # the last quantitative test is coded to return the labels directly, thus the need for the bool
                 p_value, is_significant, test_results = processQuantitativeStats(
@@ -96,21 +97,18 @@ def justStats(filename,
                         for test_result in test_results
                     ],
                 )
-                
-    print('DONE')
 
-    
-    
-            
+    print("DONE")
+
 
 def quantitativeHistogram(
     filename,
     experiment=None,
-    compounds=None,
-    regions=None,
-    outlier_test=None,
+    compound=None,
+    region=None,
     p_value_threshold=None,
     from_scratch=None,
+    do_outliers=None,
 ):
     """
     Ask user histogram parameters and go through the process
@@ -120,28 +118,23 @@ def quantitativeHistogram(
     data = getCompoundAndRatiosDf(filename)
     experimental_info = getExperimentalInfo(filename)
     exit_loop = False
-    
     while not exit_loop:
         # We use keyword params here even though they actually are mandatory for the decorator
-        experiment=experiment or askMultipleChoice("Select experiment", experimental_info.keys())
-        compounds=listify(compounds or askSelectParameter(data, "compound"))
-        regions=listify(regions or askSelectParameter(data, "region"))
-        outlier_test=outlier_test or askMultipleChoice("Select outlier test", OUTLIER_TESTS.keys())
-        p_value_threshold=p_value_threshold or askMultipleChoice(
+        singleQuantitativeHistogram(
+            filename,
+            experiment=experiment
+            or askMultipleChoice("Select experiment", experimental_info.keys()),
+            compound=compound or askSelectParameter(data, "compound"),
+            region=region or askSelectParameter(data, "region"),
+            p_value_threshold=p_value_threshold
+            or askMultipleChoice(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
-            )
-        for region in regions:
-            for compound in compounds:
-                singleQuantitativeHistogram(
-                    filename,
-                    experiment=experiment,
-                    compound=compound,
-                    region=region,
-                    outlier_test=outlier_test,
-                    p_value_threshold=p_value_threshold,
-                    from_scratch=from_scratch,
-                    
-                )
+            ),
+            from_scratch=from_scratch,
+            do_outliers=do_outliers
+            if do_outliers is not None
+            else askYesorNo("Redo outlier selection?"),
+        )
         exit_loop = askYesorNo("Exit?")
 
 
@@ -152,9 +145,9 @@ def singleQuantitativeHistogram(
     experiment=None,
     compound=None,
     region=None,
-    outlier_test=None,
     p_value_threshold=None,
     from_scratch=None,
+    do_outliers=None,
 ):
     """
     Does the whole process of eliminating outliers for a given experiment,
@@ -164,8 +157,9 @@ def singleQuantitativeHistogram(
     """
     confirmed = False
     experiment_info = getExperimentalInfo(filename)[experiment]
+    outlier_test = experiment_info['outliers']
     eliminated_outlier_col_name = f"eliminated_{outlier_test}_outlier"
-    
+
     print(f"PROCESSING {compound} IN {region} FOR {experiment}")
 
     while not confirmed:
@@ -176,7 +170,7 @@ def singleQuantitativeHistogram(
         if (
             eliminated_outlier_col_name not in data
             or data[eliminated_outlier_col_name].isna().any()
-            or askYesorNo("Redo outlier selection?")
+            or do_outliers
         ):
             data = processOutliers(
                 filename,
@@ -216,7 +210,8 @@ def singleQuantitativeHistogram(
             ylabel,
             data,
             order,
-            palette,
+            palette=palette,
+            hue="treatment",
             significance_infos=significance_infos if is_significant else None,
         )
 
@@ -246,9 +241,7 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
     )
     test_results = []
     for test in tests:
-        p_value, is_significant, stats_results = QUANTITATIVE_STAT_METHODS[
-            test
-        ](
+        p_value, is_significant, stats_results = QUANTITATIVE_STAT_METHODS[test](
             data=data[data.value.notna()],
             independant_vars=experiment_info["independant_vars"],
             p_value_threshold=p_value_threshold,
@@ -257,7 +250,13 @@ def processQuantitativeStats(experiment_info, data, p_value_threshold):
         print(test.upper(), "SIGNIFICANT" if is_significant else "NOT SIGNIFICANT")
         print(stats_results)
         test_results.append(
-            {"test": test, "is_significant": is_significant, "result": stats_results, "p_value_threshold": p_value_threshold, "p_value": p_value}
+            {
+                "test": test,
+                "is_significant": is_significant,
+                "result": stats_results,
+                "p_value_threshold": p_value_threshold,
+                "p_value": p_value,
+            }
         )
 
     return is_significant, p_value, test_results
@@ -267,9 +266,9 @@ def quantitativeSummary(
     filename,
     experiment=None,
     histogram_type=None,  #  compound or region
-    to_plot=None,  # chosen compound or region 
+    to_plot=None,  # chosen compound or region
     p_value_threshold=None,
-    columns=None, # x values to plot 
+    columns=None,  # x values to plot
     from_scratch=None,
 ):
     # get df
@@ -318,9 +317,9 @@ def quantitativeSummary(
 def buildSingleQuantitativeSummary(
     filename,
     experiment=None,
-    histogram_type=None, # e.g. compound 
-    to_plot=None, # DA
-    columns=None, # region list
+    histogram_type=None,  # e.g. compound
+    to_plot=None,  # DA
+    columns=None,  # region list
     from_scratch=None,  # Used in decorator
 ):
     title = ""  # EMPTY to feed generic plotter
@@ -336,15 +335,15 @@ def buildSingleQuantitativeSummary(
         filename, experiment, histogram_type, to_plot, columns
     )
 
-    #create a significance mapping for the x values #RN this is T/F but will be corrected to pvalues and stars later 
-    if histogram_type == 'compound':
+    # create a significance mapping for the x values #RN this is T/F but will be corrected to pvalues and stars later
+    if histogram_type == "compound":
         compound = to_plot
         region = columns
     else:
         compound = columns
-        region = to_plot #this allows the use of the function both ways but feels fucking stupid tbh
+        region = to_plot  # this allows the use of the function both ways but feels fucking stupid tbh
 
-    #TO DO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
+    # TO DO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
     experiment_info = getExperimentalInfo(filename)[experiment]
     multiple_factors = len(experiment_info["independant_vars"]) > 1
     multiple_treatments = len(experiment_info["groups"]) > 1
@@ -354,13 +353,21 @@ def buildSingleQuantitativeSummary(
     tests = doQuantitativeStatLogic(
         multiple_factors, multiple_treatments, paired, parametric
     )
-    test = tests[-1] #feed lowest test only post-hoc
+    test = tests[-1]  # feed lowest test only post-hoc
 
-    #get stats #REMI TODO missing p_value col for non  post hoc testing
-    quant_stats_df = subselectDf(getQuantitativeStats(filename), {'experiment':experiment, 'compound':compound, 'region': region, 'test':test })
+    # get stats #REMI TODO missing p_value col for non  post hoc testing
+    quant_stats_df = subselectDf(
+        getQuantitativeStats(filename),
+        {
+            "experiment": experiment,
+            "compound": compound,
+            "region": region,
+            "test": test,
+        },
+    )
 
     #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
-    #hue hard coded to treatment for quantitativeSummary()
+    # hue hard coded to treatment for quantitativeSummary()
     fig = buildHueHistogram(
         title,
         ylabel,
@@ -373,7 +380,6 @@ def buildSingleQuantitativeSummary(
         hue_order=hue_order,
         significance_infos=quant_stats_df,
     )
-
 
     return fig
 
