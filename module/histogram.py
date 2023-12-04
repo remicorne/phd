@@ -170,7 +170,6 @@ def buildHueHistogram(
     )
     # Set the size of x and y ticks
     ax.tick_params(labelsize=16)
-
     ax.set_ylabel(ylabel, fontsize=24)
     ax.yaxis.set_label_coords(-0.035, 0.5)
     ax.set_xlabel(" ", fontsize=20)  # remove x title
@@ -178,6 +177,7 @@ def buildHueHistogram(
     ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
     plt.tight_layout()
 
+    #handel significance info 
     #     if significance_infos is not None: ## JJB COMMENTED JUS TO RUN WITHOUT STARS SFN
     #         print('PLOTTING SIGNIFICANCE')
 
@@ -217,37 +217,37 @@ def buildHueHistogram(
 
     # #TODO this is currently done only for plotting compound in regions will not work visa verssa! #WORKING CODE IS YOU FEED ONWWAYANOVA
     if significance_infos is not None:
-        print("PLOTTING SIGNIFICANCE")
+        print("please make code for PLOTTING SIGNIFICANCE as in hist func")
         # Iterate through regions and add asterisks based on p-values
-        for i, row in significance_infos.iterrows():
-            region = row["region"]
-            p_value = row["p_value"]
-            if p_value <= 0.001:
-                asterisks = "***"
-            elif p_value <= 0.01:
-                asterisks = "**"
-            elif p_value <= 0.05:
-                asterisks = "*"
-            else:
-                asterisks = ""  # No asterisks for non-significant regions
+        # for i, row in significance_infos.iterrows():
+        #     fregion = row["region"] #region not fregion
+        #     p_value = row["p_value"]
+        #     if p_value <= 0.001:
+        #         asterisks = "***"
+        #     elif p_value <= 0.01:
+        #         asterisks = "**"
+        #     elif p_value <= 0.05:
+        #         asterisks = "*"
+        #     else:
+        #         asterisks = ""  # No asterisks for non-significant regions
 
-            # Find the x-coordinate of the xtick for the region
-            x_coord = order.index(region)
+        #     # Find the x-coordinate of the xtick for the region
+        #     x_coord = order.index(region)
 
-            # Calculate the y-coordinate above the highest hue bar
-            max_y = data[data["region"] == region][
-                "value"
-            ].max()  # TODO does data include outliers?
-            y_coord = max_y + 0.001  # You can adjust the vertical position
+        #     # Calculate the y-coordinate above the highest hue bar
+        #     max_y = data[data["region"] == region][
+        #         "value"
+        #     ].max()  # TODO does data include outliers?
+        #     y_coord = max_y + 0.001  # You can adjust the vertical position
 
-            ax.annotate(
-                asterisks,
-                (x_coord, y_coord),
-                ha="center",
-                va="center",
-                size=12,
-                color="black",
-            )
+        #     ax.annotate(
+        #         asterisks,
+        #         (x_coord, y_coord),
+        #         ha="center",
+        #         va="center",
+        #         size=12,
+        #         color="black",
+        #     )
 
     sns.despine(left=False)
     return fig
