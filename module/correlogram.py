@@ -11,6 +11,8 @@ from module.utils import askMultipleChoice, flatten, get_or_add, inputEscape
 from module.statistics import getPearsonR, getPearsonPValue, isSignificant
 from module.constants import getCorrelogramColumns, CORRELOGRAM_TYPE_CONVERTER
 import pandas as pd
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from scipy.spatial.distance import squareform
 
 # TODO: Handle columns and more generality
 
@@ -45,6 +47,7 @@ def correlogram(
     n_minimum=5,
     columns=None,
     from_scratch=None,
+    hierarchical_clustering=None,
 ):
     """
     This is the function that is called by the user, it will call buildSingleCorrelogram that builds a signle correlogram
@@ -90,6 +93,7 @@ def correlogram(
         n_minimum=n_minimum,
         columns=columns,
         from_scratch=from_scratch,
+        hierarchical_clustering=hierarchical_clustering,
     )
 
 
@@ -103,6 +107,7 @@ def buildSingleCorrelogram(
     n_minimum,
     columns,
     from_scratch,  # Used in decorator
+    hierarchical_clustering,
 ):
     # this is not the full ratios df, its only intra region compound ratios for nom
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
@@ -158,8 +163,40 @@ def buildSingleCorrelogram(
         correlograms.append(
             [correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate]
         )
+    if hierarchical_clustering == True:
+        correlograms = perform_hierarchical_clustering(correlograms)
+        #reorder correlogram_df and p_value_mask with hierarchical clustering using dissimilarity matricies
+
     fig = plotCorrelograms(correlograms)
+
     return fig
+
+def perform_hierarchical_clustering(correlograms):
+    hierarchical_correlograms = []
+    
+    for ordered_corr, p_corr, treatment, tocolorlate in correlograms:
+        print(f"Hierarchical clustering for {treatment} correlating {tocolorlate}")
+        
+        # Linkage matrix
+        Z = linkage(squareform(1 - abs(ordered_corr)), 'complete')
+        
+        # Plot dendrogram 
+        plt.figure()
+        dendrogram(Z, labels=ordered_corr.columns, orientation='top', leaf_rotation=90)
+        plt.title(f"{treatment} correlating {tocolorlate}")
+        plt.show()
+        
+        threshold = 0.8  # Adjust as needed
+        labels = fcluster(Z, threshold, criterion='distance')
+        
+        # Reordering columns based on clustering
+        hierarchical_labels = labels.argsort()
+        hierarchical_corr = ordered_corr.iloc[hierarchical_labels, hierarchical_labels]
+        hierarchical_p_corr = p_corr.iloc[hierarchical_labels, hierarchical_labels]
+        
+        hierarchical_correlograms.append([hierarchical_corr, hierarchical_p_corr, treatment, tocolorlate])
+    
+    return hierarchical_correlograms
 
 
 def plotCorrelograms(correlograms):
@@ -176,7 +213,6 @@ def plotCorrelograms(correlograms):
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     
-
     if np.array_equal(correlogram_df, correlogram_df.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
         title = ax.set_title(f"{'-'.join(subvalues)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
 
