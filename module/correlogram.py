@@ -164,8 +164,9 @@ def buildSingleCorrelogram(
             [correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate]
         )
     if hierarchical_clustering == True:
-        hierarchical_correlograms = perform_hierarchical_clustering(correlograms)
+        correlograms = perform_hierarchical_clustering(correlograms)
         #reorder correlogram_df and p_value_mask with hierarchical clustering using dissimilarity matricies
+        #plots a dendrogram for each condition - hierarchical structure derived from the clustering algorithm #i dont understand why it differs from new corr order
 
     fig = plotCorrelograms(correlograms)
 
@@ -173,32 +174,29 @@ def buildSingleCorrelogram(
 
 def perform_hierarchical_clustering(correlograms):
     hierarchical_correlograms = []
-    
     for ordered_corr, p_corr, treatment, tocolorlate in correlograms:
         print(f"Hierarchical clustering for {treatment} correlating {tocolorlate}")
-        
         # Linkage matrix
         Z = linkage(squareform(1 - abs(ordered_corr)), 'complete')
         
-        # Plot dendrogram 
-        plt.figure()
+        # Plot dendrogram based on col of ordered_corr
         hierarchical_labels = dendrogram(Z, labels=ordered_corr.columns, orientation='top', leaf_rotation=90)['ivl']
-        plt.title(f"{treatment} correlating {tocolorlate}")
+        plt.title(f"{treatment} correlating {tocolorlate}", pad=20) 
+        plt.tight_layout()
         plt.show()
-        
+
+        #not used - check inout prams 
         threshold = 0.8  # Adjust as needed
-        labels = fcluster(Z, threshold, criterion='distance')
+        labels = fcluster(Z, threshold, criterion='distance') 
         
         # Create mapping from original labels to sorted indices
         label_indices_map = {label: i for i, label in enumerate(hierarchical_labels)}
-        
         # Reordering columns based on clustering using label_indices_map
         hierarchical_labels_order = [label_indices_map[label] for label in ordered_corr.columns]
         hierarchical_corr = ordered_corr.iloc[hierarchical_labels_order, hierarchical_labels_order]
         hierarchical_p_corr = p_corr.iloc[hierarchical_labels_order, hierarchical_labels_order]
-       
+        
         hierarchical_correlograms.append([hierarchical_corr, hierarchical_p_corr, treatment, tocolorlate])
-    
     return hierarchical_correlograms
 
 
@@ -212,7 +210,6 @@ def plotCorrelograms(correlograms):
         plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax)
     fig.tight_layout()
     return fig
-
 
 def plotCorrelogram(correlogram_df, p_value_mask, treatment, subvalues, ax):
     
