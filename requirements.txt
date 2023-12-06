@@ -13,3 +13,4 @@ setuptools
 git+https://github.com/remicorne/statannotations
 statsmodels
 weasyprint
+networkx
