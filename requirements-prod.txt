@@ -1,0 +1,12 @@
+Flask==2.1.2
+Flask-Admin==1.6.0
+Flask-Babel==2.0.0
+Flask-Bcrypt==1.0.1
+Flask-Bootstrap==3.3.7.1
+Flask-Compress==1.12
+Flask-HTTPAuth==4.6.0
+Flask-Login==0.6.1
+Flask-RESTful==0.3.9
+Flask-SQLAlchemy==2.5.1
+Flask-SSLify==0.1.5
+Flask-WTF==1.0.1
