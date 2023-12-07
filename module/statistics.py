@@ -5,6 +5,7 @@ import pandas as pd
 # from outliers import smirnov_grubbs as grubbs #not used and having circular import shit 
 import matplotlib.pyplot as plt
 from module.utils import select_params
+ 
 
 
 # The following functions are just here to be passed to the pd.corr() method, c and y are the two lists of values (columns) to be correlated
@@ -29,6 +30,25 @@ def getPearsonR(x, y):
 
 def getPearsonPValue(x, y):
     return getPearson(x, y).pvalue
+
+##CHECK ME JJB REMI TODO
+def getSpearman(x, y):
+    return scipy.stats.spearmanr(x,y)
+
+def getSpearmanR(x, y):
+    return getSpearman(x, y).correlation
+
+def getSpearmanPValue(x, y):
+    return getSpearman(x, y).pvalue
+
+def getKendall(x, y):
+    return scipy.stats.kendalltau(x, y)
+
+def getKendallTau(x, y):
+    return getKendall(x, y).correlation
+
+def getKendallPValue(x, y):
+    return getKendall(x, y).pvalue
 
 
 @select_params
@@ -90,4 +110,6 @@ QUANTITATIVE_STAT_METHODS = {
 }
 
 
-QUALITATIVE_STAT_METHODS = {"pearson": getPearson}
+CORR_STAT_METHODS = {'pearson': [getPearson, getPearsonR, getPearsonPValue], 
+                     'spearman': [getSpearman, getSpearmanR, getSpearmanPValue], 
+                     'kendall': [getKendall, getKendallTau, getKendallPValue] }
