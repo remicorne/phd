@@ -4,3 +4,5 @@ output
 __pycache__
 input
 debug.py
+password.txt
+*.sqlite
