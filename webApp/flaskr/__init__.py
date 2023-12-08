@@ -1,6 +1,8 @@
 import os
 from flask import Flask
-
+from flask import (
+    redirect, url_for
+)
 
 def create_app(test_config=None):
     # create and configure the app
@@ -24,16 +26,22 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    from flaskr import db
+    from webApp.flaskr import db
     db.init_app(app)
 
-    from flaskr import auth
+    from webApp.flaskr import auth
     app.register_blueprint(auth.bp)
 
-    from flaskr import blog
+    from webApp.flaskr import blog
     app.register_blueprint(blog.bp)
     app.add_url_rule('/', endpoint='dashboard')
 
+
+    @app.route('/')
+    @app.route('/<first>')
+    @app.route('/<first>/<path:rest>')
+    def fallback(first=None, rest=None):
+        return redirect(url_for('auth.login'))
 
 
     return app

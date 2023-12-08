@@ -31,7 +31,7 @@ def close_db(e=None):
 def init_db():
     db = get_db()
     print(os.getcwd())
-    with open(os.path.join(os.path.join(os.getcwd(),"flaskr"),"user.json")) as fid:
+    with open(os.path.join(os.path.join(os.path.join(os.getcwd(),"webApp"),"flaskr"),"user.json")) as fid:
         user = json.load(fid)
 
     with current_app.open_resource('schema.sql') as f:
