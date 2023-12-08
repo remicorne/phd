@@ -66,7 +66,8 @@ def processOutliers(
             data,
             outlier_test,
             p_value_threshold,
-        )
+        ).copy()  # Copy to avoid SettingWithCopyWarning
+
         # If there are no outliers, exit
         if not data[outlier_col_name].any():
             print("NO OUTLIERS FOUND")
@@ -74,8 +75,7 @@ def processOutliers(
             break
 
         title = f"{compound} in {region}"
-        ylabel = " " if "/" in compound else "ng/mm of tissue"
-        hue = {eliminated_outlier_col_name: {True: "red", False: "white"}}
+        ylabel = " " if "/" in compound else "ng/mg of tissue"
 
         # Ask user to codanfirm outliers
         data.loc[:, eliminated_outlier_col_name] = False
@@ -95,7 +95,16 @@ def processOutliers(
             axis=1,
         )
         # Display figure with outliers highlighted
-        fig = buildHistogram(title, ylabel, data, order, palette, hue=hue)
+        fig = buildHistogram(
+            title,
+            ylabel,
+            data,
+            order,
+            hue='treatment',
+            palette=palette,
+            swarm_palette={True: "red", False: "white"},
+            swarm_hue=eliminated_outlier_col_name,
+        )
         plt.show()
         # Ask user to confirym outliers
         confirmed = askYesorNo(
@@ -121,14 +130,20 @@ def decideOutlier(
     eliminated_outlier_col_name,
     title,
     ylabel,
-    palette,
+    bar_palette,
 ):
     """Ask user to confirm outlier"""
     current_label = f"current (id={row.mouse_id})"
-    hue = {outlier_col_name: {True: "white", False: "black", current_label: "red"}}
     data.loc[row.name, outlier_col_name] = current_label
     fig = buildHistogram(
-        title, ylabel, data, order, palette, hue=hue
+        title,
+        ylabel,
+        data,
+        order,
+        hue='treatment',
+        palette=bar_palette,
+        swarm_hue=outlier_col_name,
+        swarm_palette={False: "white", True: "black", current_label: "red"},
     )  # Display figure with current outlier highlighted
     data.loc[row.name, outlier_col_name] = True
     plt.show()
