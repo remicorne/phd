@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
+  {% block header %}
+    <div><h1>{% block title %}Hello {{ user }}{% endblock %}</h1></div>
+    <form action = "/success" method = "post" enctype="multipart/form-data">   
+      <input type="file" name="file" />   
+      <input type = "submit" value="Upload">   
+    </form>
+  {% endblock %}
 
-{% block header %}
-  <h1>{% block title %}Hello {{ user }}{% endblock %}</h1>
-{% endblock %}
+
 

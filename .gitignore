@@ -2,8 +2,9 @@ output
 .vscode
 .venv
 __pycache__
-input
+mouse_movement_exp
 debug.py
 password.txt
 *.sqlite
 user.json
+output
