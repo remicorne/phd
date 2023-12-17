@@ -1,11 +1,25 @@
 {% extends 'base.html' %}
-  {% block header %}
-    <div><h1>{% block title %}Hello {{ user }}{% endblock %}</h1></div>
-    <form action = "/success" method = "post" enctype="multipart/form-data">   
+  {% block content %}
+    <form action = "/" method = "post" enctype="multipart/form-data" target="_self">   
       <input type="file" name="file" />   
       <input type = "submit" value="Upload">   
     </form>
+    <p>{{data.rawfile}}</p>
+    <div id="chart" class="chart"></div>
   {% endblock %}
+  {% block script %}
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script type="text/javascript">
+
+      const d = {{ data|safe }}
+      if(d.graphJSON !== ""){
+        let graphs = JSON.parse(d.graphJSON);
+        console.log(graphs)
+        Plotly.react('chart',graphs["data"],graphs["layout"]);  
+      }
+    </script>
+  {% endblock %}
+
 
 
 
