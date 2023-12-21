@@ -11,8 +11,6 @@ from PIL import Image
 import re
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
-
-
 def saveJSON(path, dict_to_save):
     with open(path, "w", encoding="utf8") as json_file:
         json.dump(dict_to_save, json_file)
@@ -49,8 +47,6 @@ def resetCache():
 
 
 # This function cahces (aka saves in a easily readable format) all dataframes used
-
-
 def cache(filename, identifier, to_cache):
     filename = filename.split(".")[0]
     cache_subdir = f"{CACHE_DIR}/{filename}"
@@ -88,18 +84,13 @@ def saveFigure(fig, identifier, fig_type):
     # Image.open(f"{output_subdir}/{identifier}.png").show()
     print(f"SAVED {output_subdir}/{identifier}.png")
 
-
-def saveCorrelogram(fig, identifier):
-    saveFigure(fig, identifier, "correlograms")
-
-
-def saveHistogram(fig, identifier):
-    saveFigure(fig, identifier, "histograms")
-
-
-
-def saveQuantitativeSummaryFig(fig, identifier):
-    saveFigure(fig, identifier, "quantitative_summary")
+#REMI this is all redundant if i understand @get_or_add ?
+# def saveCorrelogram(fig, identifier):
+#     saveFigure(fig, identifier, "correlograms")
+# def saveHistogram(fig, identifier):
+#     saveFigure(fig, identifier, "histograms")
+# def saveQuantitativeSummaryFig(fig, identifier):
+#     saveFigure(fig, identifier, "quantitative_summary")
 
 
 def dictToFilename(dict_to_stringify):
@@ -130,41 +121,57 @@ def flatten(two_d_list):
 def inputEscape(question):
     answer = input(question)
     if answer == "":
-        if input("EXIT PROGRAM? (y/n)") == "y":
+        if askYesorNo("EXIT PROGRAM?"):
             print("EXITING PROGRAM")
             sys.exit()
     return answer
 
 
 def askMultipleChoice(question, choices):
+    if len(choices) == 1:
+        return list(choices)[0]
     choice_mapping = {f"{i}": choice for i, choice in enumerate(choices)}
     options = "\n".join([f"{i}: {choice}" for i, choice in choice_mapping.items()])
     choice = inputEscape(f"{question}\n{options}\n")
     while choice not in choice_mapping.keys():
-        choice = inputEscape(f"Invalid choice, possibilities are:\{options}\n")
+        choice = inputEscape(f"""Invalid choice, possibilities are:\{options}\n""")
     return choice_mapping[choice]
 
 
 def askSelectParameter(data, column):
     options = set(data[column])
     print(options)
-    answer = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")#.upper()# i cant access vH, dH ect
-    while answer not in options:
-        print(f".{answer}.")
-        answer = inputEscape(
-            f"Invalid choice, possibilities are:\n{', '.join(options).upper()}\n" #this mans after one invalid choice the posibilities change to uppercase? or just the display?
-        ).upper()
-    return answer
+    answers = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").replace(' ', '').split(',')
+    for i, answer in enumerate(answers):
+        while answer not in options:
+            answer = inputEscape(
+                f"Invalid choice: '{answer}', possibilities are:\n{', '.join(options)}\n"
+            )
+            answers[i] = answer
+    return delistify(answers)
 
 
 def askYesorNo(question):
-    return inputEscape(f"{question} (y/n)\n").upper() == "Y"
+    answer = inputEscape(f"""{question} (y/n)\n""").upper()
+    while answer not in ["Y", "N"]:
+        answer = inputEscape(f"""Invalid choice, possibilities are: (y/n)\n""").upper()
+    return answer == "Y"
 
+def maskDf(df, mask_conditions):
+    complex_filter = True
+    for column, value in mask_conditions.items():
+        if isinstance(value, list):
+            atomic_filter = df[column].isin(value)
+        else:
+            atomic_filter = df[column] == value
+        complex_filter &= atomic_filter
+    return complex_filter
 
-def subselectDf(df, subselect):
-    return df.query(
-        "&".join([f"{column}=='{value}'" for column, value in subselect.items()])
-    )
+def subselectDf(df, subselection):
+    df = df[
+        maskDf(df, subselection)
+    ]
+    return df
 
 
 # This is a decorator design pattern. Its basically a function that wraps another function and does some operations before
@@ -193,6 +200,7 @@ def select_params(stat_function):
                     print(w[-1].message)
                 return result
             except Exception as e:
+                print(e)
                 return ["ERROR", str(e)]
 
     return wrapper
@@ -201,8 +209,10 @@ def select_params(stat_function):
 IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
-    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"', 
-    "quantitative_summary":'f"quantitative_summary_{experiment}_for_{compound}_in_{region}"' #REMI: i tried to add this here but dont understand yet how it works
+    "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
+    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"', 
+    "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
+    "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"'
 }
 
 
@@ -216,7 +226,7 @@ def get_or_add(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
             identifier = buildIdentifier(identifier_type, **kwargs)
-            identifier=checkIdentifier(identifier)
+            identifier = checkIdentifier(identifier)
             from_scratch = (
                 kwargs.get("from_scratch")
                 if kwargs.get("from_scratch") is not None
@@ -234,10 +244,17 @@ def get_or_add(identifier_type):
 
     return decorator
 
-#checks for symbols that can be be save in name / 
+
+# checks for symbols that can be be save in name /
 def checkIdentifier(identifier):
     invalid_chars_pattern = r'[\/:*?"<>|%\&#$@!=+,;\'`~]'
-    sanitized_identifier = re.sub(invalid_chars_pattern, '_', identifier)
+    sanitized_identifier = re.sub(invalid_chars_pattern, "_", identifier)
     if re.search(invalid_chars_pattern, identifier):
         print("Invalid characters in identifier, replacing with '_' ")
     return sanitized_identifier
+
+def listify(var):
+    return var if isinstance(var, list) else [var]
+
+def delistify(var):
+    return var[0] if isinstance(var, list) and len(var) == 1 else var
