@@ -9,6 +9,7 @@ class Experiment:
     """
     Contain everything ralated to an experiment
     """
+
     configuration_names = [
         "treatment_mapping",
         "experimental_info",
@@ -20,12 +21,11 @@ class Experiment:
 
     def __init__(self, name):
         self.initialise_experiment(name)
-        self.name = name #TCB2
+        self.name = name  # TCB2
         self.config = Configuration(name)
         self.HPLC = HPLC(name, self.config)
         self.HT = HT(name, self.config)
 
-    
     def initialise_experiment(self, experiment_name):
         """Test
 
@@ -34,4 +34,3 @@ class Experiment:
         """
         Filesystem.check_directory(f"{Filesystem.INPUT}/{experiment_name}")
         Filesystem.check_directory(f"{Filesystem.OUTPUT}/{experiment_name}")
-        

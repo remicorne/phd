@@ -3,13 +3,9 @@
 # Make sure you have last versions of pip and setuptools with : "pip3 install -U pip" then "pip3 install -U setuptools" in venv
 # Use command "pip install -r requirements.txt" to install
 
-openpyxl
 pandas==2.0.3
-outlier_utils
 matplotlib
 pingouin
 scipy
-setuptools
 git+https://github.com/remicorne/statannotations
 statsmodels
-weasyprint

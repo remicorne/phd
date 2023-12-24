@@ -3,19 +3,13 @@ import os
 import pickle
 from module.Filesystem import Filesystem
 
+
 class Cache:
+    @staticmethod
+    def is_cached(self, filepath):
+        return os.path.isfile(filepath)
 
-    def __init__(self, path, data_type) -> None:
-        self.path = path
-        self.data_type = data_type
-        self.cache_filepath = f"{self.path}/{self.data_type}"
-
-    
-    def isCached(self):
-        return os.path.isfile(f"{self.cache_filepath}.pkl")
-
-    
-    
+    @staticmethod
     def get_or_add(self, builder_cb):
         if self.isCached():
             return self.getCache()
@@ -24,23 +18,26 @@ class Cache:
         to_cache = builder_cb()
         self.cache(to_cache)
 
-
-    def cache_pkl(self, to_cache):
-        with open(self.cache_filepath, "wb") as file:
+    @staticmethod
+    def cache_pkl(self, to_cache, filepath):
+        pkl_filepath = f"{filepath}.pkl"
+        with open(pkl_filepath, "wb") as file:
             pickle.dump(to_cache, file)
-        print(f"CACHED {self.cache_filepath}.pkl")
+        print(f"CACHED {pkl_filepath}")
 
-    def cache_xlsx(self, df):
-        df.to_excel(f"{self.cache_filepath}.xlsx")
-        print(f"CACHED {self.cache_filepath}.xlsx")
+    @staticmethod
+    def cache_xlsx(self, df, filepath):
+        xlsx_filepath = f"{filepath}.xlsx"
+        df.to_excel(xlsx_filepath)
+        print(f"CACHED {xlsx_filepath}")
 
-
-    def getCache(self):
+    @staticmethod
+    def get_pickle(self):
         print(f'RETRIEVED "{self.data_type}" FROM CACHE')
         with open(self.cache_filepath, "rb") as file:
             return pickle.load(file)
-    
-    
+
+    @staticmethod
     def resetCache(self):
         shutil.rmtree(self.path)
         os.mkdir(self.path)

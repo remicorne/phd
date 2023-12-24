@@ -1,6 +1,5 @@
 from matplotlib import pyplot as plt
 import pandas as pd
-import scipy
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.getters import (
     getCompoundAndRatiosDf,
@@ -75,7 +74,9 @@ def quantitativeHistogram(
                 "Select p value threshold", [0.05, 0.01, 0.001, 0.0001]
             ),
             from_scratch=from_scratch,
-            do_outliers=do_outliers if do_outliers is not None else askYesorNo("Redo outlier selection?")
+            do_outliers=do_outliers
+            if do_outliers is not None
+            else askYesorNo("Redo outlier selection?"),
         )
         exit_loop = askYesorNo("Exit?")
 
