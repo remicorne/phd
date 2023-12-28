@@ -293,7 +293,7 @@ def buildExperimentCorrMatricies(
         # This is the list of methods to pass to df.corr. I know you used to pass 'pearson' as a string but this way the R calculation and pvalue mask are 'linked' by being done on the same line
         
         print(f"correlating using {corr_method}")
-        base_scipy_test, get_corr, get_p_val = CORR_STAT_METHODS[corr_method]
+        base_scipy_test, get_corr, get_p_val = CORR_STAT_METHODS[corr_method]#fetchnig functions for stats 
         methods =[get_corr, isSignificant(get_p_val, p_value_threshold)]
 
         # order columns in desired plotting order
