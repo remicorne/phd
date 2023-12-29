@@ -51,7 +51,7 @@ def correlogram(
     # hierarchical_clustering=None,
 ):
     """
-    This is the function that is called by the user, it will call buildSingleCorrelogram that builds a signle correlogram
+    This is the function that is called by the user, it will call buildExperimentalCorrelogram that builds a signle correlogram
     The function can be called with parameters, user input will be required if not
     """
     filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for selecting corr matricies, probably need to add pearson/spearman
@@ -66,7 +66,7 @@ def correlogram(
                                                                                                                                 from_scratch=from_scratch )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate 
 
-    buildSingleCorrelogram(
+    buildExperimentalCorrelogram(
         filename,
         experiment=experiment,
         correlogram_type=correlogram_type,
@@ -81,7 +81,7 @@ def correlogram(
 
 
 @get_or_add("correlogram")
-def buildSingleCorrelogram(
+def buildExperimentalCorrelogram(
     filename,
     experiment,
     correlogram_type,
