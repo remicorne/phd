@@ -19,6 +19,7 @@ from module.getters import (
     getRegionSubclassification,
     getQuantitativeStats,
 )
+from module.graph_theory import graph
 
 #
 from module.histogram import buildHeadTwitchHistogramData, buildHistogram
