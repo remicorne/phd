@@ -17,29 +17,6 @@ from module.utils import flatten, get_or_add
 # graph for correlations between the same compound 
 
 
-
-#RUNNER
-filename = "TCB2_data_HPLC.csv"  # TCB2 #using current working directory plus file name
-HT_filename = "TCB2_data_HT.csv"
-
-from main import *
-from module.correlogram import buildExperimentCorrMatricies
-filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for creating corr matricies, probably need to add pearson/spearman
-    filename,
-    experiment='dose_response',
-    correlogram_type='compound',
-    to_correlate='GLU',
-    p_value_threshold=0.05,
-    n_minimum=5,
-    columns=["OF","PL","CC", "IC","M", "SJ","SL1", "SL6", "SR6", "SR1", "AC", "V",  
-                "Am", "dH", "vH", "NAc", "VM", "DM","VL", "DL", "MD",  "VPL",  "VPR", 
-                "DG", "Y",  "SC","SN", "VTA", "DR","MR", "CE"],
-    corr_method = 'pearson',
-    from_scratch=True,
-    # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate 
-)
-
-
 #FUNCTIONS
 def graph(
     filename,
@@ -107,10 +84,12 @@ def buildExperimentalGraph( #TODO change the name as it should be experimental n
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotGraphs(matricies)
+    fig = plotGraphs(matricies) 
 
     return fig
 
+
+#builds figure for subplots loops on 
 def plotGraphs(matricies):
     #JJB might be nice to have one color bar for all figures
     fig, axs = plt.subplots(2, 2, figsize=(22, 22))
@@ -127,31 +106,36 @@ def plotGraphs(matricies):
     fig.tight_layout()
     return fig
 
-
+#generates graph from matricies[0] - updates graph_stats df - plots graphs
 def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correlated, ax):
     
+    ##### Build graph
+    if len(correlated)>1:
+        G=nx.MultiDiGraph()
+    else:
         G = nx.Graph()
-        G.clear()
+    G.clear()
         
-        G.add_nodes_from(correlation_matrix.columns.tolist()) #adds every BR as a node
-        
-        # Iterate through the correlation matrix and significance matrix
-        for i, col in enumerate(correlation_matrix.columns):
-            for j, row in enumerate(correlation_matrix.index):
-                if i < j:
-                    correlation = correlation_matrix.iloc[j, i]  # As correlation_matrix is symmetric
-                    significance = T_F_mask_matrix.iloc[j, i]
+    G.add_nodes_from(correlation_matrix.columns.tolist()) #adds every BR as a node
+    
+    # Iterate through the correlation matrix and significance matrix
+    for i, col in enumerate(correlation_matrix.columns):
+        for j, row in enumerate(correlation_matrix.index):
+            if i < j:
+                correlation = correlation_matrix.iloc[j, i]  # As correlation_matrix is symmetric
+                significance = T_F_mask_matrix.iloc[j, i]
 
-                    # Check for significance and add edge if significant
-                    if significance == False:
-                        if correlation > 0:
-                            edge_color = 'red'  # Positive correlation
-                        else:
-                            edge_color = 'blue'  # Negative correlation
+                # create edge where mask == False (significant correlations)
+                if significance == False:
+                    edge_color = 'red' if correlation > 0 else 'blue'
+                    weight = abs(correlation)
 
-                        # Add edge to the graph with edge weight and color
-                        G.add_edge(col, row, weight=abs(correlation), color=edge_color) #add only nodes for BRs with edge 
-                    
+                    # Add edge to the graph with edge weight and color
+                    if len(correlated)>1:
+                        G.add_edge(col, row, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") #add only nodes for BRs with edge 
+                    else:
+                        G.add_edge(col, row, weight=abs(correlation), color=edge_color)
+
         ##### Draw the graph
         # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
         edges = G.edges()
@@ -181,6 +165,7 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correl
 
 #single graph multiple edge types corrisponding to each compound correlation DA-DA, DA-GLU
 
+#G=nx.MultiGraph()
 
 ########## COMPARE GRAPHS
 
