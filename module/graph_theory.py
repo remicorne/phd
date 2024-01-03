@@ -115,7 +115,39 @@ def get_edge_color(correlation):
 #generates graph from matricies[0] - updates graph_stats df - plots graphs
 def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
     
-    ##### Build graph
+    G=buildGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
+   
+    ##### Draw the graph
+    # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
+    edges = G.edges()
+    weights = list(nx.get_edge_attributes(G, 'weight').values())
+    edge_colors = list(nx.get_edge_attributes(G, 'color').values())
+
+    # Create a custom circular layout based on column order #FIXME
+    column_order = list(correlation_matrix.columns)
+    num_nodes = len(column_order)
+    angles = np.linspace(0, 2 * np.pi, num_nodes, endpoint=False)
+    pos = {col: (np.cos(angles[i]), np.sin(angles[i])) for i, col in enumerate(column_order)}
+
+    # Draw nodes and edges
+    nx.draw_networkx_nodes(G, pos, node_size=1100, alpha=0.95, node_color='white', edgecolors='black', ax=ax)
+    nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100, arrowstyle='->', arrowsize=20)
+    # Add labels to nodes
+    node_labels = {node: node for node in G.nodes()}  # Label nodes with their names
+    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, ax=ax)
+
+    # Set title for the graph
+    ax.set_frame_on(False)  
+    ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
+    
+    return ax
+
+def buildGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
+    '''
+    input:  matricies[n]
+    --- updates graph_stats df ---
+    output:  graph G , directed or not based off length or to_correlate
+    '''
     if len(to_correlate)>1:
         G=nx.MultiDiGraph()
     else:
@@ -142,33 +174,8 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_cor
                 else:
                     if i > j: #symetric graph - access lower triangle only
                         G.add_edge(col, row, weight=abs(correlation), color=edge_color) 
-
-    ##### Draw the graph
-    # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
-    edges = G.edges()
-    weights = list(nx.get_edge_attributes(G, 'weight').values())
-    edge_colors = list(nx.get_edge_attributes(G, 'color').values())
-
-    # Create a custom circular layout based on column order #FIXME
-    column_order = list(correlation_matrix.columns)
-    num_nodes = len(column_order)
-    angles = np.linspace(0, 2 * np.pi, num_nodes, endpoint=False)
-    pos = {col: (np.cos(angles[i]), np.sin(angles[i])) for i, col in enumerate(column_order)}
-
-    # Draw nodes and edges
-    nx.draw_networkx_nodes(G, pos, node_size=1100, alpha=0.95, node_color='white', edgecolors='black', ax=ax)
-    nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100)
-    # Add labels to nodes
-    node_labels = {node: node for node in G.nodes()}  # Label nodes with their names
-    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, ax=ax)
-
-    # Set title for the graph
-    ax.set_frame_on(False)  
-    ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
     
-    return ax
-
-
+    return G
 
 #single graph multiple edge types corrisponding to each compound correlation DA-DA, DA-GLU
 

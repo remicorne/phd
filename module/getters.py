@@ -106,6 +106,9 @@ def getQuantitativeStats(filename):
     return getOrBuildDf(filename, "quantitative_stats", buildQuantitativeStatsDf)
 
 
+def getGraphStats(filename):
+    return getOrBuildDf(filename, "graph_stats", buildGraphStatsDf) #JJB working 
+
 def getHeadTwitchDf(filename):
     return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
 
@@ -304,5 +307,21 @@ def buildQuantitativeStatsDf(filename):
             "is_significant",
             "p_value",
             "result",
+        ]
+    )
+
+
+def buildGraphStatsDf (): #JJB working s
+    return pd.DataFrame(
+        colums=[
+            "data_type",
+            "experiment",
+            "treatment",
+            "correlogram_type",
+            "to_correlate",
+            "columns",
+            "corr_method", #pearson ect
+            "some_stat",
+            "some_stat",
         ]
     )
