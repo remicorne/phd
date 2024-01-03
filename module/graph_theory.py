@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from module.utils import flatten, get_or_add
+from module.correlogram import corrSelector, buildExperimentCorrMatricies
 
 #https://networkx.org/documentation/stable/tutorial.html
 
@@ -96,21 +97,21 @@ def plotGraphs(matricies):
     axs = flatten(axs)  # Put all the axes into a list at the same level
 
     # for matrix in matricies:
-    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correlated), ax in zip(
+    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate), ax in zip(
         matricies, axs
     ):
-        print (f" treatment {treatment} correlating {correlated} ")
+        print (f" treatment {treatment} correlating {to_correlate} ")
 
-        plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correlated, ax)
+        plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax)
 
     fig.tight_layout()
     return fig
 
 #generates graph from matricies[0] - updates graph_stats df - plots graphs
-def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correlated, ax):
+def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
     
     ##### Build graph
-    if len(correlated)>1:
+    if len(to_correlate)>1:
         G=nx.MultiDiGraph()
     else:
         G = nx.Graph()
@@ -131,7 +132,7 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correl
                     weight = abs(correlation)
 
                     # Add edge to the graph with edge weight and color
-                    if len(correlated)>1:
+                    if len(to_correlate)>1:
                         G.add_edge(col, row, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") #add only nodes for BRs with edge 
                     else:
                         G.add_edge(col, row, weight=abs(correlation), color=edge_color)
@@ -157,7 +158,7 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, correl
 
         # Set title for the graph
         ax.set_frame_on(False)  
-        ax.set_title(f"{'-'.join(correlated)} in {treatment}", fontsize=28, pad=-10, y=1)
+        ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
         
         return ax
 

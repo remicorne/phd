@@ -169,7 +169,7 @@ def corrSelector( # generic prompter for selecting corr matricies
 
 #for an experiment and given set of correlations 
 # we return a list of lists called matricies: 
-# [[df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , correlated],
+# [[df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate],
 # [ other treatment ],
 # [ other treatment ],
 # [ other treatment ]] 
@@ -238,7 +238,7 @@ def buildExperimentCorrMatricies(
             key=lambda x: columns.index(x[1]) if x[1] in columns else float("inf"),
         )
         pivot_df_ordered = pivot_df[pivot_columns_ordered]
-        correlogram_df, p_value_mask = [
+        correlation_matrix, p_value_mask = [
             pivot_df_ordered.corr(method=method, min_periods=n_minimum)
             .loc[tuple(pivot_column_value)]
             .dropna(axis=0, how="all")
@@ -247,8 +247,8 @@ def buildExperimentCorrMatricies(
         ]  # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
 
         matricies.append(
-            [pivot_df_ordered, correlogram_df, p_value_mask.astype(bool), treatment[0], to_correlate]
-            #df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , correlated
+            [pivot_df_ordered, correlation_matrix, p_value_mask.astype(bool), treatment[0], to_correlate]
+            #df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate
         )
 
     return matricies 
@@ -287,17 +287,17 @@ def plotCorrelograms(matricies):
     #JJB might be nice to have one color bar for all figures
     fig, axs = plt.subplots(2, 2, figsize=(22, 22))
     axs = flatten(axs)  # Put all the axes into a list at the same level
-    for (df_to_corr,correlogram_df, p_value_mask, treatment, correlated), ax in zip(
+    for (df_to_corr,correlogram_df, p_value_mask, treatment, to_correlate), ax in zip(
         matricies, axs
     ):
-        plotCorrelogram(correlogram_df, p_value_mask, treatment, correlated, ax)
+        plotCorrelogram(correlogram_df, p_value_mask, treatment, to_correlate, ax)
     fig.tight_layout()
     return fig
 
-def plotCorrelogram(correlogram_df, p_value_mask, treatment, correlated, ax):
+def plotCorrelogram(correlogram_df, p_value_mask, treatment, to_correlate, ax):
     
     if np.array_equal(correlogram_df, correlogram_df.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
-        title = ax.set_title(f"{'-'.join(correlated)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
+        title = ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
 
         mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
         p_value_mask[mask] = True
@@ -305,7 +305,7 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, correlated, ax):
             p_value_mask.values, False
         )  # this makes the diagonal correlations of 1 visible
     else:
-        title = ax.set_title(f"{'-'.join(correlated)} in {treatment}", fontsize=28, pad=20, y=1)  # Adjust the y position of the title manually for square correlogram
+        title = ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=20, y=1)  # Adjust the y position of the title manually for square correlogram
 
     heatmap = sns.heatmap(
         correlogram_df,
@@ -324,14 +324,14 @@ def plotCorrelogram(correlogram_df, p_value_mask, treatment, correlated, ax):
         ax.get_xticklabels()
     )  # rotation=45, horizontalalignment='right',
 
-    if len(correlated) == 1:
+    if len(to_correlate) == 1:
         # ax.set_ylabel("")
         # ax.set_xlabel("")
-        ax.set_ylabel(correlated[0], fontsize=28)
-        ax.set_xlabel(correlated[0], fontsize=28)
-    elif len(correlated) == 2:
-        ax.set_ylabel(correlated[0], fontsize=28)
-        ax.set_xlabel(correlated[1], fontsize=28)
+        ax.set_ylabel(to_correlate[0], fontsize=28)
+        ax.set_xlabel(to_correlate[0], fontsize=28)
+    elif len(to_correlate) == 2:
+        ax.set_ylabel(to_correlate[0], fontsize=28)
+        ax.set_xlabel(to_correlate[1], fontsize=28)
 
 
 def askColumnsToUser(correlogram_type, compound_and_ratios_df):
