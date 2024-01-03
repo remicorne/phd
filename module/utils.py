@@ -236,7 +236,12 @@ def get_or_add(identifier_type):
             filename = args[0]
             if from_scratch or not isCached(filename, identifier):
                 result = builder_func(*args, **kwargs)
-                cache(args[0], identifier, result)
+                try:
+                    cache(args[0], identifier, result)
+                except:
+                    # AttributeError: Can't pickle local object 'draw_networkx_edges.<locals>._draw_networkx_edges_fancy_arrow_patch.<locals>._connectionstyle'
+                    print(f"failed to cache {identifier_type} for {kwargs['to_correlate']}") 
+
                 saveFigure(result, identifier, identifier_type)
             else:
                 result = getCache(filename, identifier)

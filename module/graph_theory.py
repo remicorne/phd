@@ -107,6 +107,11 @@ def plotGraphs(matricies):
     fig.tight_layout()
     return fig
 
+# Define a function to determine edge color based on correlation
+def get_edge_color(correlation):
+    return (1, 0, 0, 1) if correlation > 0 else (0, 0, 1, 1)  # Red for positive correlation, blue for negative
+
+
 #generates graph from matricies[0] - updates graph_stats df - plots graphs
 def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
     
@@ -120,47 +125,48 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_cor
     G.add_nodes_from(correlation_matrix.columns.tolist()) #adds every BR as a node
     
     # Iterate through the correlation matrix and significance matrix
-    for i, col in enumerate(correlation_matrix.columns):
-        for j, row in enumerate(correlation_matrix.index):
-            if i < j:
-                correlation = correlation_matrix.iloc[j, i]  # As correlation_matrix is symmetric
-                significance = T_F_mask_matrix.iloc[j, i]
+    for i, col in enumerate(correlation_matrix.columns): #to_correlate[1]
+        for j, row in enumerate(correlation_matrix.index):  #to_correlate[0] 
+            
+            correlation = correlation_matrix.iloc[j, i]  # As correlation_matrix is symmetric
+            mask = T_F_mask_matrix.iloc[j, i]
 
-                # create edge where mask == False (significant correlations)
-                if significance == False:
-                    edge_color = 'red' if correlation > 0 else 'blue'
-                    weight = abs(correlation)
+            # create edge where mask == False (significant correlations)
+            if mask == False:
+                edge_color = 'red' if correlation > 0 else 'blue'
+                # Add edge to the graph with edge weight and color
+                if len(to_correlate)>1:
 
-                    # Add edge to the graph with edge weight and color
-                    if len(to_correlate)>1:
-                        G.add_edge(col, row, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") #add only nodes for BRs with edge 
-                    else:
-                        G.add_edge(col, row, weight=abs(correlation), color=edge_color)
+                    #directed edge -  to_correlate[0] --> to_correlate[1] 
+                    G.add_edge(row, col, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") 
+                else:
+                    if i > j: #symetric graph - access lower triangle only
+                        G.add_edge(col, row, weight=abs(correlation), color=edge_color) 
 
-        ##### Draw the graph
-        # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
-        edges = G.edges()
-        weights = [G[u][v]['weight'] for u, v in edges]
-        edge_colors = [G[u][v]['color'] for u, v in edges]
+    ##### Draw the graph
+    # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
+    edges = G.edges()
+    weights = list(nx.get_edge_attributes(G, 'weight').values())
+    edge_colors = list(nx.get_edge_attributes(G, 'color').values())
 
-        # Create a custom circular layout based on column order #FIXME
-        column_order = list(correlation_matrix.columns)
-        num_nodes = len(column_order)
-        angles = np.linspace(0, 2 * np.pi, num_nodes, endpoint=False)
-        pos = {col: (np.cos(angles[i]), np.sin(angles[i])) for i, col in enumerate(column_order)}
+    # Create a custom circular layout based on column order #FIXME
+    column_order = list(correlation_matrix.columns)
+    num_nodes = len(column_order)
+    angles = np.linspace(0, 2 * np.pi, num_nodes, endpoint=False)
+    pos = {col: (np.cos(angles[i]), np.sin(angles[i])) for i, col in enumerate(column_order)}
 
-        # Draw nodes and edges
-        nx.draw_networkx_nodes(G, pos, node_size=1100, alpha=0.95, node_color='white', edgecolors='black', ax=ax)
-        nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax)
-        # Add labels to nodes
-        node_labels = {node: node for node in G.nodes()}  # Label nodes with their names
-        nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, ax=ax)
+    # Draw nodes and edges
+    nx.draw_networkx_nodes(G, pos, node_size=1100, alpha=0.95, node_color='white', edgecolors='black', ax=ax)
+    nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100)
+    # Add labels to nodes
+    node_labels = {node: node for node in G.nodes()}  # Label nodes with their names
+    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, ax=ax)
 
-        # Set title for the graph
-        ax.set_frame_on(False)  
-        ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
-        
-        return ax
+    # Set title for the graph
+    ax.set_frame_on(False)  
+    ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
+    
+    return ax
 
 
 
