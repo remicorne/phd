@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from module.utils import flatten, get_or_add, plotExperiment
-from module.correlogram import corrSelector, buildExperimentCorrMatricies
+from module.correlogram import corrSelector, buildExperimentCorrmatrices
 
 #https://networkx.org/documentation/stable/tutorial.html
 
@@ -35,7 +35,7 @@ def network(
     This is the function that is called by the user, it will call buildExperimentalCorrelogram that builds a signle correlogram
     The function can be called with parameters, user input will be required if not
     """
-    filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for selecting corr matricies, probably need to add pearson/spearman
+    filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for selecting corr matrices, probably need to add pearson/spearman
                                                                                                                                 filename,
                                                                                                                                 experiment=experiment,
                                                                                                                                 correlogram_type=correlogram_type,
@@ -73,7 +73,7 @@ def plotExperimentalNetworks(
     from_scratch,  # Used in decorator
     corr_method,
 ):
-    matricies=buildExperimentCorrMatricies(
+    matrices=buildExperimentCorrmatrices(
                                             filename,
                                             experiment,
                                             correlogram_type, #compound / ratio
@@ -85,7 +85,7 @@ def plotExperimentalNetworks(
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotExperiment(matricies, plotNetwork) 
+    fig = plotExperiment(matrices, plotNetwork) 
 
     return fig
 
@@ -96,7 +96,7 @@ def get_edge_color(correlation):
     return (1, 0, 0, 1) if correlation > 0 else (0, 0, 1, 1)  # Red for positive correlation, blue for negative
 
 
-#generates graph from matricies[0] - updates network_stats df - plots graphs
+#generates graph from matrices[0] - updates network_stats df - plots graphs
 # def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
 def plotNetwork(treatment_data, ax): ######    MATRIX
     df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_data
@@ -129,13 +129,13 @@ def plotNetwork(treatment_data, ax): ######    MATRIX
     return ax
 
 
-def buildExperimentalNetworks(matricies):
+def buildExperimentalNetworks(matrices):
     '''
-    input: matricies i.e. df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate for each treatment in an experiment
+    input: matrices i.e. df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate for each treatment in an experiment
     output: networks i.e. G, treatment, to_correlate for each treatment in an experiment
     '''
     networks=[]
-    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate) in matricies:
+    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate) in matrices:
         G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
         networks.append([G, treatment, to_correlate])
     return networks
@@ -143,7 +143,7 @@ def buildExperimentalNetworks(matricies):
 
 def buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
     '''
-    input:  matricies[n] = df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate 
+    input:  matrices[n] = df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate 
     --- updates graph_stats df --- #TODO
     output: network/graph for a single treatment G, directed or not based off length of to_correlate 
     '''

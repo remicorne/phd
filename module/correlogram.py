@@ -54,7 +54,7 @@ def correlogram(
     This is the function that is called by the user, it will call buildExperimentalCorrelogram that builds a signle correlogram
     The function can be called with parameters, user input will be required if not
     """
-    filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for selecting corr matricies, probably need to add pearson/spearman
+    filename,experiment,correlogram_type,to_correlate,p_value_threshold,n_minimum,columns,corr_method,from_scratch=corrSelector( # generic prompter for selecting corr matrices, probably need to add pearson/spearman
                                                                                                                                 filename,
                                                                                                                                 experiment=experiment,
                                                                                                                                 correlogram_type=correlogram_type,
@@ -92,7 +92,7 @@ def buildExperimentalCorrelogram(
     from_scratch,  # Used in decorator
     corr_method,
 ):
-    matricies=buildExperimentCorrMatricies(
+    matrices=buildExperimentCorrmatrices(
                                             filename,
                                             experiment,
                                             correlogram_type, #compound / ratio
@@ -104,14 +104,14 @@ def buildExperimentalCorrelogram(
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotExperiment(matricies, plotCorrelogram)
+    fig = plotExperiment(matrices, plotCorrelogram)
 
     return fig
 
 
-#prompts for correlation matricies
+#prompts for correlation matrices
 #done by experiment
-def corrSelector( # generic prompter for selecting corr matricies
+def corrSelector( # generic prompter for selecting corr matrices
     filename,
     experiment=None,
     correlogram_type=None,
@@ -124,7 +124,7 @@ def corrSelector( # generic prompter for selecting corr matricies
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate 
 ):
     """
-    This is the function that is called by the user, it will generate the information sto be passed to buildExperimentCorrMatricies 
+    This is the function that is called by the user, it will generate the information sto be passed to buildExperimentCorrmatrices 
     The function can be called with parameters, user input will be required if not
     """
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
@@ -168,12 +168,12 @@ def corrSelector( # generic prompter for selecting corr matricies
         
 
 #for an experiment and given set of correlations 
-# we return a list of lists called matricies: 
+# we return a list of lists called matrices: 
 # [[df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate],
 # [ other treatment ],
 # [ other treatment ],
 # [ other treatment ]] 
-def buildExperimentCorrMatricies(
+def buildExperimentCorrmatrices(
     filename,
     experiment,
     correlogram_type, #compound / ratio
@@ -217,7 +217,7 @@ def buildExperimentCorrMatricies(
         .argsort()
     ]  
 
-    matricies = []
+    matrices = []
     for treatment, group_df in subselection_df_ordered.groupby(
         by=["treatment"], sort=False #preserve order in subselection_df_ordered
     ):
@@ -244,12 +244,12 @@ def buildExperimentCorrMatricies(
             for method in methods
         ]  # ANd finally we calculate the R values and the pvalue mask in a for loop becaus the go through the exact same treatment
 
-        matricies.append(
+        matrices.append(
             [pivot_df_ordered, correlation_matrix, p_value_mask.astype(bool), treatment[0], to_correlate]
             #df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate
         )
 
-    return matricies 
+    return matrices 
 
 # I would think that like build correlogram there may be build hirichal correlogram whihc would use this for now its all under construction 
 def perform_hierarchical_clustering(correlograms):
