@@ -269,10 +269,11 @@ def delistify(var):
 
 ###### Generic Plotters
 
-def plotExperiment (experiment_data, plotter_cb):
+def plotExperiment (experiment_data, plotter_cb, optional_experimental_info=None):
     ''' 
     Generic function to create subplots of correct dimentions
     input: experimental data listed by treatment, plotter function that takes single treatment data
+    ~optional_experimental_info may be passed such that the plotter_cb may scal axis the same for instance
     output: plotted and saved figure at experimental level
     '''
     # determin number of treatments to corrispond to number of subplots
@@ -295,6 +296,10 @@ def plotExperiment (experiment_data, plotter_cb):
     for trearment_data, ax in zip(
         experiment_data, axs
     ):
-        plotter_cb(trearment_data, ax)
+        if optional_experimental_info:
+            plotter_cb(trearment_data, ax, optional_experimental_info)
+        else:
+            plotter_cb(trearment_data, ax)
+
     fig.tight_layout()
     return fig

@@ -10,15 +10,17 @@ import numpy as np
 from module.utils import flatten, get_or_add, plotExperiment
 from module.correlogram import corrSelector, buildExperimentCorrmatrices
 
-#https://networkx.org/documentation/stable/tutorial.html
+
+########## GENERATE NETWORKS
+# network for SINGLE correlation matrix (all weighted --- symetric: undirected -- unsymetric: multiedge and directed)  #DONE
+# METTA network made of MULTIPLE correlation matrices (multiedge -- directed -- weighted)
+
+########## COMPARE NETWORKS
+#graph metrics : average edge weight, average degree, clustering coefficient, degree distribution, average shortest path length (stats where possible)
+#network alignment : GRAAL / NetAlign / Jaccard Index
 
 
-########## GENERATE GRAPHS
-
-# graph for correlations between the same compound 
-
-
-#FUNCTIONS
+# USER FUNCTIONS
 def network(
     filename,
     experiment=None,
@@ -60,6 +62,10 @@ def network(
         # hierarchical_clustering=hierarchical_clustering,
     )
 
+
+
+
+# PLOTTER FUNCTIONS
 
 @get_or_add("network")
 def plotExperimentalNetworks( 
@@ -125,7 +131,7 @@ def plotNetwork(treatment_matrices, ax):
     
     return ax
 
-
+# BUILDER FUNCTIONS 
 def buildExperimentalNetworks(matrices):
     '''
     input: matrices i.e. df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate for each treatment in an experiment
@@ -173,15 +179,6 @@ def buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_
     
     return G
 
-#single graph multiple edge types corrisponding to each compound correlation DA-DA, DA-GLU
-
-#G=nx.MultiGraph()
-
-########## COMPARE GRAPHS
-
-#graph metrics : average edge weight, average degree, clustering coefficient, degree distribution, average shortest path length (stats where possible)
-
-#network alignment : GRAAL or NetAlign
 
 
 
