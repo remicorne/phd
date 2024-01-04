@@ -7,7 +7,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
-from module.utils import flatten, get_or_add
+from module.utils import flatten, get_or_add, plotExperiment
 from module.correlogram import corrSelector, buildExperimentCorrMatricies
 
 #https://networkx.org/documentation/stable/tutorial.html
@@ -19,7 +19,7 @@ from module.correlogram import corrSelector, buildExperimentCorrMatricies
 
 
 #FUNCTIONS
-def graph(
+def network(
     filename,
     experiment=None,
     correlogram_type=None,
@@ -47,7 +47,7 @@ def graph(
                                                                                                                                 from_scratch=from_scratch )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate 
 
-    buildExperimentalGraph(
+    plotExperimentalNetworks(
         filename,
         experiment=experiment,
         correlogram_type=correlogram_type,
@@ -61,8 +61,8 @@ def graph(
     )
 
 
-@get_or_add("graph")
-def buildExperimentalGraph( #TODO change the name as it should be experimental not single stupid remi
+@get_or_add("network")
+def plotExperimentalNetworks( 
     filename,
     experiment,
     correlogram_type,
@@ -85,36 +85,22 @@ def buildExperimentalGraph( #TODO change the name as it should be experimental n
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotNetworks(matricies) 
+    fig = plotExperiment(matricies, plotNetwork) 
 
     return fig
 
 
-#builds figure for subplots loops on 
-def plotNetworks(matricies):
-    #JJB might be nice to have one color bar for all figures
-    fig, axs = plt.subplots(2, 2, figsize=(22, 22))
-    axs = flatten(axs)  # Put all the axes into a list at the same level
-
-    # for matrix in matricies:
-    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate), ax in zip(
-        matricies, axs
-    ):
-        print (f" treatment {treatment} correlating {to_correlate} ")
-
-        plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax)
-
-    fig.tight_layout()
-    return fig
 
 # Define a function to determine edge color based on correlation
 def get_edge_color(correlation):
     return (1, 0, 0, 1) if correlation > 0 else (0, 0, 1, 1)  # Red for positive correlation, blue for negative
 
 
-#generates graph from matricies[0] - updates graph_stats df - plots graphs
-def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
-    
+#generates graph from matricies[0] - updates network_stats df - plots graphs
+# def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
+def plotNetwork(treatment_data, ax): ######    MATRIX
+    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_data
+
     G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
    
     ##### Draw the graph
@@ -142,11 +128,24 @@ def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_c
     
     return ax
 
+
+def buildExperimentalNetworks(matricies):
+    '''
+    input: matricies i.e. df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate for each treatment in an experiment
+    output: networks i.e. G, treatment, to_correlate for each treatment in an experiment
+    '''
+    networks=[]
+    for (df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate) in matricies:
+        G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
+        networks.append([G, treatment, to_correlate])
+    return networks
+
+
 def buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
     '''
-    input:  matricies[n]
-    --- updates graph_stats df ---
-    output:  graph G , directed or not based off length or to_correlate
+    input:  matricies[n] = df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate 
+    --- updates graph_stats df --- #TODO
+    output: network/graph for a single treatment G, directed or not based off length of to_correlate 
     '''
     if len(to_correlate)>1:
         G=nx.MultiDiGraph()

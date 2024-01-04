@@ -9,7 +9,8 @@ import warnings
 from module.constants import *
 from PIL import Image
 import re
-
+import numpy as np
+import matplotlib.pyplot as plt
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
 def saveJSON(path, dict_to_save):
     with open(path, "w", encoding="utf8") as json_file:
@@ -213,7 +214,7 @@ IDENTIFIERS = {
     "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"', 
     "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
     "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"', 
-    "graph":'f"graph_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"'
+    "network":'f"graph_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"'
 }
 
 
@@ -264,3 +265,36 @@ def listify(var):
 
 def delistify(var):
     return var[0] if isinstance(var, list) and len(var) == 1 else var
+
+
+###### Generic Plotters
+
+def plotExperiment (experiment_data, plotter_cb):
+    ''' 
+    Generic function to create subplots of correct dimentions
+    input: experimental data listed by treatment, plotter function that takes single treatment data
+    output: plotted and saved figure at experimental level
+    '''
+    # determin number of treatments to corrispond to number of subplots
+    num_treatments = len(experiment_data)
+    num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns 
+    num_rows = (num_treatments + num_cols - 1) // num_cols  # Compute the number of rows
+
+    # define the base size and a scaling factor for the figure size
+    base_size = 11
+    scale_factor = 1
+
+    # create subplots
+    fig, axs = plt.subplots(
+        num_rows, num_cols,
+        figsize=(num_cols * base_size * scale_factor, num_rows * base_size * scale_factor)
+    )
+    axs = axs.flatten()
+
+    #loop treatment data with plotter_cb
+    for trearment_data, ax in zip(
+        experiment_data, axs
+    ):
+        plotter_cb(trearment_data, ax)
+    fig.tight_layout()
+    return fig

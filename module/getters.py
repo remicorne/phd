@@ -106,8 +106,8 @@ def getQuantitativeStats(filename):
     return getOrBuildDf(filename, "quantitative_stats", buildQuantitativeStatsDf)
 
 
-def getGraphStats(filename):
-    return getOrBuildDf(filename, "graph_stats", buildNetworkStatsDf) #JJB working 
+def getNetworkStats(filename):
+    return getOrBuildDf(filename, "network_stats", buildNetworkStatsDf) #JJB working 
 
 def getHeadTwitchDf(filename):
     return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)

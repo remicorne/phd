@@ -7,7 +7,7 @@ from module.getters import (
     getTreatmentMapping,
     getCompoundAndRatiosDf,
 )
-from module.utils import askMultipleChoice, flatten, get_or_add, inputEscape
+from module.utils import askMultipleChoice, flatten, get_or_add, inputEscape, plotExperiment
 from module.statistics import CORR_STAT_METHODS, isSignificant, getPearsonR, getPearsonPValue ##FIX ME REMIs OLD REDUNDANT SYSTEM lol just without diff corr methids
 from module.constants import getCorrelogramColumns, CORRELOGRAM_TYPE_CONVERTER
 import pandas as pd
@@ -104,7 +104,7 @@ def buildExperimentalCorrelogram(
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotCorrelograms(matricies)
+    fig = plotExperiment(matricies, plotCorrelogram)
 
     return fig
 
@@ -280,43 +280,33 @@ def perform_hierarchical_clustering(correlograms):
     return hierarchical_correlograms
 
 
-########## replaced 
-def plotCorrelograms(matricies):
-    #JJB might be nice to have one color bar for all figures
-    fig, axs = plt.subplots(2, 2, figsize=(22, 22))
-    axs = flatten(axs)  # Put all the axes into a list at the same level
-    for (df_to_corr,correlogram_df, p_value_mask, treatment, to_correlate), ax in zip(
-        matricies, axs
-    ):
-        plotCorrelogram(correlogram_df, p_value_mask, treatment, to_correlate, ax)
-    fig.tight_layout()
-    return fig
+def plotCorrelogram(treatment_data, ax):
 
-def plotCorrelogram(correlogram_df, p_value_mask, treatment, to_correlate, ax):
-    
-    if np.array_equal(correlogram_df, correlogram_df.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
+    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_data
+
+    if np.array_equal(correlation_matrix, correlation_matrix.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
         title = ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set
 
-        mask = np.triu(np.ones(p_value_mask.shape, dtype=bool), k=1)
-        p_value_mask[mask] = True
+        mask = np.triu(np.ones(T_F_mask_matrix.shape, dtype=bool), k=1)
+        T_F_mask_matrix[mask] = True
         np.fill_diagonal(
-            p_value_mask.values, False
+            T_F_mask_matrix.values, False
         )  # this makes the diagonal correlations of 1 visible
     else:
         title = ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=20, y=1)  # Adjust the y position of the title manually for square correlogram
 
     heatmap = sns.heatmap(
-        correlogram_df,
+        correlation_matrix,
         vmin=-1,
         vmax=1,
         square=True,
         annot=True,
         cmap='coolwarm', #matplotlib.colormaps['coolwarm'], #  Spectral_r
-        mask=p_value_mask,
+        mask=T_F_mask_matrix,
         annot_kws={"size": 8}, #, 'fontweight':'bold'
         ax=ax,
         # fmt=".2f",
-        cbar_kws={"shrink": 0.8} #adj color bar size
+        cbar_kws={"shrink": 0.7} #adj color bar size
     )
     ax.set_xticklabels(
         ax.get_xticklabels()
