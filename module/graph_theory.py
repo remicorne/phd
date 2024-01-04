@@ -85,13 +85,13 @@ def buildExperimentalGraph( #TODO change the name as it should be experimental n
                                             from_scratch,  # Used in decorator
                                             )
 
-    fig = plotGraphs(matricies) 
+    fig = plotNetworks(matricies) 
 
     return fig
 
 
 #builds figure for subplots loops on 
-def plotGraphs(matricies):
+def plotNetworks(matricies):
     #JJB might be nice to have one color bar for all figures
     fig, axs = plt.subplots(2, 2, figsize=(22, 22))
     axs = flatten(axs)  # Put all the axes into a list at the same level
@@ -102,7 +102,7 @@ def plotGraphs(matricies):
     ):
         print (f" treatment {treatment} correlating {to_correlate} ")
 
-        plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax)
+        plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax)
 
     fig.tight_layout()
     return fig
@@ -113,9 +113,9 @@ def get_edge_color(correlation):
 
 
 #generates graph from matricies[0] - updates graph_stats df - plots graphs
-def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
+def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
     
-    G=buildGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
+    G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
    
     ##### Draw the graph
     # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
@@ -142,7 +142,7 @@ def plotGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_cor
     
     return ax
 
-def buildGraph(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
+def buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
     '''
     input:  matricies[n]
     --- updates graph_stats df ---

@@ -231,7 +231,6 @@ def buildExperimentCorrMatricies(
         methods =[get_corr, isSignificant(get_p_val, p_value_threshold)]
 
         # order columns in desired plotting order
-        columns = columns 
         pivot_columns_ordered = sorted(
             pivot_df.columns,
             key=lambda x: columns.index(x[1]) if x[1] in columns else float("inf"),

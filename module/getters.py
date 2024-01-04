@@ -107,7 +107,7 @@ def getQuantitativeStats(filename):
 
 
 def getGraphStats(filename):
-    return getOrBuildDf(filename, "graph_stats", buildGraphStatsDf) #JJB working 
+    return getOrBuildDf(filename, "graph_stats", buildNetworkStatsDf) #JJB working 
 
 def getHeadTwitchDf(filename):
     return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
@@ -311,7 +311,7 @@ def buildQuantitativeStatsDf(filename):
     )
 
 
-def buildGraphStatsDf (): #JJB working s
+def buildNetworkStatsDf (): #JJB working s
     return pd.DataFrame(
         colums=[
             "data_type",
