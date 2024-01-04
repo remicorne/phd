@@ -280,9 +280,14 @@ def perform_hierarchical_clustering(correlograms):
     return hierarchical_correlograms
 
 
-def plotCorrelogram(treatment_data, ax):
+def plotCorrelogram(treatment_matrices, ax):
+    '''
+    Correlogram plotter for single correlation matrix ~ to be fed to plotExperiment()
+    input: a single element from matricies i.e. for one treatment
+    output:  ax with graph plotted
+    '''
 
-    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_data
+    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_matrices
 
     if np.array_equal(correlation_matrix, correlation_matrix.T):  # TRIANGLE CORRELOGRAMS remove duplicate data  
         title = ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=20, y=0.9)  # Adjust the y position of the title manually #JJB set

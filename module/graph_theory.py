@@ -90,16 +90,13 @@ def plotExperimentalNetworks(
     return fig
 
 
-
-# Define a function to determine edge color based on correlation
-def get_edge_color(correlation):
-    return (1, 0, 0, 1) if correlation > 0 else (0, 0, 1, 1)  # Red for positive correlation, blue for negative
-
-
-#generates graph from matrices[0] - updates network_stats df - plots graphs
-# def plotNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate, ax):
-def plotNetwork(treatment_data, ax): ######    MATRIX
-    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_data
+def plotNetwork(treatment_matrices, ax): 
+    '''
+    Network/Graph plotter for single correlation matrix ~ to be fed to plotExperiment()
+    input: a single element from matricies i.e. for one treatment
+    output:  ax with graph plotted
+     '''
+    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_matrices
 
     G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
    
