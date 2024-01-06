@@ -96,15 +96,14 @@ def plotExperimentalNetworks(
     return fig
 
 
-def plotNetwork(treatment_matrices, ax): 
+def plotNetwork(matrix, ax): 
     '''
     Network/Graph plotter for single correlation matrix ~ to be fed to plotExperiment()
     input: a single element from matricies i.e. for one treatment
     output:  ax with graph plotted
      '''
-    df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate = treatment_matrices
 
-    G=buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate)
+    G=buildNetwork(matrix)
    
     ##### Draw the graph
     # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working 
@@ -113,7 +112,7 @@ def plotNetwork(treatment_matrices, ax):
     edge_colors = list(nx.get_edge_attributes(G, 'color').values())
 
     # Create a custom circular layout based on column order #FIXME
-    column_order = list(correlation_matrix.columns)
+    column_order = list(matrix.corr.columns)
     num_nodes = len(column_order)
     angles = np.linspace(0, 2 * np.pi, num_nodes, endpoint=False)
     pos = {col: (np.cos(angles[i]), np.sin(angles[i])) for i, col in enumerate(column_order)}
@@ -127,7 +126,7 @@ def plotNetwork(treatment_matrices, ax):
 
     # Set title for the graph
     ax.set_frame_on(False)  
-    ax.set_title(f"{'-'.join(to_correlate)} in {treatment}", fontsize=28, pad=-10, y=1)
+    ax.set_title(f"{'-'.join(matrix.variables)} in {matrix.treatment}", fontsize=28, pad=-10, y=1)
     
     return ax
 
@@ -144,39 +143,30 @@ def buildExperimentalNetworks(matrices):
     return networks
 
 
-def buildNetwork(df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate):
+def buildNetwork(matrix):
     '''
     input:  matrices[n] = df_to_corr, correlation_matrix, T_F_mask_matrix, treatment, to_correlate 
     --- updates graph_stats df --- #TODO
     output: network/graph for a single treatment G, directed or not based off length of to_correlate 
     '''
-    if len(to_correlate)>1:
+    if matrix.is_square:
+        #directed edge -  to_correlate[0] --> to_correlate[1] 
         G=nx.MultiDiGraph()
     else:
         G = nx.Graph()
     G.clear()
         
-    G.add_nodes_from(correlation_matrix.columns.tolist()) #adds every BR as a node
-    
-    # Iterate through the correlation matrix and significance matrix
-    for i, col in enumerate(correlation_matrix.columns): #to_correlate[1]
-        for j, row in enumerate(correlation_matrix.index):  #to_correlate[0] 
-            
-            correlation = correlation_matrix.iloc[j, i]  # As correlation_matrix is symmetric
-            mask = T_F_mask_matrix.iloc[j, i]
+    G.add_nodes_from(matrix.corr.columns.tolist()) #adds every BR as a node
+    row_indices, col_indices = np.where(matrix.corr != np.nan)
+    for row_i, col_i in zip(row_indices, col_indices):
+        correlation = matrix.corr.iloc[row_i, col_i]
+        row, col = matrix.corr.index[row_i], matrix.corr.columns[col_i]
+        edge_color = 'black'
+        if matrix.is_square:
+            edge_color = 'red' if correlation > 0 else 'blue'
+        # Add edge to the graph with edge weight and color
+        G.add_edge(row, col, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") 
 
-            # create edge where mask == False (significant correlations)
-            if mask == False:
-                edge_color = 'red' if correlation > 0 else 'blue'
-                # Add edge to the graph with edge weight and color
-                if len(to_correlate)>1:
-
-                    #directed edge -  to_correlate[0] --> to_correlate[1] 
-                    G.add_edge(row, col, weight=abs(correlation), color=edge_color, label=f"{correlation:.2f}") 
-                else:
-                    if i > j: #symetric graph - access lower triangle only
-                        G.add_edge(col, row, weight=abs(correlation), color=edge_color) 
-    
     return G
 
 
