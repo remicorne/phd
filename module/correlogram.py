@@ -100,7 +100,6 @@ def correlogram(
         n_minimum,
         columns,  # ordered to plot
         corr_method,  # 'pearson' 'spearman' 'kendall'
-        from_scratch,  # Used in decorator
     )
     
     fig, axs = generate_figure(matrices)
