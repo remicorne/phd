@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from module.utils import subselectDf
-from scipy.stats._warnings_errors import ConstantInputWarning
-import warnings
+from module.utils import (
+    parallel_process,
+)
 
 
 def correlate(method, pvalue_threshold):
@@ -30,14 +31,13 @@ def correlate(method, pvalue_threshold):
 
 @dataclass
 class Matrix:
-    
+
     """Creates a reusable matrix class
     selects the relevant data from the larer set
     creates a matrix with it
     eliminates date where n < n_minimum
     Args:
         data (pd.DataFrame): the original df
-        experiment (str): the experiment group
         treatment (str): the treatment group
         between (str): variables to correlate (compound or region)
         variables (str): list of variables to correlate from 'between'. If only one: self correlation
@@ -48,48 +48,61 @@ class Matrix:
         pvalue_threshold: float = 0.05
 
     Returns:
-        self.pivot: result of self.data.pivot()
-        self.corr: correlations value or 0.0 if not significant or nan if insuficient_overlapp
-        self.variables: string with the variables being correlated
-        self.missing: missing rows/columns due to lack of data or pvalue
+        filtered_data (pd.DataFrame): Data after subselection and replacing zeros with NaN.
+        pivot (pd.DataFrame): Result of the data pivot operation.
+        corr (pd.DataFrame): correlations value or 0.0 if not significant or nan if insuficient_overlapp
+        missing_values (list): List of missing values (< n_minimum).
+        missing_overlap (list): List of pairs with insufficient overlap.
 
     """
 
     data: pd.DataFrame
-    experiment: str
-    treatment: str
+    grouping: str
     between: str
-    variables: list[str]
+    var1: str
+    var2: str
     accross: str
-    n_minimum: int = 5
     columns: list[str] = None
+    n_minimum: int = 5
     method: str = "pearson"
     pvalue_threshold: float = 0.05
 
+    filtered_data: pd.DataFrame = field(init=False)
+    pivot: pd.DataFrame = field(init=False)
+    corr: pd.DataFrame = field(init=False)
+    missing_values: list = field(init=False)
+    missing_overlap: list = field(init=False)
+
     def __post_init__(self):
-        self.filtered_data = self.sub_select().replace(0, np.nan)
-        # Handle missing data (n goup < n minimum)
+        self.filter_missing_values()
+        self.pivot_data()
+        self.order_columns()
+        self.calculate_correlations()
+        self.find_missing_overlap()
+        self.process_triangle_correlogram()
+        self.replace_insignificant_correlations()
+
+    def filter_missing_values(self):
         self.missing_values = []
         missing_indices = []
-        for col, df in self.filtered_data.groupby(by=[self.between, self.accross]):
+        for col, df in self.data.groupby(by=[self.between, self.accross]):
             if df.value.notna().sum() < self.n_minimum:
                 self.missing_values.append(col)
                 missing_indices.extend(df.index)
-        self.filtered_data = self.filtered_data.drop(missing_indices)
+        self.filtered_data = self.data.drop(missing_indices)
         if self.missing_values:
-            print(f"{self.treatment} missing data for {self.missing_values}, deleted from analysis")
-        # Define variables to correlate
-        self.variables = (
-            self.variables if len(self.variables) == 2 else self.variables * 2
-        )
-        self.var1 = self.variables[0]
-        self.var2 = self.variables[1]
-        # Pivot df and order columns
+            print(
+                f"{self.grouping} missing data for {self.missing_values}, deleted from analysis"
+            )
+
+    def pivot_data(self):
         self.pivot = self.filtered_data.pivot_table(
             values="value",
             index=self.filtered_data["mouse_id"],
             columns=[self.between, self.accross],
         )
+
+    def order_columns(self):
         columns = (
             sorted(
                 self.pivot.columns,
@@ -101,25 +114,32 @@ class Matrix:
             else self.pivot.columns
         )
         self.pivot = self.pivot[columns]
-        # Calculate correlations
+
+    def calculate_correlations(self):
         method = correlate(self.method, self.pvalue_threshold)
-        self.corr = (
-            self.pivot.corr(method=method, min_periods=self.n_minimum + 1)
-            .loc[tuple(self.variables)]
-        )
-        # Delete rows where cells are nan
-        self.missing_ovelapp = [((self.var1, index), (self.var2, column)) for (index, column), is_na in self.corr.T.isna().stack().items() if is_na]
-        if self.missing_ovelapp:
-            print(f"{self.treatment} insuficient overlapp for {self.missing_ovelapp} pairs")
+        self.corr = self.pivot.corr(method=method, min_periods=self.n_minimum + 1).loc[
+            tuple([self.var1, self.var2])
+        ]
+
+    def find_missing_overlap(self):
+        self.missing_overlap = [
+            ((self.var1, index), (self.var2, column))
+            for (index, column), is_na in self.corr.T.isna().stack().items()
+            if is_na
+        ]
+        if self.missing_overlap:
+            print(
+                f"{self.treatment} insuficient overlapp for {self.missing_ovelapp} pairs"
+            )
             print("Inspect with self.corr to adjust {columns} and redo analysis")
-        # TRIANGLE CORRELOGRAMS remove duplicate data and make diagonal correlations of 1 visible
-        if not self.is_square:  
+
+    def process_triangle_correlogram(self):
+        if not self.is_square:
             mask = np.triu(np.ones(self.corr.shape, dtype=bool), k=1)
             self.corr[mask] = np.nan
-            np.fill_diagonal(
-                self.corr.values, 1
-            )
-        # Replace non-significant correlations (= 0.0) by nan
+            np.fill_diagonal(self.corr.values, 1)
+
+    def replace_insignificant_correlations(self):
         self.corr = self.corr.where(self.corr != 0, np.nan)
 
     @property
@@ -128,16 +148,76 @@ class Matrix:
 
     def get_title(self):
         if self.is_square:
-            return f"{'-'.join(self.variables)} in {self.treatment}"
-        return f"{self.var1} in {self.treatment}"
+            return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
+        return f"{self.var1} in {self.grouping}"
+
+
+@dataclass
+class Matrices:
+    data: pd.DataFrame
+    group_by: str
+    between: str
+    variables: str
+    accross: str
+    sub_selector: str = None
+    columns: list[str] = None
+    n_minimum: int = 5
+    method: str = "pearson"
+    pvalue_threshold: float = 0.05
+
+    matrices: list[Matrix] = field(init=False)
+    var1: str = field(init=False)
+    var2: str = field(init=False)
+
+    def __post_init__(self):
+        self.define_variables()
+        self.sub_select()
+        self.build_matrices()
+        self.homogenize_datasets()
+
+    def define_variables(self):
+        self.variables = (
+            self.variables if len(self.variables) == 2 else self.variables * 2
+        )
+        self.var1, self.var2 = self.variables
 
     def sub_select(self):
-        selector = {
-            "treatment": self.treatment,
-            "experiment": self.experiment,
-            self.between: self.variables,
-        }
+        self.sub_selector[self.between] = self.variables
         if self.columns:
-            selector[self.accross] = self.columns
-        return subselectDf(self.data, selector)
+            self.sub_selector[self.accross] = self.columns
+        self.data = subselectDf(self.data, self.sub_selector)
 
+    def build_matrices(self):
+        cases = [
+            (
+                group_df,
+                grouping[0],
+                self.between,
+                self.var1,
+                self.var2,
+                "compound" if self.between == "region" else "region",
+                self.columns,
+                self.n_minimum,
+                self.method,
+                self.pvalue_threshold,
+            
+            ) for grouping, group_df in self.data.groupby(by=[self.group_by], sort=False)
+        ]  # Setup multiprocessing pool
+        self.matrices = parallel_process(Matrix, cases)
+
+    def homogenize_datasets(self):
+        conserved_rows = set.intersection(
+            *(set(matrix.corr.index) for matrix in self.matrices)
+        )
+        conserved_cols = set.intersection(
+            *(set(matrix.corr.columns) for matrix in self.matrices)
+        )
+
+        for matrix in self.matrices:
+            rows_to_drop = [
+                row for row in matrix.corr.index if row not in conserved_rows
+            ]
+            cols_to_drop = [
+                col for col in matrix.corr.columns if col not in conserved_cols
+            ]
+            matrix.corr = matrix.corr.drop(index=rows_to_drop, columns=cols_to_drop)

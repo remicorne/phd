@@ -20,7 +20,7 @@ class Network:
         self.G.add_nodes_from(
             self.matrix.corr.columns.tolist()
         )  # adds every BR as a node
-        row_indices, col_indices = np.where(self.matrix.corr != np.nan)
+        row_indices, col_indices = np.where(self.matrix.corr.notna())
         for row_i, col_i in zip(row_indices, col_indices):
             correlation = self.matrix.corr.iloc[row_i, col_i]
             row, col = self.matrix.corr.index[row_i], self.matrix.corr.columns[col_i]

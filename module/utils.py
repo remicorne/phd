@@ -11,8 +11,9 @@ from PIL import Image
 import re
 import numpy as np
 import matplotlib.pyplot as plt
-from multiprocessing import Pool, Process
+from multiprocessing import Pool
 import threading
+from IPython.display import Image, display
 
 
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
@@ -240,7 +241,8 @@ def figure_cache(identifier_type):
                 plt.show()
                 save_figure(result, filepath)
             else:
-                os.system(f'open {filepath}.png')
+                
+                display(Image(filename=f'{filepath}.png'))
 
         return wrapper
 
@@ -275,7 +277,7 @@ def parallel_process(executor, cases):
         [executor(case) for case in cases]
     """
     with Pool() as pool:
-        results = pool.map(executor, cases)
+        results = pool.starmap(executor, cases)
     return results
 
 

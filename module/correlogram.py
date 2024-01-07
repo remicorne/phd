@@ -25,7 +25,7 @@ from module.constants import getCorrelogramColumns, CORRELOGRAM_TYPE_CONVERTER
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 from scipy.spatial.distance import squareform
-from module.Matrix import Matrix
+from module.Matrix import Matrices
 
 # TODO: Handle columns and more generality
 
@@ -91,16 +91,19 @@ def correlogram(
     )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate
 
-    matrices = buildExperimentCorrmatrices(
-        filename,
-        experiment,
-        correlogram_type,  # compound / ratio
-        to_correlate,  # whihc compound/s / ratio/s
-        p_value_threshold,
-        n_minimum,
-        columns,  # ordered to plot
-        corr_method,  # 'pearson' 'spearman' 'kendall'
-    )
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    matrices = Matrices(
+        data=compound_and_ratios_df,
+        group_by = 'treatment',
+        between =correlogram_type, 
+        variables = to_correlate.split('-'),
+        accross="compound" if correlogram_type == "region" else "region",
+        sub_selector ={"experiment":experiment},
+        columns=columns,  # ordered to plot
+        method=corr_method,  # 'pearson' 'spearman' 'kendall'
+        pvalue_threshold=p_value_threshold,
+        n_minimum=n_minimum,
+    ).matrices
     
     fig, axs = generate_figure(matrices)
     [plotCorrelogram(matrix, ax) for matrix, ax in zip (matrices, axs)]
@@ -178,101 +181,6 @@ def corrSelector(  # generic prompter for selecting corr matrices
         corr_method,
         from_scratch,
     )
-
-
-def build_treatment_matrix(args):
-    # Unpack arguments
-    (
-        treatment,
-        group_df,
-        experiment,
-        p_value_threshold,
-        n_minimum,
-        correlogram_type,
-        to_correlate,
-        corr_method,
-        columns,
-    ) = args
-
-    # Create matrix
-    matrix = Matrix(
-        data=group_df,
-        experiment=experiment,
-        treatment=treatment[0],
-        pvalue_threshold=p_value_threshold,
-        n_minimum=n_minimum,
-        between=correlogram_type,
-        variables=to_correlate.split("-"),
-        method=corr_method,
-        accross="compound" if correlogram_type == "region" else "region",
-        columns=columns,
-    )
-    return matrix, set(matrix.corr.index), set(matrix.corr.columns)
-
-
-# for an experiment and given set of correlations
-# we return a list of lists called matrices:
-# [[df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate],
-# [ other treatment ],
-# [ other treatment ],
-# [ other treatment ]]
-def buildExperimentCorrmatrices(
-    filename,
-    experiment,
-    correlogram_type,  # compound / ratio
-    to_correlate,  # whihc compound/s / ratio/s
-    p_value_threshold,
-    n_minimum,
-    columns,  # ordered to plot
-    corr_method,  # 'pearson' 'spearman' 'kendall'
-):
-    # get and subselect df in long format
-    compound_and_ratios_df = getCompoundAndRatiosDf(filename).sort_values("group_id")
-    experiment_df = compound_and_ratios_df[
-        compound_and_ratios_df.experiment == experiment
-    ]
-    matrices = []
-    conserved_rows = []
-    conserved_cols = []
-
-    # Prepare data for multiprocessing
-    cases = [
-        (
-            treatment,
-            group_df,
-            experiment,
-            p_value_threshold,
-            n_minimum,
-            correlogram_type,
-            to_correlate,
-            corr_method,
-            columns,
-        )
-        for treatment, group_df in experiment_df.groupby(by=["treatment"], sort=False)
-    ]
-
-    # Setup multiprocessing pool
-    results = parallel_process(build_treatment_matrix, cases)
-    # results = [build_treatment_matrix(case) for case in cases]
-    # Process results
-    matrices = []
-    for matrix, rows, cols in results:
-        conserved_rows = (
-            rows if not conserved_rows else conserved_rows.intersection(rows)
-        )
-        conserved_cols = (
-            cols if not conserved_cols else conserved_cols.intersection(cols)
-        )
-        matrices.append(matrix)
-
-    # Homogenize all datasets
-    for matrix in matrices:
-        rows_to_drop = [row for row in matrix.corr.index if row not in conserved_rows]
-        cols_to_drop = [col for col in matrix.corr.columns if col not in conserved_cols]
-        matrix.corr = matrix.corr.drop(index=rows_to_drop, columns=cols_to_drop)
-
-    return matrices
-
 
 # I would think that like build correlogram there may be build hirichal correlogram whihc would use this for now its all under construction
 def perform_hierarchical_clustering(correlograms):

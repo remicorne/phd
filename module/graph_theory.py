@@ -13,8 +13,10 @@ from module.utils import (
     generate_figure,
     parallel_process,
 )
-from module.correlogram import corrSelector, buildExperimentCorrmatrices
+from module.correlogram import corrSelector
+from module.Matrix import Matrices
 from module.Network import Network
+from module.getters import getCompoundAndRatiosDf
 
 ########## GENERATE NETWORKS
 # network for SINGLE correlation matrix (all weighted --- symetric: undirected -- unsymetric: multiedge and directed)  #DONE
@@ -65,20 +67,22 @@ def network(
         from_scratch=from_scratch,
     )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate
-
-    matrices = buildExperimentCorrmatrices(
-        filename,
-        experiment,
-        correlogram_type,  # compound / ratio
-        to_correlate,  # whihc compound/s / ratio/s
-        p_value_threshold,
-        n_minimum,
-        columns,  # ordered to plot
-        corr_method,  # 'pearson' 'spearman' 'kendall'
-    )
+    compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    matrices = Matrices(
+        data=compound_and_ratios_df,
+        group_by = 'treatment',
+        between =correlogram_type, 
+        variables = to_correlate.split('-'),
+        accross="compound" if correlogram_type == "region" else "region",
+        sub_selector ={"experiment":experiment},
+        columns=columns,  # ordered to plot
+        method=corr_method,  # 'pearson' 'spearman' 'kendall'
+        pvalue_threshold=p_value_threshold,
+        n_minimum=n_minimum,
+    ).matrices
 
     fig, axs = generate_figure(matrices)
-    networks = parallel_process(Network, matrices)
+    networks = parallel_process(Network, [(matrix,) for matrix in matrices])
     
     [
         plotNetwork(matrix, ax, network_object)
@@ -126,5 +130,5 @@ def plotNetwork(matrix, ax, network):
     # Set title for the graph
     ax.set_frame_on(False)
     ax.set_title(
-        f"{'-'.join(matrix.variables)} in {matrix.treatment}", fontsize=28, pad=-10, y=1
+        matrix.get_title(), fontsize=28, pad=-10, y=1
     )
