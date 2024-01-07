@@ -154,6 +154,28 @@ class Matrix:
 
 @dataclass
 class Matrices:
+    """
+    Creates a collection of Matrix objects from a larger dataset. This class
+    helps in processing and analyzing data by grouping, selecting relevant variables,
+    and building individual matrices for further analysis.
+
+    Attributes:
+        data (pd.DataFrame): The original dataframe containing the data.
+        group_by (str): The column name in 'data' to group by.
+        between (str): The first variable to correlate (e.g., compound or region).
+        variables (str): The specific variables to correlate from 'between'.
+        accross (str): The second variable to correlate against 'between'.
+        sub_selector (str): Additional filtering criteria for sub-selecting the data.
+        columns (list[str]): Columns to select from the 'accross' column. Defaults to None.
+        n_minimum (int): Minimum number of occurrences for a valid correlation. Defaults to 5.
+        method (str): Correlation method, one of 'pearson', 'kendall', 'spearman'. Defaults to "pearson".
+        pvalue_threshold (float): P-value threshold for significance. Defaults to 0.05.
+
+    Returns:
+        matrices (list[Matrix]): A list of Matrix objects created from the grouped data.
+        var1 (str): The first variable derived from 'variables'.
+        var2 (str): The second variable derived from 'variables'.
+    """
     data: pd.DataFrame
     group_by: str
     between: str

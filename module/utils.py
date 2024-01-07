@@ -276,9 +276,9 @@ def parallel_process(executor, cases):
     Returns:
         [executor(case) for case in cases]
     """
-    with Pool() as pool:
-        results = pool.starmap(executor, cases)
-    return results
+    # with Pool() as pool:
+    #     results = pool.starmap(executor, cases)
+    return [executor(*case) for case in cases]
 
 
 ###### Generic Plotters
