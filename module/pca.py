@@ -15,7 +15,7 @@ from module.utils import (
     askMultipleChoice,
     askSelectParameter,
     askYesorNo,
-    get_or_add,
+    figure_cache,
     subselectDf,
 )
 
@@ -49,7 +49,7 @@ def pca(
         exit_loop = askYesorNo("Exit?")
 
 
-@get_or_add("pca")
+@figure_cache("pca")
 def singlePCA(
         filename,
         experiment=None,

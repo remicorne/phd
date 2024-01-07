@@ -10,9 +10,10 @@ from module.getters import (
 from module.utils import (
     askMultipleChoice,
     flatten,
-    get_or_add,
+    figure_cache,
     inputEscape,
-    plotExperiment,
+    generate_figure,
+    parallel_process,
 )
 from module.statistics import (
     CORR_STAT_METHODS,
@@ -50,6 +51,7 @@ def getAndPlotMultipleCorrelograms(
 
 
 ##TOOD: make more interactive with loop for user to be able to calibrate correlogram as desired
+@figure_cache("correlogram")
 def correlogram(
     filename,
     experiment=None,
@@ -59,7 +61,7 @@ def correlogram(
     n_minimum=5,
     columns=None,
     from_scratch=None,
-    corr_method="pearson"  # HARD CODE FIXME
+    corr_method="pearson",  # HARD CODE FIXME    
     # hierarchical_clustering=None,
 ):
     """
@@ -89,32 +91,6 @@ def correlogram(
     )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate
 
-    buildExperimentalCorrelogram(
-        filename,
-        experiment=experiment,
-        correlogram_type=correlogram_type,
-        to_correlate=to_correlate,
-        p_value_threshold=p_value_threshold,
-        n_minimum=n_minimum,
-        columns=columns,
-        corr_method=corr_method,
-        from_scratch=from_scratch,
-        # hierarchical_clustering=hierarchical_clustering,
-    )
-
-
-@get_or_add("correlogram")
-def buildExperimentalCorrelogram(
-    filename,
-    experiment,
-    correlogram_type,
-    to_correlate,
-    p_value_threshold,
-    n_minimum,
-    columns,
-    from_scratch,  # Used in decorator
-    corr_method,
-):
     matrices = buildExperimentCorrmatrices(
         filename,
         experiment,
@@ -126,9 +102,10 @@ def buildExperimentalCorrelogram(
         corr_method,  # 'pearson' 'spearman' 'kendall'
         from_scratch,  # Used in decorator
     )
-
-    fig = plotExperiment(matrices, plotCorrelogram)
-
+    
+    fig, axs = generate_figure(matrices)
+    [plotCorrelogram(matrix, ax) for matrix, ax in zip (matrices, axs)]
+    
     return fig
 
 
@@ -204,6 +181,36 @@ def corrSelector(  # generic prompter for selecting corr matrices
     )
 
 
+def build_treatment_matrix(args):
+    # Unpack arguments
+    (
+        treatment,
+        group_df,
+        experiment,
+        p_value_threshold,
+        n_minimum,
+        correlogram_type,
+        to_correlate,
+        corr_method,
+        columns,
+    ) = args
+
+    # Create matrix
+    matrix = Matrix(
+        data=group_df,
+        experiment=experiment,
+        treatment=treatment[0],
+        pvalue_threshold=p_value_threshold,
+        n_minimum=n_minimum,
+        between=correlogram_type,
+        variables=to_correlate.split("-"),
+        method=corr_method,
+        accross="compound" if correlogram_type == "region" else "region",
+        columns=columns,
+    )
+    return matrix, set(matrix.corr.index), set(matrix.corr.columns)
+
+
 # for an experiment and given set of correlations
 # we return a list of lists called matrices:
 # [[df_to_corr , correlation_matrix , T_F_mask_matrix , treatment , to_correlate],
@@ -219,38 +226,43 @@ def buildExperimentCorrmatrices(
     n_minimum,
     columns,  # ordered to plot
     corr_method,  # 'pearson' 'spearman' 'kendall'
-    from_scratch,  # Used in decorator
 ):
     # get and subselect df in long format
     compound_and_ratios_df = getCompoundAndRatiosDf(filename).sort_values("group_id")
-    experiment_df = compound_and_ratios_df[compound_and_ratios_df.experiment == experiment]
+    experiment_df = compound_and_ratios_df[
+        compound_and_ratios_df.experiment == experiment
+    ]
     matrices = []
     conserved_rows = []
     conserved_cols = []
-    for treatment, group_df in experiment_df.groupby(
-        by=["treatment"], sort=False  # preserve order in subselection_df_ordered
-    ):
-        matrix = Matrix(
-            data=group_df,
-            experiment=experiment,
-            treatment=treatment[0],
-            pvalue_threshold=p_value_threshold,
-            n_minimum=n_minimum,
-            between=correlogram_type,
-            variables=to_correlate.split('-'),
-            method=corr_method,
-            accross="compound" if correlogram_type == "region" else "region",
-            columns=columns,
+
+    # Prepare data for multiprocessing
+    cases = [
+        (
+            treatment,
+            group_df,
+            experiment,
+            p_value_threshold,
+            n_minimum,
+            correlogram_type,
+            to_correlate,
+            corr_method,
+            columns,
         )
+        for treatment, group_df in experiment_df.groupby(by=["treatment"], sort=False)
+    ]
+
+    # Setup multiprocessing pool
+    results = parallel_process(build_treatment_matrix, cases)
+    # results = [build_treatment_matrix(case) for case in cases]
+    # Process results
+    matrices = []
+    for matrix, rows, cols in results:
         conserved_rows = (
-            set(matrix.corr.index)
-            if not conserved_rows
-            else conserved_rows.intersection(matrix.corr.index)
+            rows if not conserved_rows else conserved_rows.intersection(rows)
         )
         conserved_cols = (
-            set(matrix.corr.columns)
-            if not conserved_cols
-            else conserved_cols.intersection(matrix.corr.columns)
+            cols if not conserved_cols else conserved_cols.intersection(cols)
         )
         matrices.append(matrix)
 
@@ -259,6 +271,7 @@ def buildExperimentCorrmatrices(
         rows_to_drop = [row for row in matrix.corr.index if row not in conserved_rows]
         cols_to_drop = [col for col in matrix.corr.columns if col not in conserved_cols]
         matrix.corr = matrix.corr.drop(index=rows_to_drop, columns=cols_to_drop)
+
     return matrices
 
 

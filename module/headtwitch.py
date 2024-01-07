@@ -4,14 +4,14 @@ from module.quantitative import processQuantitativeStats
 from module.getters import getHeadTwitchDf, getExperimentalInfo, updateQuantitativeStats
 from module.histogram import buildHeadTwitchHistogramData, buildHistogram
 from module.metadata import applyTreatmentMapping
-from module.utils import get_or_add
+from module.utils import figure_cache
 import seaborn as sns
 
 
 ## TODO:REMI stats logic, outliers, prompts
 
 
-@get_or_add("head_twitch_histogram")
+@figure_cache("head_twitch_histogram")
 def headTwitchHistogram(
     HT_filename,
     experiment=None,

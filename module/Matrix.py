@@ -67,7 +67,6 @@ class Matrix:
     pvalue_threshold: float = 0.05
 
     def __post_init__(self):
-        print()
         self.filtered_data = self.sub_select().replace(0, np.nan)
         # Handle missing data (n goup < n minimum)
         self.missing_values = []
@@ -141,5 +140,4 @@ class Matrix:
         if self.columns:
             selector[self.accross] = self.columns
         return subselectDf(self.data, selector)
-
 
