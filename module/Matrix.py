@@ -1,30 +1,36 @@
 from dataclasses import dataclass, field
 import scipy
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from module.utils import subselectDf
-from module.utils import (
-    parallel_process,
-)
 
 
-def correlate(method, pvalue_threshold):
+
+def calculate_correlation(method, x, y):
+    """Calculate the correlation and p-value based on the specified method."""
+    if method == "pearson":
+        result = scipy.stats.pearsonr(x, y)
+        return result.statistic, result.pvalue
+    elif method == "spearman":
+        result = scipy.stats.spearmanr(x, y)
+        return result.correlation, result.pvalue
+    elif method == "kendall":
+        result = scipy.stats.kendalltau(x, y)
+        return result.correlation, result.pvalue
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+
+def correlate(method, return_type):
+    """Return a correlation function based on the specified method, p-value threshold, and return type."""
+
     def executor(x, y):
-        match method:
-            case "pearson":
-                result = scipy.stats.pearsonr(x, y)
-                correlation, pvalue = result.statistic, result.pvalue
-            case "spearman":
-                result = scipy.stats.spearmanr(x, y)
-                correlation, pvalue = result.correlation, result.pvalue
-            case "kendall":
-                result = scipy.stats.kendalltau(x, y)
-                correlation, pvalue = result.correlation, result.pvalue
-        if pvalue < pvalue_threshold:  # Return correlation score if significant
+        correlation, pvalue = calculate_correlation(method, x, y)
+        if return_type == "pvalues":
+            return pvalue
+        elif return_type == "correlations":
             return correlation
-        else:  # Return 0 otherwiss, this is done to avoid having to generate a mask which takes time
-            return 0
+        else:
+            raise ValueError(f"Unknown return type: {return_type}")
 
     return executor
 
@@ -69,7 +75,9 @@ class Matrix:
 
     filtered_data: pd.DataFrame = field(init=False)
     pivot: pd.DataFrame = field(init=False)
-    corr: pd.DataFrame = field(init=False)
+    corr_masked: pd.DataFrame = field(init=False)
+    correlations: pd.DataFrame = field(init=False)
+    pvalues: pd.DataFrame = field(init=False)
     missing_values: list = field(init=False)
     missing_overlap: list = field(init=False)
 
@@ -77,10 +85,9 @@ class Matrix:
         self.filter_missing_values()
         self.pivot_data()
         self.order_columns()
-        self.calculate_correlations()
+        self.correlate()
         self.find_missing_overlap()
         self.process_triangle_correlogram()
-        self.replace_insignificant_correlations()
 
     def filter_missing_values(self):
         self.missing_values = []
@@ -114,17 +121,23 @@ class Matrix:
             else self.pivot.columns
         )
         self.pivot = self.pivot[columns]
+        
+    def correlate(self):
+        self.pvalues = self.create_corr_matrix('pvalues')
+        self.correlations = self.create_corr_matrix('correlations')
+        self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
+        
 
-    def calculate_correlations(self):
-        method = correlate(self.method, self.pvalue_threshold)
-        self.corr = self.pivot.corr(method=method, min_periods=self.n_minimum + 1).loc[
+    def create_corr_matrix(self, result_type):
+        method = correlate(self.method, result_type)
+        return self.pivot.corr(method=method, min_periods=self.n_minimum + 1).loc[
             tuple([self.var1, self.var2])
         ]
 
     def find_missing_overlap(self):
         self.missing_overlap = [
             ((self.var1, index), (self.var2, column))
-            for (index, column), is_na in self.corr.T.isna().stack().items()
+            for (index, column), is_na in self.correlations.T.isna().stack().items()
             if is_na
         ]
         if self.missing_overlap:
@@ -135,12 +148,9 @@ class Matrix:
 
     def process_triangle_correlogram(self):
         if not self.is_square:
-            mask = np.triu(np.ones(self.corr.shape, dtype=bool), k=1)
-            self.corr[mask] = np.nan
-            np.fill_diagonal(self.corr.values, 1)
-
-    def replace_insignificant_correlations(self):
-        self.corr = self.corr.where(self.corr != 0, np.nan)
+            mask = np.triu(np.ones(self.corr_masked.shape, dtype=bool), k=1)
+            self.corr_masked[mask] = np.nan
+            np.fill_diagonal(self.corr_masked.values, 1)
 
     @property
     def is_square(self):
@@ -149,9 +159,9 @@ class Matrix:
     def get_title(self):
         if self.is_square:
             return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
-        return f"{self.var1} in {self.grouping}"
-
-
+        return f"{self.var1} in {self.grouping}"    
+    
+    
 @dataclass
 class Matrices:
     """
