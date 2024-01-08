@@ -1,5 +1,6 @@
 '''
 Project level file to be filled and ran to generate required dictionaries
+The file must be verified to have consistent acronim use for compounds and regions
 
 PROJECT : TCB-2
 
@@ -10,7 +11,10 @@ from module.utils import checkFileSystem, saveJSON
 filename = "TCB2_data_HPLC.csv" #file name of the excel file saved as csv
 # columns : 'mouse_id'  'group_id'  'compound_regions'   ...
 
+
+
 ########## Project Prams ##########
+
 treatment_mapping = (
     {  # TO DO : change name to treatment_info and add columns in df REMI
         1: {"treatment": "vehicles",
@@ -57,33 +61,72 @@ experimental_info = {
 }
 
 
-########## SUBCLASIFICATIONS ##########
-
-region_subclassification = {
-    'cortex': {'regions': ['OF', 'PL', 'CC', 'IC', 'M', 'SL1', 'SR1', 'AC', 'V'], 'color': 'mediumblue'}, #SR6, SL6 ?
-    'subcortical_telencephalon': {'regions': ['Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL'], 'color': 'orange'},
-    'diencephalon': {'regions': ['MD', 'VPL', 'VPR', 'DG', 'Y'], 'color': 'darkorchid'},
-    'mesencephalon': {'regions': ['SC', 'SN', 'VTA', 'DR', 'MR'], 'color': 'forestgreen'},
-    'cerebellum': {'regions': ['CE'], 'color': 'peru'}
-}
-
-compound_subclassification = {
-    'monoamines':['LDOPA', 'NA', 'A', '5HTP', 'DOPAC', 'DA', '5HIAA', 'HVA', '5HT', 'VMA', '3MT'],
-    'amino_acids':['ASP', 'GLU', 'ASPN', 'HIS', 'LSER', 'GLN', 'ARG', 'GLY', 'THR', 'TAU', 'ALA', 'TYR', 'GABA'],
-    'neurotransmitters':['DA','NA','5HT','GLU','GABA','ASP','GLY']
-}
-
 ########## KEYS ##########
 
-compounds = {}
-regions = {}
+compounds = {
+    'LDOPA': 'L-3,4-dihydroxyphenylalanine',
+    'NA': 'Noradrenaline',
+    'A': 'Adrenaline',
+    '5HTP': '5-Hydroxytryptophan',
+    'DOPAC': '3,4-Dihydroxyphenylacetic acid',
+    'DA': 'Dopamine',
+    '5HIAA': '5-Hydroxyindoleacetic acid',
+    'HVA': 'Homovanillic acid',
+    '5HT': 'Serotonin',
+    'VMA': 'Vanillylmandelic acid',
+    '3MT': '3-Methoxytyramine',
+    'ASP': 'Aspartate',
+    'GLU': 'Glutamate',
+    'ASPN': 'Asparagine',
+    'HIS': 'Histidine',
+    'LSER': 'L-Serine',
+    'GLN': 'Glutamine',
+    'ARG': 'Arginine',
+    'GLY': 'Glycine',
+    'THR': 'Threonine',
+    'TAU': 'Taurine',
+    'ALA': 'Alanine',
+    'TYR': 'Tyrosine',
+    'GABA': 'Gamma-Aminobutyric acid'
+}
+regions = {
+  "OF": "Orbital Frontal Cortex",
+    "PL": "Prelimbic Cortex",
+    "CC": "Cingulate Cortex",
+    "IC": "Insular Cortex",
+    "M": "Motor Cortex",
+    "SJ": "Primary Somatosensory Cortex",
+    "SL1": "Left Somatosensory Cortex Layer 1",
+    "SL6": "Left Somatosensory Cortex Layer 6",
+    "SR6": "Right Somatosensory Cortex Layer 6",
+    "SR1": "Right Somatosensory Cortex Layer 1",
+    "AC": "Auditory Cortex",
+    "V": "Visual Cortex",
+    "Am": "Amygdala",
+    "dH": "Dorsal Hippocampus",
+    "vH": "Ventral Hippocampus",
+    "NAc": "Nucleus Accumbens",
+    "VM": "Ventromedial Thalamus",
+    "DM": "Dorsomedial Thalamus",
+    "VL": "Ventrolateral Thalamus",
+    "DL": "Dorsolateral Thalamus",
+    "MD": "Medio Dorsal Thalamus",
+    "VPL": "Left Ventral Posterior Medial Thalamus",
+    "VPR": "Right Ventral Posterior Medial Thalamus",
+    "DG": "Lateral Geniculate Nucleus",
+    "Y": "Lateral Hypothalamus",
+    "SC": "Superior Colliculus",
+    "SN": "Substantia Nigra",
+    "VTA": "Ventral Tegmental Area",
+    "DR": "Dorsal Raphe Nucleus",
+    "MR": "Medial Raphe Nucleus",
+    "CE": "Cerebellum"
+}
 
 ########## SAVE ##########
 project_dict = {
     'treatment_mapping': treatment_mapping,
     'experimental_info': experimental_info,
-    'region_subclassification': region_subclassification,
-    'compound_subclassification': compound_subclassification,
     'compounds': compounds,
     'regions': regions
 }
