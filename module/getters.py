@@ -124,7 +124,7 @@ def updateQuantitativeStats(filename, rows):
         if unique_row.any():
             quantitative_stats_df.loc[unique_row, ["is_significant", "p_value", "result"]] = data_row[["is_significant", "p_value", "result"]]
         else:
-            quantitative_stats_df = pd.concat([quantitative_stats_df, data_row],  ignore_index=True)
+            quantitative_stats_df = pd.concat([quantitative_stats_df, data_row])
     cache(filename, "quantitative_stats", quantitative_stats_df)
     print("QUANTITATIVE STATS UPDATED")
 
