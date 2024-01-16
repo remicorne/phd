@@ -154,7 +154,7 @@ class Matrix:
 
     @property
     def is_square(self):
-        return len(self.var1) != len(self.var2)
+        return self.var1 != self.var2
 
     def get_title(self):
         if self.is_square:
