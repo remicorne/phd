@@ -241,7 +241,7 @@ def plotCorrelogram(matrix, ax):
     )  # Adjust the y position of the title manually for square correlogram
 
     sns.heatmap(
-        matrix.corr,
+        matrix.corr_masked,
         vmin=-1,
         vmax=1,
         square=True,

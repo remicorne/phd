@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import scipy
 import pandas as pd
 import numpy as np
-
+from module.utils import parallel_process, subselectDf
 
 
 def calculate_correlation(method, x, y):
@@ -142,7 +142,7 @@ class Matrix:
         ]
         if self.missing_overlap:
             print(
-                f"{self.treatment} insuficient overlapp for {self.missing_ovelapp} pairs"
+                f"{self.grouping} insuficient overlapp for {self.missing_overlap} pairs"
             )
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
@@ -239,17 +239,17 @@ class Matrices:
 
     def homogenize_datasets(self):
         conserved_rows = set.intersection(
-            *(set(matrix.corr.index) for matrix in self.matrices)
+            *(set(matrix.corr_masked.index) for matrix in self.matrices)
         )
         conserved_cols = set.intersection(
-            *(set(matrix.corr.columns) for matrix in self.matrices)
+            *(set(matrix.corr_masked.columns) for matrix in self.matrices)
         )
 
         for matrix in self.matrices:
             rows_to_drop = [
-                row for row in matrix.corr.index if row not in conserved_rows
+                row for row in matrix.corr_masked.index if row not in conserved_rows
             ]
             cols_to_drop = [
-                col for col in matrix.corr.columns if col not in conserved_cols
+                col for col in matrix.corr_masked.columns if col not in conserved_cols
             ]
-            matrix.corr = matrix.corr.drop(index=rows_to_drop, columns=cols_to_drop)
+            matrix.corr_masked = matrix.corr_masked.drop(index=rows_to_drop, columns=cols_to_drop)

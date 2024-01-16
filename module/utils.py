@@ -307,8 +307,7 @@ def generate_figure(experiment_data):
             num_rows * base_size * scale_factor,
         ),
     )
-    axs = axs.flatten()
     fig.tight_layout()
     
-    return fig, axs
+    return fig, axs.flatten()
 
