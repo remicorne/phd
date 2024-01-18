@@ -120,7 +120,13 @@ def plotNetwork(treatment_matrices, ax):
 
     # Draw nodes and edges
     nx.draw_networkx_nodes(G, pos, node_size=1100, alpha=0.95, node_color='white', edgecolors='black', ax=ax)
-    nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100, arrowstyle='->', arrowsize=20)
+    if isinstance(G, nx.DiGraph) or isinstance(G, nx.MultiDiGraph):
+        #directed graphs
+        nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100, arrowstyle='->', arrowsize=20)
+    else:
+        #undirected graphs 
+        nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, edge_color=edge_colors, ax=ax, node_size=1100)
+
     # Add labels to nodes
     node_labels = {node: node for node in G.nodes()}  # Label nodes with their names
     nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, ax=ax)
