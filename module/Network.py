@@ -24,9 +24,7 @@ class Network:
         for row_i, col_i in zip(row_indices, col_indices):
             correlation = self.matrix.corr_masked.iloc[row_i, col_i]
             row, col = self.matrix.corr_masked.index[row_i], self.matrix.corr_masked.columns[col_i]
-            edge_color = "black"
-            if self.matrix.is_square:
-                edge_color = "red" if correlation > 0 else "blue"
+            edge_color = "red" if correlation > 0 else "blue"
             # Add edge to the graph with edge weight and color
             self.G.add_edge(
                 row,
