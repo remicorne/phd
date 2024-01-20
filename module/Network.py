@@ -10,11 +10,8 @@ class Network:
 
     def __post_init__(self):
         
-        if self.matrix.is_square:
-            # directed edge -  to_correlate[0] --> to_correlate[1]
-            self.G = nx.MultiDiGraph()
-        else:
-            self.G = nx.Graph()
+        self.G = nx.MultiDiGraph() if self.matrix.is_square else nx.Graph()
+        # directed edge -  to_correlate[0] --> to_correlate[1]
         self.G.clear()
 
         self.G.add_nodes_from(
