@@ -80,9 +80,9 @@ class Network:
         nx.draw_networkx_labels(
             self.G, self.pos, labels=node_labels, font_size=18, ax=ax
         )    
-        nx.draw_networkx_edge_labels(
-            self.G, self.pos, edge_labels=self.edge_labels, font_size=18, ax=ax
-        )
+        # nx.draw_networkx_edge_labels(
+        #     self.G, self.pos, edge_labels=self.edge_labels, font_size=18, ax=ax
+        # )
 
         # Set title for the graph
         ax.set_frame_on(False)
