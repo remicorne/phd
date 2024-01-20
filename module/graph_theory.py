@@ -85,8 +85,8 @@ def network(
     networks = parallel_process(Network, [(matrix,) for matrix in matrices])
     
     [
-        plotNetwork(matrix, ax, network_object)
-        for matrix, ax, network_object in zip(matrices, axs, networks)
+        network_object.plot_ax(ax)
+        for ax, network_object in zip(axs, networks)
     ]
 
     return fig
@@ -94,41 +94,3 @@ def network(
 
 # PLOTTER FUNCTIONS
     
-
-def plotNetwork(matrix, ax, network):
-    """
-    Network/Graph plotter for single correlation matrix ~ to be fed to plotExperiment()
-    input: a single element from matricies i.e. for one treatment
-    output:  ax with graph plotted
-    """
-
-    # Draw nodes and edges
-    nx.draw_networkx_nodes(
-        network.G,
-        network.pos,
-        node_size=1100,
-        alpha=0.95,
-        node_color="white",
-        edgecolors="black",
-        ax=ax,
-    )
-    nx.draw_networkx_edges(
-        network.G,
-        network.pos,
-        edgelist=network.edges,
-        width=network.weights,
-        edge_color=network.edge_colors,
-        ax=ax,
-        node_size=1100,
-        arrowstyle="->",
-        arrowsize=20,
-    )
-    # Add labels to nodes
-    node_labels = {node: node for node in network.G.nodes()}  # Label nodes with their names
-    nx.draw_networkx_labels(network.G, network.pos, labels=node_labels, font_size=18, ax=ax)
-
-    # Set title for the graph
-    ax.set_frame_on(False)
-    ax.set_title(
-        matrix.get_title(), fontsize=28, pad=-10, y=1
-    )
