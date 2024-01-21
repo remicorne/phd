@@ -90,7 +90,3 @@ def network(
     ]
 
     return fig
-
-
-# PLOTTER FUNCTIONS
-    

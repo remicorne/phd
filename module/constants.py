@@ -55,3 +55,56 @@ def getCorrelogramColumns(correlogram_type):
     Get the default correlogram colums to display based on correlogram_type in ['region', 'compound']
     """
     return COLUMN_ORDER[CORRELOGRAM_TYPE_CONVERTER[correlogram_type]]
+
+
+########## SUBCLASIFICATIONS ########## 
+
+#TODO this needs to be saved and also applied but will work only after 
+#the naming of regions and compounds has been set to something consistent and a verification function has been made
+
+region_subclassification = {
+    'cortex': {'regions': ['OF', 'PL', 'CC', 'IC', 'M', 'SL1', 'SR1', 'AC', 'V'], 'color': 'mediumblue'}, #SR6, SL6 ?
+    'subcortical_telencephalon': {'regions': ['Am', 'dH', 'vH', 'NAc', 'VM', 'DM', 'VL', 'DL'], 'color': 'orange'},
+    'diencephalon': {'regions': ['MD', 'VPL', 'VPR', 'DG', 'Y'], 'color': 'darkorchid'},
+    'mesencephalon': {'regions': ['SC', 'SN', 'VTA', 'DR', 'MR'], 'color': 'forestgreen'},
+    'cerebellum': {'regions': ['CE'], 'color': 'peru'}
+}
+
+compound_subclassification = {
+    'monoamines':['LDOPA', 'NA', 'A', '5HTP', 'DOPAC', 'DA', '5HIAA', 'HVA', '5HT', 'VMA', '3MT'],
+    'amino_acids':['ASP', 'GLU', 'ASPN', 'HIS', 'LSER', 'GLN', 'ARG', 'GLY', 'THR', 'TAU', 'ALA', 'TYR', 'GABA'],
+    'neurotransmitters':['DA','NA','5HT','GLU','GABA','ASP','GLY']
+}
+
+region_circuitry = {
+    'reward_system':['PL', 'NAc', 'Am', 'VTA']
+}
+
+########## STANDARD KEYS ##########
+compounds = {
+    'LDOPA': 'L-3,4-dihydroxyphenylalanine',
+    'NA': 'Noradrenaline',
+    'A': 'Adrenaline',
+    '5HTP': '5-Hydroxytryptophan',
+    'DOPAC': '3,4-Dihydroxyphenylacetic acid',
+    'DA': 'Dopamine',
+    '5HIAA': '5-Hydroxyindoleacetic acid',
+    'HVA': 'Homovanillic acid',
+    '5HT': 'Serotonin',
+    'VMA': 'Vanillylmandelic acid',
+    '3MT': '3-Methoxytyramine',
+    'ASP': 'Aspartate',
+    'GLU': 'Glutamate',
+    'ASPN': 'Asparagine',
+    'HIS': 'Histidine',
+    'LSER': 'L-Serine',
+    'GLN': 'Glutamine',
+    'ARG': 'Arginine',
+    'GLY': 'Glycine',
+    'THR': 'Threonine',
+    'TAU': 'Taurine',
+    'ALA': 'Alanine',
+    'TYR': 'Tyrosine',
+    'GABA': 'Gamma-Aminobutyric acid'
+}
+
