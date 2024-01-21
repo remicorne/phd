@@ -11,6 +11,11 @@ from PIL import Image
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+from multiprocessing import Pool
+import threading
+from IPython.display import Image, display
+
+
 # This function saves dictionnaries, JSON is a dictionnary text format that you use to not have to reintroduce dictionnaries as variables
 def saveJSON(path, dict_to_save):
     with open(path, "w", encoding="utf8") as json_file:
@@ -75,23 +80,14 @@ def isCached(filename, identifier):
     return os.path.isfile(f"{CACHE_DIR}/{filename}/{identifier}.pkl")
 
 
-def saveFigure(fig, identifier, fig_type):
-    output_subdir = f"{OUTPUT_DIR}/{fig_type}"
-    checkFileSystem(output_subdir)
-    fig.savefig(f"{output_subdir}/{identifier}.svg")  # dpi also?
-    print(f"SAVED {output_subdir}/{identifier}.svg")
-    # https://stackoverflow.com/questions/7906365/matplotlib-savefig-plots-different-from-show
-    fig.savefig(f"{output_subdir}/{identifier}.png", dpi=fig.dpi)
-    # Image.open(f"{output_subdir}/{identifier}.png").show()
-    print(f"SAVED {output_subdir}/{identifier}.png")
+def save_figure(fig, filepath):
+    def target():
+        fig.savefig(f"{filepath}.svg")  # dpi also?
+        fig.savefig(f"{filepath}.png", dpi=fig.dpi)
+        print(f"SAVED {filepath}.svg")
+        print(f"SAVED {filepath}.png")
+    threading.Thread(target=target).start()
 
-#REMI this is all redundant if i understand @get_or_add ?
-# def saveCorrelogram(fig, identifier):
-#     saveFigure(fig, identifier, "correlograms")
-# def saveHistogram(fig, identifier):
-#     saveFigure(fig, identifier, "histograms")
-# def saveQuantitativeSummaryFig(fig, identifier):
-#     saveFigure(fig, identifier, "quantitative_summary")
 
 
 def dictToFilename(dict_to_stringify):
@@ -142,7 +138,11 @@ def askMultipleChoice(question, choices):
 def askSelectParameter(data, column):
     options = set(data[column])
     print(options)
-    answers = inputEscape(f"""Select {column}?\n{', '.join(options)}\n""").replace(' ', '').split(',')
+    answers = (
+        inputEscape(f"""Select {column}?\n{', '.join(options)}\n""")
+        .replace(" ", "")
+        .split(",")
+    )
     for i, answer in enumerate(answers):
         while answer not in options:
             answer = inputEscape(
@@ -158,6 +158,7 @@ def askYesorNo(question):
         answer = inputEscape(f"""Invalid choice, possibilities are: (y/n)\n""").upper()
     return answer == "Y"
 
+
 def maskDf(df, mask_conditions):
     complex_filter = True
     for column, value in mask_conditions.items():
@@ -168,10 +169,9 @@ def maskDf(df, mask_conditions):
         complex_filter &= atomic_filter
     return complex_filter
 
+
 def subselectDf(df, subselection):
-    df = df[
-        maskDf(df, subselection)
-    ]
+    df = df[maskDf(df, subselection)]
     return df
 
 
@@ -211,10 +211,10 @@ IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
     "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
-    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"', 
+    "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"',
     "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
-    "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"', 
-    "network":'f"graph_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"'
+    "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"',
+    "network": 'f"graph_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
 }
 
 
@@ -224,11 +224,12 @@ def buildIdentifier(identifier_type, **kwargs):
 
 
 # TODO there should be seperate get and add decorators
-def get_or_add(identifier_type):
+def figure_cache(identifier_type):
     def decorator(builder_func):
         def wrapper(*args, **kwargs):
             identifier = buildIdentifier(identifier_type, **kwargs)
             identifier = checkIdentifier(identifier)
+            filepath = f"{OUTPUT_DIR}/{identifier}"
             from_scratch = (
                 kwargs.get("from_scratch")
                 if kwargs.get("from_scratch") is not None
@@ -237,15 +238,11 @@ def get_or_add(identifier_type):
             filename = args[0]
             if from_scratch or not isCached(filename, identifier):
                 result = builder_func(*args, **kwargs)
-                try:
-                    cache(args[0], identifier, result)
-                except:
-                    # AttributeError: Can't pickle local object 'draw_networkx_edges.<locals>._draw_networkx_edges_fancy_arrow_patch.<locals>._connectionstyle'
-                    print(f"failed to cache {identifier_type} for {kwargs['to_correlate']}") 
-
-                saveFigure(result, identifier, identifier_type)
+                plt.show()
+                save_figure(result, filepath)
             else:
-                result = getCache(filename, identifier)
+                
+                display(Image(filename=f'{filepath}.png'))
 
         return wrapper
 
@@ -260,25 +257,41 @@ def checkIdentifier(identifier):
         print("Invalid characters in identifier, replacing with '_' ")
     return sanitized_identifier
 
+
 def listify(var):
     return var if isinstance(var, list) else [var]
+
 
 def delistify(var):
     return var[0] if isinstance(var, list) and len(var) == 1 else var
 
 
-###### Generic Plotters
+def parallel_process(executor, cases):
+    """Executes the operations performed by {executor} once per case in cases in parralel
 
-def plotExperiment (experiment_data, plotter_cb, optional_experimental_info=None):
-    ''' 
+    Args:
+        executor (function): functio
+        cases (list(args)): different arguments to be used by executor
+
+    Returns:
+        [executor(case) for case in cases]
+    """
+    # with Pool() as pool:
+    #     results = pool.starmap(executor, cases)
+    return [executor(*case) for case in cases]
+
+
+###### Generic Plotters
+def generate_figure(experiment_data):
+    """
     Generic function to create subplots of correct dimentions
     input: experimental data listed by treatment, plotter function that takes single treatment data
     ~optional_experimental_info may be passed such that the plotter_cb may scal axis the same for instance
     output: plotted and saved figure at experimental level
-    '''
+    """
     # determin number of treatments to corrispond to number of subplots
     num_treatments = len(experiment_data)
-    num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns 
+    num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns
     num_rows = (num_treatments + num_cols - 1) // num_cols  # Compute the number of rows
 
     # define the base size and a scaling factor for the figure size
@@ -287,19 +300,14 @@ def plotExperiment (experiment_data, plotter_cb, optional_experimental_info=None
 
     # create subplots
     fig, axs = plt.subplots(
-        num_rows, num_cols,
-        figsize=(num_cols * base_size * scale_factor, num_rows * base_size * scale_factor)
+        num_rows,
+        num_cols,
+        figsize=(
+            num_cols * base_size * scale_factor,
+            num_rows * base_size * scale_factor,
+        ),
     )
-    axs = axs.flatten()
-
-    #loop treatment data with plotter_cb
-    for trearment_data, ax in zip(
-        experiment_data, axs
-    ):
-        if optional_experimental_info:
-            plotter_cb(trearment_data, ax, optional_experimental_info)
-        else:
-            plotter_cb(trearment_data, ax)
-
     fig.tight_layout()
-    return fig
+    
+    return fig, axs.flatten()
+

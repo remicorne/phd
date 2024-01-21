@@ -23,7 +23,7 @@ from module.utils import (
     askMultipleChoice,
     askSelectParameter,
     askYesorNo,
-    get_or_add,
+    figure_cache,
     select_params,
     listify,
 )
@@ -139,7 +139,7 @@ def quantitativeHistogram(
 
 
 # We use keyword params here even though they actually are mandatory for the decorator
-@get_or_add("histogram")
+@figure_cache("histogram")
 def singleQuantitativeHistogram(
     filename,
     experiment=None,
@@ -313,7 +313,7 @@ def quantitativeSummary(
     )
 
 
-@get_or_add("quantitative_summary")
+@figure_cache("quantitative_summary")
 def buildSingleQuantitativeSummary(
     filename,
     experiment=None,
@@ -384,7 +384,7 @@ def buildSingleQuantitativeSummary(
     return fig
 
 
-@get_or_add(
+@figure_cache(
     "percentage_vehicles"
 )  # REMI this should probebly be singlePercentageVehiclesFig
 def percentageVehiclesFig(
