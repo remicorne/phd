@@ -213,7 +213,7 @@ class Matrices:
         group_by (str): The column name in 'data' to group by.
         between (str): The first variable to correlate (e.g., compound or region).
         variables (str): The specific variables to correlate from 'between'.
-        accross (str): The second variable to correlate against 'between'.
+                accross (str): The second variable to correlate against 'between'.      
         sub_selector (str): Additional filtering criteria for sub-selecting the data.
         columns (list[str]): Columns to select from the 'accross' column. Defaults to None.
         n_minimum (int): Minimum number of occurrences for a valid correlation. Defaults to 5.

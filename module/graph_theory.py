@@ -44,7 +44,16 @@ def networkDegreeDistribution(filename,
     from_scratch=True,
     corr_method='pearson',
 ):
-
+    '''
+    This is a function to balled by the user that will plot the degree distribution hostogram for each experimental condition in a figure. 
+    inputs: 
+        filename (str):
+        experiment (str):
+        correlogram_type / between (str): The first variable to correlate (e.g., compound or region).
+        to_correlate / variables (str): The specific variables to correlate from 'between'.
+    returns: 
+        fig
+    '''
     #oop method replacing buildExperimentCorrmatrices
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
 
@@ -145,6 +154,14 @@ def network(
 ########## network plotters 
 
 def plotDegreeDistribution(network, ax):
+    '''
+    Plots histogram of node degrees from graph with a standard distribution over it.
+    input:
+        network object
+        ax to plot
+    returns:
+        ax to plot
+    '''
     G = network.G  # Access the graph from the Network object
     degree_sequence = [d for n, d in G.degree()]
     mean_degree = np.mean(degree_sequence)
@@ -163,6 +180,8 @@ def plotDegreeDistribution(network, ax):
     ax.set_ylabel("Frequency (n nodes)", fontsize=22)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.legend()
+    ax.legend(fontsize = 20)
+    ax.tick_params(axis='x', labelsize=20)  # Adjust x-axis tick label size
+    ax.tick_params(axis='y', labelsize=20) 
 
-    return
+    return ax
