@@ -38,27 +38,27 @@ def correlate(method, return_type):
 @dataclass
 class Matrix:
 
-    """Creates a reusable matrix class
-    selects the relevant data from the larer set
-    creates a matrix with it
-    eliminates date where n < n_minimum
+    """
+    Creates a reusable matrix class for a given eperimnet. 
     Args:
-        data (pd.DataFrame): the original df
-        treatment (str): the treatment group
-        between (str): variables to correlate (compound or region)
-        variables (str): list of variables to correlate from 'between'. If only one: self correlation
-        accross (str): the column that will constitute the rows/cols of the matrix
-        n_minimum (int): minumum occurnces of overlapping var1 and var2. Default to 5
-        columns (list[str]): List to select from the 'across' column. Defaults to None
-        method (str): one of 'pearson', 'kendall', 'spearman'. Defaults to "pearson"
-        pvalue_threshold: float = 0.05
+        data (pd.DataFrame):    The original dataset.
+        treatment (str):        Identifier for the treatment group.
+        between (str):          Variable type for correlation (e.g., 'compound' or 'region').
+        variables (str):         'var1-var2' to correlate from type 'between'. If only one: self correlation.
+        accross (str): The column that will constitute the rows/cols of the matrix.
+        columns (list[str]): Columns to include in the analysis. If None, all columns are included.
+        n_minimum (int): Minumum occurnces of overlapping var1 and var2. Default = 5.
+        method (str): Correlation method ('pearson', 'spearman', 'kendall'). Default = "pearson".
+        pvalue_threshold (float): Threshold for significance in correlation. Defult = 0.05
 
     Returns:
-        filtered_data (pd.DataFrame): Data after subselection and replacing zeros with NaN.
-        pivot (pd.DataFrame): Result of the data pivot operation.
-        corr (pd.DataFrame): correlations value or 0.0 if not significant or nan if insuficient_overlapp
-        missing_values (list): List of missing values (< n_minimum).
-        missing_overlap (list): List of pairs with insufficient overlap.
+        filtered_data (pd.DataFrame): Subselected data filtered based on n_minimum between vairables.
+        pivot (pd.DataFrame): Pivot table of the filtered data.
+        corr_masked (pd.DataFrame): Masked correlation matrix based on p-value threshold.
+        correlations (pd.DataFrame): Full correlation matrix.
+        pvalues (pd.DataFrame): Matrix of p-values for the correlations.
+        missing_values (list): List of variables with missing data (< n_minimum).
+        missing_overlap (list): List of variable pairs with insufficient data overlap.
 
     """
 
@@ -90,6 +90,9 @@ class Matrix:
         self.process_triangle_correlogram()
 
     def filter_missing_values(self):
+        """
+        Filters out variables with occurrences less than n_minimum and updates missing_values list.
+        """
         self.missing_values = []
         missing_indices = []
         for col, df in self.data.groupby(by=[self.between, self.accross]):
@@ -103,6 +106,9 @@ class Matrix:
             )
 
     def pivot_data(self):
+        """
+        Creates a pivot table from the filtered data.
+        """
         self.pivot = self.filtered_data.pivot_table(
             values="value",
             index=self.filtered_data["mouse_id"],
@@ -110,6 +116,9 @@ class Matrix:
         )
 
     def order_columns(self):
+        """
+        Orders the columns of the pivot table based on the provided column list.
+        """
         columns = (
             sorted(
                 self.pivot.columns,
@@ -123,18 +132,33 @@ class Matrix:
         self.pivot = self.pivot[columns]
         
     def correlate(self):
+        """
+        Calculates and stores correlation and p-value matrices.
+        """
         self.pvalues = self.create_corr_matrix('pvalues')
         self.correlations = self.create_corr_matrix('correlations')
         self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
         
 
     def create_corr_matrix(self, result_type):
+        """
+        Creates a correlation matrix for either correlation values or p-values.
+
+        Args:
+            result_type (str): Type of result to return ('pvalues' or 'correlations').
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the requested correlation matrix.
+        """
         method = correlate(self.method, result_type)
         return self.pivot.corr(method=method, min_periods=self.n_minimum + 1).loc[
             tuple([self.var1, self.var2])
         ]
 
     def find_missing_overlap(self):
+        """
+        Identifies and reports variable pairs with insufficient data overlap.
+        """
         self.missing_overlap = [
             ((self.var1, index), (self.var2, column))
             for (index, column), is_na in self.correlations.T.isna().stack().items()
@@ -147,6 +171,9 @@ class Matrix:
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
     def process_triangle_correlogram(self):
+        """
+        Masks the upper triangle of the correlogram if the matrix is not square.
+        """
         if not self.is_square:
             mask = np.triu(np.ones(self.corr_masked.shape, dtype=bool), k=1)
             self.corr_masked[mask] = np.nan
@@ -154,9 +181,21 @@ class Matrix:
 
     @property
     def is_square(self):
+        """
+        Checks if the matrix is square (var1 and var2 are different).
+
+        Returns:
+            bool: True if the matrix is square, False otherwise.
+        """
         return self.var1 != self.var2
 
     def get_title(self):
+        """
+        Generates a title for the correlogram based on the matrix configuration.
+
+        Returns:
+            str: A title string.
+        """
         if self.is_square:
             return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
         return f"{self.var1} in {self.grouping}"    
