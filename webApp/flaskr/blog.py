@@ -18,6 +18,11 @@ from module.quantitative import (
     justStats
 )
 
+from module.utils import subselectDf
+
+from module.getters import (
+    getQuantitativeStats,
+)
 
 
 ALLOWED_EXTENSIONS = {'csv', 'json'}
@@ -58,8 +63,7 @@ def upload_file():
 
     data_canada = px.data.gapminder().query("country == 'Canada'")
     fig = px.bar(data_canada, x='year', y='pop')
-
-
+    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
     justStats(filename, 
             experiments=['dose_response'], 
@@ -71,12 +75,22 @@ def upload_file():
 
     print("Calculation done!")
 
+    subselectDf(getQuantitativeStats(filename), {'experiment':'dose_response', 
+                                                #  'is_significant':True, 
+                                                'compound':'5HIAA/5HT', 
+                                                'test':'one_way_anova',
+                                                'region':["VPR"]}
+            )
+
+    return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":graphJSON})
+    
+   
 
 
 
 
 
-    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    
 
 
     # with open(os.path.join(UPLOAD_FOLDER, filename),"r") as fid:
@@ -89,17 +103,3 @@ def upload_file():
     # })
 
     # fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
-
-
-    
-    
-
-
-
-
-
-    return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":graphJSON})
-    
-   
-
-
