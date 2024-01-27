@@ -6,9 +6,25 @@ from dataclasses import dataclass
 
 @dataclass
 class Network:
+    """
+    A class to represent a network/graph constructed from a correlation matrix.
+
+    Attributes:
+    matrix (Matrix): An instance of the Matrix class containing the data and correlation matrix.
+
+    Methods:
+    max_node_degree(): Returns the maximum degree of the nodes in the graph.
+    is_bidirectional(): Property that checks if the network is bidirectional (based on the matrix being square).
+    get_title(): Generates a title for the network graph.
+    plot_ax(ax): Plots the network graph on the given matplotlib axis.
+    """
     matrix: Matrix
 
     def __post_init__(self):
+        """
+        Initializes the network/graph from the given matrix. Constructs a directed or undirected graph
+        based on the matrix's properties and fills it with nodes and edges based on the correlation data.
+        """
         self.G = nx.MultiDiGraph() if self.matrix.is_square else nx.Graph()
         # directed edge -  to_correlate[0] --> to_correlate[1]
         self.G.clear()
@@ -43,14 +59,32 @@ class Network:
         }
 
     @property
+    def max_node_degree(self):
+        """Returns the maximum degree of the nodes in the graph."""
+        # Calculate degrees for all nodes and find the maximum
+        degrees = dict(self.G.degree())
+        max_degree = max(degrees.values())
+        return max_degree
+
+    @property
     def is_bidirectional(self):
+        """
+        Checks if the network is bidirectional, based on whether the matrix is square.
+        """
         return self.matrix.is_square
     
     def get_title(self):
+        """Generates a formatted title for the network graph."""
         title = self.matrix.get_title()
         return title.replace('-', '->') if self.is_bidirectional else title
 
     def plot_ax(self, ax):
+        """
+        Plots the network graph on the provided matplotlib axis.
+
+        Parameters:
+        ax (matplotlib.axes.Axes): The matplotlib axis on which to plot the graph.
+        """
         nx.draw_networkx_nodes(
             self.G,
             self.pos,

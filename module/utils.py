@@ -214,7 +214,8 @@ IDENTIFIERS = {
     "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"',
     "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
     "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"',
-    "network": 'f"graph_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
+    "network": 'f"network_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
+    'networkDegreeDistribution': 'f"networkDegreeDistribution_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
 }
 
 
@@ -306,8 +307,9 @@ def generate_figure(experiment_data):
             num_cols * base_size * scale_factor,
             num_rows * base_size * scale_factor,
         ),
+         constrained_layout=True 
     )
-    fig.tight_layout()
-    
+    # fig.tight_layout(pad=2)
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
     return fig, axs.flatten()
 
