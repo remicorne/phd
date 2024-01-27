@@ -36,3 +36,15 @@ clasical_corellogram : getAndPlotSingleCorrelogram(filename, experiment='agonist
     bar_corellogram
                                                     #see whatsapp image 3/5/23
         within BR       /       within compound
+
+
+###### TO LAUNCH WEB APP
+
+We set first the FLASK_APP env variable 
+
+$Env:FLASK_APP=".\\webapp\\flaskr\\"   (on powershell)
+
+and 
+
+flask run
+

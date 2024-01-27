@@ -185,7 +185,6 @@ def buildCompoundAndRatiosDf(filename):
 
     def calculateRatio(row):
         ratio_name = f"{row.compound_1}/{row.compound_2}"
-        print("CALCULATING", row.name, "OF", len(ratios_df), "RATIOS")
         return [
             ratio_name,
             row.value_1 / row.value_2 if row.value_2 else np.NaN,

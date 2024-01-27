@@ -84,19 +84,19 @@ def justStats(
                     experiment_info, data, p_value_threshold
                 )
 
-                updateQuantitativeStats(
-                    filename,
-                    [
-                        {
-                            "data_type": "HPLC",
-                            "experiment": experiment,
-                            "compound": compound,
-                            "region": region,
-                            **test_result,
-                        }
-                        for test_result in test_results
-                    ],
-                )
+                # updateQuantitativeStats(
+                #     filename,
+                #     [
+                #         {
+                #             "data_type": "HPLC",
+                #             "experiment": experiment,
+                #             "compound": compound,
+                #             "region": region,
+                #             **test_result,
+                #         }
+                #         for test_result in test_results
+                #     ],
+                # )
 
     print("DONE")
 

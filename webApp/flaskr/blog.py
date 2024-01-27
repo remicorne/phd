@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 import json
-
+import sys
+from io import StringIO
 
 import plotly
 import plotly.express as px
@@ -13,8 +14,13 @@ from werkzeug.exceptions import abort
 from werkzeug.utils import secure_filename
 from webApp.flaskr.auth import login_required
 
+from module.quantitative import (
+    justStats
+)
 
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+
+
+ALLOWED_EXTENSIONS = {'csv', 'json'}
 UPLOAD_FOLDER = os.path.join(os.getcwd(),'webApp','input')
 
 bp = Blueprint('dashboard', __name__)
@@ -48,8 +54,33 @@ def upload_file():
         return redirect(request.url)
     filename = secure_filename(file.filename)
     file.save(os.path.join(UPLOAD_FOLDER, filename))
-    with open(os.path.join(UPLOAD_FOLDER, filename),"r") as fid:
-        data = fid.read()
+
+
+    data_canada = px.data.gapminder().query("country == 'Canada'")
+    fig = px.bar(data_canada, x='year', y='pop')
+
+
+
+    justStats(filename, 
+            experiments=['dose_response'], 
+            compounds=['5HIAA/5HT'], 
+            regions=["OF","PL","CC", "IC","M", "SJ","SL1", "SL6", "SR6", "SR1", "AC", "V",  
+                    "Am", "dH", "vH", "NAc", "VM", "DM","VL", "DL", "MD",  "VPL",  "VPR", 
+                    "DG", "Y",  "SC","SN", "VTA", "DR","MR", "CE"], 
+            p_value_threshold=0.05)
+
+    print("Calculation done!")
+
+
+
+
+
+
+    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+
+    # with open(os.path.join(UPLOAD_FOLDER, filename),"r") as fid:
+    #     data = fid.read()
 
     # df = pd.DataFrame({
     #     "Fruit": ["Apples", "Oranges", "Bananas", "Apples", "Oranges", "Bananas"],
@@ -58,16 +89,16 @@ def upload_file():
     # })
 
     # fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
-        
-    data_canada = px.data.gapminder().query("country == 'Canada'")
-    fig = px.bar(data_canada, x='year', y='pop')
 
 
-    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    
+    
 
 
 
-    return render_template('blog/dashboard.html', data = {"rawfile":data,"graphJSON":graphJSON})
+
+
+    return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":graphJSON})
     
    
 
