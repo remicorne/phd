@@ -43,7 +43,51 @@ def index():
     return render_template('blog/dashboard.html', data = {"rawfile":"","graphJSON":""})
 
 
-@bp.route('/', methods=['POST'])
+
+@bp.route('/experimentalInfo', methods=['POST'])
+@login_required
+def upload_exp_info():
+
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['file']
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+
+    
+    return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":""})
+
+
+@bp.route('/treatmentMapping', methods=['POST'])
+@login_required
+def upload_treatmentMapping():
+
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['file']
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+    return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":""})
+
+
+
+@bp.route('/data', methods=['POST'])
 @login_required
 def upload_file():
 
@@ -75,12 +119,14 @@ def upload_file():
 
     print("Calculation done!")
 
-    subselectDf(getQuantitativeStats(filename), {'experiment':'dose_response', 
-                                                #  'is_significant':True, 
-                                                'compound':'5HIAA/5HT', 
-                                                'test':'one_way_anova',
-                                                'region':["VPR"]}
-            )
+    # subselectDf(getQuantitativeStats(filename), {'experiment':'dose_response', 
+    #                                             #  'is_significant':True, 
+    #                                             'compound':'5HIAA/5HT', 
+    #                                             'test':'one_way_anova',
+    #                                             'region':["VPR"]}
+    #         )
+
+    print("Second step done !")
 
     return render_template('blog/dashboard.html', data = {"rawfile":"" ,"graphJSON":graphJSON})
     

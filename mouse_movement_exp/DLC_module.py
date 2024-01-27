@@ -628,7 +628,7 @@ def drop_extra_rows_df(df, col_name_to_check_if_filled = 'mouse_no'):
     return df.drop(ind_extra)
 
 
-def cal_time_spent_percentage(df_filtered):
+def cal_time_spent_percentage(df_filtered : pd.DataFrame):
     
     time_spent_points = time_spent_in_each_quad (df_filtered)
     

@@ -1,10 +1,20 @@
 {% extends 'base.html' %}
   {% block content %}
-    <form action = "/" method = "post" enctype="multipart/form-data" target="_self">   
+    <p>Experimental Info</p>
+    <form action = "/experimentalInfo" method = "post" enctype="multipart/form-data" target="_self">   
       <input type="file" name="file" />   
       <input type = "submit" value="Upload">   
     </form>
-    <p>{{data.rawfile}}</p>
+    <p>Treatment Mapping</p>
+    <form action = "/treatmentMapping" method = "post" enctype="multipart/form-data" target="_self">   
+      <input type="file" name="file" />   
+      <input type = "submit" value="Upload">   
+    </form>
+    <p>Data file </p>
+    <form action = "/data" method = "post" enctype="multipart/form-data" target="_self">   
+      <input type="file" name="file" />   
+      <input type = "submit" value="Upload">   
+    </form>
     <div id="chart" class="chart"></div>
   {% endblock %}
   {% block script %}
