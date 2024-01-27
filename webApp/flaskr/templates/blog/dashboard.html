@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+  {% block content %}
+    <form action = "/" method = "post" enctype="multipart/form-data" target="_self">   
+      <input type="file" name="file" />   
+      <input type = "submit" value="Upload">   
+    </form>
+    <p>{{data.rawfile}}</p>
+    <div id="chart" class="chart"></div>
+  {% endblock %}
+  {% block script %}
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script type="text/javascript">
+
+      const d = {{ data|safe }}
+      if(d.graphJSON !== ""){
+        let graphs = JSON.parse(d.graphJSON);
+        console.log(graphs)
+        Plotly.react('chart',graphs["data"],graphs["layout"]);  
+      }
+    </script>
+  {% endblock %}
+
+
+
+
