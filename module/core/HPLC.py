@@ -61,9 +61,8 @@ class RawHPLC(Dataset):
             raw_data_filename = Questions.input("Enter excel HPLC filename")
             file_path = f"{ROOT}/{raw_data_filename}"
 
-        extension = os.path.splitext(file_path)[0].lower()
-        reader = pd.read_excel if extension == "xlsx" else pd.read_csv
-        return reader(file_path, header=0).replace(0, None)
+        extension = os.path.splitext(file_path)[1].lower()
+        return pd.read_excel(file_path) if extension == ".xlsx" else pd.read_csv(file_path)
 
     def get_valid_columns(self, columns):
         mandatory_columns = ["mouse_id", "group_id"]

@@ -3,32 +3,39 @@ from module.core.Dataset import Dataset
 from dataclasses import dataclass
 from typing import ClassVar
 
+
 class ProjectData(Dataset):
     _type: ClassVar[str]
     _columns: ClassVar[list]
 
     def generate_data(self):
-        return super().generate_data().reindex(columns=self._columns)
+        return pd.DataFrame(self._temlate)
 
     def initialize(self):
         super().initialize()
         self.edit_excel()
 
+
 class TreatmentMapping(ProjectData):
     _type: ClassVar[str] = "treatment_mapping"
-    _columns: ClassVar[list] = ["group_id", "treatment", "color"]
+    _template: ClassVar[list] = {
+        "group_id": [1],
+        "treatment": ["vehicles"],
+        "color": ["blue"],
+    }
 
 
 class ExperimentInfo(ProjectData):
     _type: ClassVar[str] = "experimental_information"
-    _columns: ClassVar[list] = [
-        "experiment",
-        "groups",
-        "independant_variables",
-        "paired",
-        "parametric",
-        "outliers",
-    ]
+    _temlate: ClassVar[list] = {
+        "experiment": ["agonist antagonist"],
+        "groups": [1, 2, 5, 8],
+        "independant_variables": ["TCB2", "MDL"],
+        "paired": [False],
+        "parametric": [True],
+        "outliers": ["grubbs"],
+    }
+
 
 @dataclass
 class Metadata:
