@@ -29,8 +29,8 @@ class ExperimentInfo(ProjectData):
     _type: ClassVar[str] = "experimental_information"
     _template: ClassVar[list] = {
         "experiment": ["agonist antagonist"],
-        "groups": [1, 2, 5, 8],
-        "independant_variables": ["TCB2", "MDL"],
+        "groups": [[1, 2, 5, 8]],
+        "independant_variables": [["TCB2", "MDL"]],
         "paired": [False],
         "parametric": [True],
         "outliers": ["grubbs"],
