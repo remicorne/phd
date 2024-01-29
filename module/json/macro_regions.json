@@ -1,0 +1,16 @@
+{
+  "cortex": ["OF", "PL", "CC", "IC", "M", "SL1", "SR1", "AC", "V"],
+  "subcortical_telencephalon": [
+    "Am",
+    "dH",
+    "vH",
+    "NAc",
+    "VM",
+    "DM",
+    "VL",
+    "DL"
+  ],
+  "diencephalon": ["MD", "VPL", "VPR", "DG", "Y"],
+  "mesencephalon": ["SC", "SN", "VTA", "DR", "MR"],
+  "cerebellum": ["CE"]
+}
