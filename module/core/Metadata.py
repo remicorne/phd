@@ -9,7 +9,7 @@ class ProjectData(Dataset):
     _columns: ClassVar[list]
 
     def generate_data(self):
-        return pd.DataFrame(self._temlate)
+        return pd.DataFrame(self._template)
 
     def initialize(self):
         super().initialize()
@@ -27,7 +27,7 @@ class TreatmentMapping(ProjectData):
 
 class ExperimentInfo(ProjectData):
     _type: ClassVar[str] = "experimental_information"
-    _temlate: ClassVar[list] = {
+    _template: ClassVar[list] = {
         "experiment": ["agonist antagonist"],
         "groups": [1, 2, 5, 8],
         "independant_variables": ["TCB2", "MDL"],
