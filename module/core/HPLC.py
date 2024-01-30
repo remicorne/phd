@@ -15,7 +15,7 @@ def detect_raw_data(project):
     for filename in os.listdir(ROOT):
         if project.upper() in filename.upper():
             if os.path.splitext(filename)[1].lower() in [".csv", ".xlsx"]:
-                is_correct = Questions.yes_or_no(f"DETECTED {filename}. CONFIRM?")
+                is_correct = Questions.yes_or_no(f"Detected {filename}. Confirm?")
                 if is_correct:
                     return filename
     return None
@@ -23,11 +23,11 @@ def detect_raw_data(project):
 
 def is_valid_file(file_path):
     if not os.path.isfile(file_path):
-        print("NOT FOUND", file_path)
+        print("Not found", file_path)
         return False
     extension = os.path.splitext(file_path)[1].lower()
     if extension not in [".xlsx", ".csv"]:
-        print("INVALID EXTENSION:", extension)
+        print("Invalid extension:", extension)
         return False
 
     return True
@@ -36,7 +36,7 @@ def handle_raw_col_name(column):
     match = re.match(r"(\w+)[-_ ](\w+)", column)
     while not match or not len(match.groups()) == 2:
         column = Questions.input(
-            f"WRONG FORMAT: '{column}', INPUT 'COMPOUND_REGION' FORMAT: "
+            f"Wrong format: '{column}', input new 'compound_region': "
         )
         match = re.match(r"(\w+)[-_ ](\w+)", column)
     return match.groups()
@@ -66,11 +66,9 @@ class RawHPLC(Dataset):
 
     def get_valid_columns(self, columns):
         mandatory_columns = ["mouse_id", "group_id"]
-        absent_columns = [
-            f"{col} ABSENT" for col in mandatory_columns if col not in columns
-        ]
+        absent_columns = [col for col in mandatory_columns if col not in columns]
         if absent_columns:
-            raise ValueError(f"ABSENT COLUMNS: {(', ').join(absent_columns)}")
+            raise ValueError(f"Absent columns: {(', ').join(absent_columns)}")
         compound_region_tuples = [
             handle_raw_col_name(col) for col in columns if col not in mandatory_columns
         ]
@@ -80,13 +78,13 @@ class RawHPLC(Dataset):
             if compound not in COMPOUNDS
         }
         if invalid_compounds:
-            print(f"INVALID COMPOUNDS: {invalid_compounds}")
+            print(f"Invalid compounds: {invalid_compounds}")
 
         invalid_regions = {
             region for _, region in compound_region_tuples if region not in REGIONS
         }
         if invalid_regions:
-            print(f"INVALID REGIONS: {invalid_regions}")
+            print(f"Invalid regions: {invalid_regions}")
 
         compound_translator = {
             invalid_compound: COMPOUNDS.get_valid_choice(invalid_compound)

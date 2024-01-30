@@ -62,7 +62,7 @@ class Dataset:
             
     def edit_excel(self):
         self.open_excel()
-        Questions.input("SAVE FILE AND PRESS ENTER WHEN DONE EDITING")
+        user_finished = Questions.yes_or_no("Have you finished editing and saved the file?")
         updated_dataset = pd.read_excel(self.excel_path)
         self.save(updated_dataset)
 
