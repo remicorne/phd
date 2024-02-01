@@ -19,11 +19,18 @@ from module.Network import Network
 from module.getters import getCompoundAndRatiosDf
 from scipy.stats import norm
 
-########## GENERATE NETWORKS
-# network for SINGLE correlation matrix (all weighted --- symetric: undirected -- unsymetric: multiedge and directed)  #DONE
-# METTA network made of MULTIPLE correlation matrices (multiedge -- directed -- weighted)
 
-########## COMPARE NETWORKS
+
+##########  NETWORK
+# network for SINGLE correlation matrix (all weighted --- symetric: undirected -- unsymetric: multiedge and directed)  #DONE
+
+########## MULTINETWORK
+# network made of MULTIPLE correlation matrices (multiedge -- directed -- weighted)
+
+########## COMPARE NETWORKS 
+    #undirected 
+
+    #directed 
 # graph metrics : average edge weight, average degree, clustering coefficient, degree distribution, average shortest path length (stats where possible)
 # network alignment : GRAAL / NetAlign / Jaccard Index
 
@@ -168,7 +175,7 @@ def plotDegreeDistribution(network, ax):
     std_degree = np.std(degree_sequence)
 
     # Use the max_node_degree property from the Network class
-    max_degree = network.max_node_degree
+    max_degree, mean_degree = network.node_degree
 
     x = np.linspace(0, max_degree, 100)
     y = norm.pdf(x, mean_degree, std_degree)

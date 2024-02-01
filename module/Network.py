@@ -14,7 +14,7 @@ class Network:
 
     Methods:
     max_node_degree(): Returns the maximum degree of the nodes in the graph.
-    is_bidirectional(): Property that checks if the network is bidirectional (based on the matrix being square).
+    is_directed(): Property that checks if the network is directed (based on the matrix being square).
     get_title(): Generates a title for the network graph.
     plot_ax(ax): Plots the network graph on the given matplotlib axis.
     """
@@ -36,7 +36,7 @@ class Network:
         for (row, col), correlation in self.matrix.corr_masked.stack().dropna().items():
             # Add edge to the graph with edge weight and color
             # Avoid self sorrelation
-            if not(row == col and not self.is_bidirectional):
+            if not(row == col and not self.is_directed):
                 self.G.add_edge(
                     row,
                     col,
@@ -59,24 +59,144 @@ class Network:
         }
 
     @property
-    def max_node_degree(self):
-        """Returns the maximum degree of the nodes in the graph."""
-        # Calculate degrees for all nodes and find the maximum
-        degrees = dict(self.G.degree())
-        max_degree = max(degrees.values())
-        return max_degree
-
-    @property
-    def is_bidirectional(self):
+    def is_directed(self):
         """
-        Checks if the network is bidirectional, based on whether the matrix is square.
+        Checks if the network is directed, based on whether the matrix is square. Directed graph are use for double correlations i.e. 'GLU-DA'. 
         """
         return self.matrix.is_square
+
+    @property
+    def node_degree(self):
+        """
+        Returns:
+          max_degree(int): the maximum degree of the nodes in the graph.
+        """
+        # Calculate degrees for all nodes and find the maximum and mean
+        degrees = dict(self.G.degree())
+        max_degree = max(degrees.values())
+        average_degree = np.mean(degrees.values())
+        return max_degree, average_degree
+
+    @property
+    def graph_density(self):
+        """
+        Returns:
+           graph_density (float): The density of the graph; edges/all_possible_edges.
+        """
+        num_edges = self.G.number_of_edges()
+        num_nodes = self.G.number_of_nodes()
+
+        if self.is_directed: #directed graph have doubble possible edges
+            max_edges = num_nodes * (num_nodes - 1)
+        else:
+            max_edges = num_nodes * (num_nodes - 1) / 2
+
+        return num_edges / max_edges if max_edges > 0 else 0
+    
+    @property
+    def local_efficiency(self):
+        """
+        Returns:
+            avg_local_eff_unweighted (float):  average unweighted local efficiency for i nodes.
+            avg_local_eff_weighted (float):  average weighted local efficiency for i nodes.
+        """
+        local_eff_unweighted = 0
+        local_eff_weighted = 0
+        total_nodes = len(self.G.nodes())
+
+        for node in self.G.nodes():
+            # Determine neighbors for directed and undirected graphs
+            if self.is_directed:
+                neighbors = list(set(nx.predecessors(self.G, node)) | set(nx.successors(self.G, node)))
+            else:
+                neighbors = list(nx.neighbors(self.G, node))
+
+            if len(neighbors) > 1:
+                subgraph = self.G.subgraph(neighbors)
+                # Calculate unweighted local efficiency
+                local_eff_unweighted += nx.global_efficiency(subgraph)
+
+                # Calculate weighted local efficiency
+                # Ensure weights are considered in the subgraph efficiency calculation
+                local_eff_weighted += nx.global_efficiency(subgraph, weight='weight')
+
+        # Calculate average efficiencies
+        avg_local_eff_unweighted = local_eff_unweighted / total_nodes if total_nodes > 0 else 0
+        avg_local_eff_weighted = local_eff_weighted / total_nodes if total_nodes > 0 else 0
+        return avg_local_eff_unweighted, avg_local_eff_weighted
+    
+    @property 
+    def global_efficiency(self):
+        """
+        Calculates the average unweighted and weighted global efficiency of the graph.
+
+        Returns:
+            avg_global_eff_unweighted (float): The average unweighted global efficiency of the graph.
+            avg_global_eff_weighted (float): The average weighted global efficiency of the graph.
+        """
+        # Unweighted Global Efficiency
+        avg_global_eff_unweighted = nx.global_efficiency(self.G)
+
+        # Weighted Global Efficiency
+        # Inverting weights for efficiency calculation as smaller weights imply stronger connections
+        G_copy = self.G.copy()
+        inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
+        nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
+        avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
+
+
+        return avg_global_eff_unweighted, avg_global_eff_weighted
+    
+    @property  
+    def clustering_coefficient(self):
+        """
+        Calculates the average unweighted and weighted clustering coefficients for the graph.
+
+        Returns:
+            avg_clust_coeff_unweighted (float): The average unweighted clustering coefficient of the graph.
+            avg_clust_coeff_weighted (float): The average weighted clustering coefficient of the graph.
+        """
+        if self.is_directed:
+            # For directed graphs, use nx.clustering with 'directed' and 'weight' parameters
+            clust_coeff_unweighted = nx.clustering(self.G, weight=None)  # Unweighted
+            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+        else:
+            # For undirected graphs, use nx.clustering without 'directed' parameter
+            clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted
+            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+
+        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
+        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted)
+
+        return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
+    
+    @property
+    def characteristic_path_length(self):
+        """
+        Calculates the average unweighted and weighted characteristic path length of the graph.
+
+        Returns:
+            avg_path_length_unweighted (float): The average unweighted characteristic path length of the graph.
+            avg_path_length_weighted (float): The average weighted characteristic path length of the graph.
+        """
+        if nx.is_connected(self.G):
+            avg_path_length_unweighted = nx.average_shortest_path_length(self.G)
+            
+            # Inverting weights for path length calculation as smaller weights imply stronger connections
+            G_copy = self.G.copy()
+            inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
+            nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
+            avg_path_length_weighted = nx.average_shortest_path_length(G_copy, weight='inverted_weight')
+        else:
+            avg_path_length_unweighted = None
+            avg_path_length_weighted = None
+
+        return avg_path_length_unweighted, avg_path_length_weighted
     
     def get_title(self):
         """Generates a formatted title for the network graph."""
         title = self.matrix.get_title()
-        return title.replace('-', '->') if self.is_bidirectional else title
+        return title.replace('-', '->') if self.is_directed else title
 
     def plot_ax(self, ax):
         """
@@ -103,7 +223,7 @@ class Network:
             node_size=1100,
             **(
                 {"arrowstyle": "->", "arrowsize": 20}
-                if self.is_bidirectional
+                if self.is_directed
                 else {}
             ),
         )
