@@ -3,7 +3,7 @@ from module.utils import figure_cache
 from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
 import seaborn as sns
 from statannotations.Annotator import Annotator
-from module.constants import COLUMN_ORDER
+from module.core.Constants import REGIONS, COMPOUNDS
 
 # from brokenaxis import brokenaxis #REMI or future JAS for quantitaiveSummary() modulenotfound in pip list tho
 
@@ -60,6 +60,8 @@ def buildQuantitativeSummaryHistogramData(
     # subselect and transorm to long format
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     value_type = {"compound": "region", "region": "compound"}[histogram_type]
+
+    COLUMN_ORDER = {'region': REGIONS.list, 'compound': COMPOUNDS.list}
 
     data = compound_and_ratios_df[
         (compound_and_ratios_df.experiment == experiment)
