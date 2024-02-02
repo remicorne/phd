@@ -4,4 +4,5 @@ output
 __pycache__
 input
 debug.py
+debug2.py
 .DS_Store
