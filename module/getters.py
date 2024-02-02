@@ -228,7 +228,7 @@ def buildCompoundDf(filename):
         lambda x: x.variable.split("_"), axis=1, result_type="expand"
     )
     new_format_df = applyTreatmentMapping(new_format_df, filename)
-    return new_format_df.drop(columns=["variable"])
+    return new_format_df.drop(columns=["variable"]).dropna()
 
 
 # Contains the logic to build the ratios df based on the df with the new format

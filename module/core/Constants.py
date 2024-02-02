@@ -34,7 +34,7 @@ class JSONMapping:
 
     @property
     def list(self):
-        return self.dict.keys()
+        return list(self.dict.keys())
 
     def detect(self, invalid_name):
         lazy_dict = {k.upper(): k for k in self.list}
