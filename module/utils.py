@@ -81,13 +81,11 @@ def isCached(filename, identifier):
 
 
 def save_figure(fig, filepath):
-    def target():
-        fig.savefig(f"{filepath}.svg")  # dpi also?
-        fig.savefig(f"{filepath}.png", dpi=fig.dpi)
-        print(f"SAVED {filepath}.svg")
-        print(f"SAVED {filepath}.png")
+    fig.savefig(f"{filepath}.svg")  # dpi also?
+    fig.savefig(f"{filepath}.png", dpi=fig.dpi)
+    print(f"SAVED {filepath}.svg")
+    print(f"SAVED {filepath}.png")
 
-    threading.Thread(target=target).start()
 
 
 def replaceall(string, replacements):
