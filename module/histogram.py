@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-from module.utils import get_or_add
+from module.utils import figure_cache
 from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
 import seaborn as sns
 from statannotations.Annotator import Annotator

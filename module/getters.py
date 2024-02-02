@@ -13,7 +13,7 @@ from module.utils import (
     dictToFilename,
     askYesorNo,
     subselectDf,
-    maskDf
+    maskDf,
 )
 from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
@@ -106,6 +106,10 @@ def getQuantitativeStats(filename):
     return getOrBuildDf(filename, "quantitative_stats", buildQuantitativeStatsDf)
 
 
+def getNetworkStats(filename):
+    return getOrBuildDf(filename, "network_stats", buildNetworkStatsDf)  # JJB working
+
+
 def getHeadTwitchDf(filename):
     return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
 
@@ -117,9 +121,26 @@ def updateQuantitativeStats(filename, rows):
     quantitative_stats_df = getQuantitativeStats(filename)
     for row in rows:
         data_row = pd.DataFrame([row])
-        unique_row = maskDf(quantitative_stats_df, {key: value for key, value in row.items() if key in ["data_type", "experiment", "region", "compound", "test", "p_value_threshold"]}) 
+        unique_row = maskDf(
+            quantitative_stats_df,
+            {
+                key: value
+                for key, value in row.items()
+                if key
+                in [
+                    "data_type",
+                    "experiment",
+                    "region",
+                    "compound",
+                    "test",
+                    "p_value_threshold",
+                ]
+            },
+        )
         if unique_row.any():
-            quantitative_stats_df.loc[unique_row, ["is_significant", "p_value", "result"]] = data_row[["is_significant", "p_value", "result"]]
+            quantitative_stats_df.loc[
+                unique_row, ["is_significant", "p_value", "result"]
+            ] = data_row[["is_significant", "p_value", "result"]]
         else:
             quantitative_stats_df = pd.concat([quantitative_stats_df, data_row])
     cache(filename, "quantitative_stats", quantitative_stats_df)
@@ -129,14 +150,34 @@ def updateQuantitativeStats(filename, rows):
 ######### BUILDERS #######
 
 
+def validate_raw_data(data):
+    absent_cols = [
+        f"{col} ABSENT" for col in ["mouse_id", "group_id"] if col not in data.columns
+    ]
+    if absent_cols:
+        [print(absent_cols) for absent_col in absent_cols]
+        raise Exception("INVALID INPUT")
+    
+    for col in data.columns:
+        old_name = col
+        while not len(col.split("_")) == 2:
+            col = input(f"INCORRECT NAME {col}: ENTER 'COMPOUND_REGION'")
+        data = data.rename(columns={old_name: col})
+    return data
+
+
 def buildRawDf(filename):
     file_name, file_type = filename.split(".")
-    if not file_type == "csv":
-        raise Exception(f'METHOD TO DEAL WITH FILE TYPE "{file_type}" ABSENT')
-    if not os.path.isfile(f"{INPUT_DIR}/{filename}"):
+    filepath = f"{INPUT_DIR}/{filename}"
+    if not os.path.isfile(filepath):
         raise Exception(f'FILE {filename} IS ABSENT IN "input/" DIRECTORY')
+    if file_type == "xlsx":
+        data = pd.read_excel(filepath, header=0)
+    if file_type == "csv":
+        data = pd.read_csv(filepath, header=0)
     # to set all 0 to Nan
-    return pd.read_csv(f"{INPUT_DIR}/{filename}", header=0).replace(0, np.nan)
+    data = validate_raw_data(data)
+    return data.replace(0, np.nan)
 
 
 # contains the logic to build the df in the new format based on raw df
@@ -304,5 +345,21 @@ def buildQuantitativeStatsDf(filename):
             "is_significant",
             "p_value",
             "result",
+        ]
+    )
+
+
+def buildNetworkStatsDf():  # JJB working s
+    return pd.DataFrame(
+        colums=[
+            "data_type",
+            "experiment",
+            "treatment",
+            "correlogram_type",
+            "to_correlate",
+            "columns",
+            "corr_method",  # pearson ect
+            "some_stat",
+            "some_stat",
         ]
     )

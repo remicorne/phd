@@ -8,7 +8,7 @@ from module.quantitative import (
     quantitativeSummary,
     justStats
 )
-from module.correlogram import correlogram
+from module.correlogram import correlogram, corrSelector
 from module.utils import initiateFileSystem
 from module.metadata import saveMetadata
 from module.utils import subselectDf
@@ -19,6 +19,7 @@ from module.getters import (
     getRegionSubclassification,
     getQuantitativeStats,
 )
+from module.graph_theory import network, networkDegreeDistribution
 
 #
 from module.histogram import buildHeadTwitchHistogramData, buildHistogram

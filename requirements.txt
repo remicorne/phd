@@ -10,3 +10,5 @@ pingouin
 scipy
 git+https://github.com/remicorne/statannotations
 statsmodels
+networkx
+
