@@ -86,8 +86,15 @@ def save_figure(fig, filepath):
         fig.savefig(f"{filepath}.png", dpi=fig.dpi)
         print(f"SAVED {filepath}.svg")
         print(f"SAVED {filepath}.png")
+
     threading.Thread(target=target).start()
 
+
+def replaceall(string, replacements):
+    for value, replacement in replacements.items():
+        # This syntaxt wil unpack the list as if I had written 'result.replace(replacement[0], replacement[1])'
+        string = string.replace(value, replacement)
+    return string
 
 
 def dictToFilename(dict_to_stringify):
@@ -215,7 +222,7 @@ IDENTIFIERS = {
     "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
     "pca": 'f"pca_{experiment}_for_{compounds}_in_{regions}"',
     "network": 'f"network_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
-    'networkDegreeDistribution': 'f"networkDegreeDistribution_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
+    "networkDegreeDistribution": 'f"networkDegreeDistribution_{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
 }
 
 
@@ -242,8 +249,7 @@ def figure_cache(identifier_type):
                 plt.show()
                 save_figure(result, filepath)
             else:
-                
-                display(Image(filename=f'{filepath}.png'))
+                display(Image(filename=f"{filepath}.png"))
 
         return wrapper
 
@@ -307,9 +313,8 @@ def generate_figure(experiment_data):
             num_cols * base_size * scale_factor,
             num_rows * base_size * scale_factor,
         ),
-         constrained_layout=True 
+        constrained_layout=True,
     )
     # fig.tight_layout(pad=2)
     # fig.subplots_adjust(hspace=0.4, wspace=0.4)
     return fig, axs.flatten()
-

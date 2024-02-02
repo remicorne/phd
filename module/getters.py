@@ -1,4 +1,4 @@
-import functools
+import functools, re
 from matplotlib import pyplot as plt
 
 import scipy
@@ -14,12 +14,13 @@ from module.utils import (
     askYesorNo,
     subselectDf,
     maskDf,
+    replaceall,
 )
 from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
 import pandas as pd
 import numpy as np
-
+from module.core.Questions import Questions
 
 ######### GETTERS THAT DEAL WITH THE RAW DATA #########
 ## TODO Seperate and finalize aggregate stats functions
@@ -146,24 +147,54 @@ def updateQuantitativeStats(filename, rows):
     cache(filename, "quantitative_stats", quantitative_stats_df)
     print("QUANTITATIVE STATS UPDATED")
 
+    ######### BUILDERS #######
 
-######### BUILDERS #######
+
+from module.core.Constants import REGIONS, COMPOUNDS
 
 
-def validate_raw_data(data):
-    absent_cols = [
-        f"{col} ABSENT" for col in ["mouse_id", "group_id"] if col not in data.columns
+def handle_raw_col_name(column):
+    match = re.match(r"(\w+)[_](\w+)", column)
+    while not match or not len(match.groups()) == 2:
+        column = Questions.input(
+            f"Wrong format: '{column}', input new 'compound_region': "
+        )
+        match = re.match(r"(\w+)[-_ ](\w+)", column)
+    return match.groups()
+
+
+def get_valid_columns(columns):
+    mandatory_columns = ["mouse_id", "group_id"]
+    absent_columns = [col for col in mandatory_columns if col not in columns]
+    if absent_columns:
+        raise ValueError(f"Absent columns: {(', ').join(absent_columns)}")
+    compound_region_tuples = [
+        handle_raw_col_name(col) for col in columns if col not in mandatory_columns
     ]
-    if absent_cols:
-        [print(absent_cols) for absent_col in absent_cols]
-        raise Exception("INVALID INPUT")
-    
-    for col in data.columns:
-        old_name = col
-        while not len(col.split("_")) == 2:
-            col = input(f"INCORRECT NAME {col}: ENTER 'COMPOUND_REGION'")
-        data = data.rename(columns={old_name: col})
-    return data
+    invalid_compounds = {
+        compound for compound, _ in compound_region_tuples if compound not in COMPOUNDS
+    }
+    if invalid_compounds:
+        print(f"Invalid compounds: {invalid_compounds}")
+
+    invalid_regions = {
+        region for _, region in compound_region_tuples if region not in REGIONS
+    }
+    if invalid_regions:
+        print(f"Invalid regions: {invalid_regions}")
+
+    compound_translator = {
+        invalid_compound: COMPOUNDS.get_valid_choice(invalid_compound)
+        for invalid_compound in invalid_compounds
+    }
+    region_translator = {
+        invalid_region: REGIONS.get_valid_choice(invalid_region)
+        for invalid_region in invalid_regions
+    }
+    return {
+        f"{compound}_{region}": f"{compound if compound in COMPOUNDS else compound_translator[compound]}_{region if region in REGIONS else region_translator[region]}"
+        for compound, region in compound_region_tuples
+    }
 
 
 def buildRawDf(filename):
@@ -175,9 +206,9 @@ def buildRawDf(filename):
         data = pd.read_excel(filepath, header=0)
     if file_type == "csv":
         data = pd.read_csv(filepath, header=0)
-    # to set all 0 to Nan
-    data = validate_raw_data(data)
-    return data.replace(0, np.nan)
+        # to set all 0 to Nan
+    data.columns = [replaceall(col, {"-": "_", " ": "_"}) for col in data.columns]
+    return data.rename(columns=get_valid_columns(data.columns)).replace(0, np.nan)
 
 
 # contains the logic to build the df in the new format based on raw df

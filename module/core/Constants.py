@@ -1,4 +1,3 @@
-
 import json
 from typing import Any
 from module.constants import ROOT
@@ -6,14 +5,15 @@ from dataclasses import dataclass
 import difflib
 from module.core.Questions import Questions
 
+
 @dataclass
 class JSONMapping:
     name: str
     _location = f"{ROOT}/module/json"
-    
+
     def __post_init__(self):
         self.path = f"{self._location}/{self.name}.json"
-    
+
     def load(self):
         with open(self.path) as outfile:
             mapping = json.load(outfile)
@@ -27,29 +27,31 @@ class JSONMapping:
         mapping = self.load()
         mapping[key] = value
         self.save(mapping)
-    
+
     @property
     def dict(self):
-        return self.load()        
-    
+        return self.load()
+
     @property
     def list(self):
         return self.dict.keys()
-    
+
     def detect(self, invalid_name):
         lazy_dict = {k.upper(): k for k in self.list}
-        lazy_guess = difflib.get_close_matches(invalid_name.upper(), lazy_dict.keys(), n=1, cutoff=0.6)
-        return lazy_guess[0] if lazy_guess else None
-    
+        lazy_guess = difflib.get_close_matches(
+            invalid_name.upper(), lazy_dict.keys(), n=1, cutoff=0.6
+        )
+        return lazy_dict[lazy_guess[0]] if lazy_guess else None
+
     def __contains__(self, key):
         return key in self.list
-    
+
     def __getitem__(self, key):
         return self.dict.get(key)
-    
+
     def __setitem__(self, key, value):
         self.add(key, value)
-        
+
     def get_valid_choice(self, invalid_choice):
         lazy_guess = self.detect(invalid_choice)
         if lazy_guess:
@@ -71,10 +73,9 @@ class JSONMapping:
             print("EDIT REGISTRY AND RETRY")
             exit(1)
 
-            
 
-REGIONS = JSONMapping('regions')
-COMPOUNDS = JSONMapping('compounds')
-COMPOUND_CLASSES = JSONMapping('compound_classes')
-MACRO_REGIONS = JSONMapping('macro_regions')
-CIRCUITS = JSONMapping('circuits')
+REGIONS = JSONMapping("regions")
+COMPOUNDS = JSONMapping("compounds")
+COMPOUND_CLASSES = JSONMapping("compound_classes")
+MACRO_REGIONS = JSONMapping("macro_regions")
+CIRCUITS = JSONMapping("circuits")
