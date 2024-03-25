@@ -33,6 +33,9 @@ from module.utils import subselectDf
 import seaborn as sns
 from module.correlogram import askColumnsToUser
 
+from module.constants import p_value_threshold
+
+
 
 def doQuantitativeStatLogic(multiple_factors, multiple_treatments, paired, parametric):
     return {
@@ -355,7 +358,7 @@ def buildSingleQuantitativeSummary(
     )
     test = tests[-1]  # feed lowest test only post-hoc
 
-    # get stats #REMI TODO missing p_value col for non  post hoc testing
+    # get stats df TODO missing p_value col for non  post hoc testing
     quant_stats_df = subselectDf(
         getQuantitativeStats(filename),
         {
@@ -365,6 +368,27 @@ def buildSingleQuantitativeSummary(
             "test": test,
         },
     )
+    #check if empty 
+    if quant_stats_df.empty:
+        #run stats
+        justStats(filename, 
+            experiments=[experiment], 
+            compounds=[compound], 
+            regions=region, 
+            p_value_threshold=p_value_threshold) 
+        
+        #refetch df
+        quant_stats_df = subselectDf(
+        getQuantitativeStats(filename),
+        {
+            "experiment": experiment,
+            "compound": compound,
+            "region": region,
+            "test": test,
+        },
+    )
+                  
+
 
     #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
     # hue HARD CODE to treatment for quantitativeSummary()

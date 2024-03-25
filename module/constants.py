@@ -55,7 +55,8 @@ def getCorrelogramColumns(correlogram_type):
     Get the default correlogram colums to display based on correlogram_type in ['region', 'compound']
     """
     return COLUMN_ORDER[CORRELOGRAM_TYPE_CONVERTER[correlogram_type]]
-
+########## STATS #########
+p_value_threshold = 0.05
 
 ########## SUBCLASIFICATIONS ########## 
 
