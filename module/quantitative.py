@@ -34,6 +34,7 @@ import seaborn as sns
 from module.correlogram import askColumnsToUser
 
 from module.constants import p_value_threshold
+from module.metadata import applyTreatmentMapping
 
 
 
@@ -346,7 +347,7 @@ def buildSingleQuantitativeSummary(
         compound = columns
         region = to_plot  # this allows the use of the function both ways but feels fucking stupid tbh
 
-    # TO DO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
+    # TODO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
     experiment_info = getExperimentalInfo(filename)[experiment]
     multiple_factors = len(experiment_info["independant_vars"]) > 1
     multiple_treatments = len(experiment_info["groups"]) > 1
@@ -358,38 +359,27 @@ def buildSingleQuantitativeSummary(
     )
     test = tests[-1]  # feed lowest test only post-hoc
 
-    # get stats df TODO missing p_value col for non  post hoc testing
+    #TODO right now just stats is always rerun to ensure to haave all required
+    justStats(filename, 
+        experiments=[experiment], 
+        compounds=[compound], 
+        regions=region, 
+        p_value_threshold=p_value_threshold) 
+    
+    #refetch df
     quant_stats_df = subselectDf(
-        getQuantitativeStats(filename),
-        {
-            "experiment": experiment,
-            "compound": compound,
-            "region": region,
-            "test": test,
-        },
-    )
-    #check if empty 
-    if quant_stats_df.empty:
-        #run stats
-        justStats(filename, 
-            experiments=[experiment], 
-            compounds=[compound], 
-            regions=region, 
-            p_value_threshold=p_value_threshold) 
-        
-        #refetch df
-        quant_stats_df = subselectDf(
-        getQuantitativeStats(filename),
-        {
-            "experiment": experiment,
-            "compound": compound,
-            "region": region,
-            "test": test,
-        },
-    )
-                  
+    getQuantitativeStats(filename),
+    {
+        "experiment": experiment,
+        "compound": compound,
+        "region": region,
+        "test": test,
+    },
+)
 
-
+    #add treatment string column as needed for stats plotting
+    data = applyTreatmentMapping(data, filename)
+    
     #  buildHistogram() IS NOT GENERAL enough becaue of hue/outlier stuff - REMI can we combine? I tried and couldnt manage ... yet
     # hue HARD CODE to treatment for quantitativeSummary()
     fig = buildHueHistogram(
@@ -403,6 +393,7 @@ def buildSingleQuantitativeSummary(
         hue="treatment",
         hue_order=hue_order,
         significance_infos=quant_stats_df,
+        
     )
 
     return fig
