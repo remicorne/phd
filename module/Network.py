@@ -74,7 +74,7 @@ class Network:
         # Calculate degrees for all nodes and find the maximum and mean
         degrees = dict(self.G.degree())
         max_degree = max(degrees.values())
-        average_degree = np.mean(degrees.values())
+        average_degree = np.mean(list(degrees.values()))
         return max_degree, average_degree
 
     @property

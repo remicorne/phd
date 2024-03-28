@@ -359,14 +359,6 @@ def buildSingleQuantitativeSummary(
     )
     test = tests[-1]  # feed lowest test only post-hoc
 
-    #TODO right now just stats is always rerun to ensure to haave all required
-    justStats(filename, 
-        experiments=[experiment], 
-        compounds=[compound], 
-        regions=region, 
-        p_value_threshold=p_value_threshold) 
-    
-    #refetch df
     quant_stats_df = subselectDf(
     getQuantitativeStats(filename),
     {
@@ -375,7 +367,25 @@ def buildSingleQuantitativeSummary(
         "region": region,
         "test": test,
     },
-)
+    )
+
+    if set(region).intersection(quant_stats_df['region']) != set(region): #check all regions are presenrt
+        print (f'Calculating statistics for {compound} and {region}...')
+        justStats(filename, 
+            experiments=[experiment], 
+            compounds=[compound], 
+            regions=region, 
+            p_value_threshold=p_value_threshold) 
+        #refetch df
+        quant_stats_df = subselectDf(
+        getQuantitativeStats(filename),
+        {
+            "experiment": experiment,
+            "compound": compound,
+            "region": region,
+            "test": test,
+        },
+        )
 
     #add treatment string column as needed for stats plotting
     data = applyTreatmentMapping(data, filename)
