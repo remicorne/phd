@@ -155,7 +155,7 @@ def network(
         network_object.plot_ax(ax)
         for ax, network_object in zip(axs, networks)
     ]
-    plt.tight_layout()
+    # plt.tight_layout() #threw user warning delete if not needed 
     return fig
 
 ########## network plotters 

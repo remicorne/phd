@@ -232,7 +232,7 @@ def buildHueHistogram(
             significant_posthoc_p_values = significance_infos[significance_infos['region'] == region]['p_value'].values[0][1]
             for pair, p_value in zip(significant_posthoc_pairs, significant_posthoc_p_values):
                 if comparison_hue in pair and hue in pair:
-                    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.05, '*', ha='center', va='bottom', fontsize=12)
+                    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.06, '*', ha='center', va='bottom', fontsize=14)
 
                     break  
 
