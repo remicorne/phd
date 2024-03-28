@@ -165,7 +165,7 @@ def buildHueHistogram(
         hue (string):                           column name for hue in data  i.e. 'treatment'
         palette (dict):                         dict mapping hue colors {'treatment1':'color1', ... }
         hue_order ( np.array(string) ):         string of each hue in order
-        significance_infos (pd.DataFrame):      subset of QuantativeStats for significant and relevant post hoc test  OPTIONAL - ONLY INCLUDE TO PLOT STATS 
+        significance_infos (pd.DataFrame):      QuantativeStats for data * post hoc test *  optional pram
 
     Retuns:
         fig (figure):                           histograms/barplot 
@@ -196,21 +196,22 @@ def buildHueHistogram(
     plt.tight_layout()
 
     # #handel significance info #already filtered to post hoc (check higher test passes?) # single compound across regions
-    comparison_hue = hue_order[0] # 'vehicles'
+    
     if significance_infos is not None:
-        #loop seaborn bars xtick1, hue1 --> xtick2, hue1 --? xtick3, hue1
+        comparison_hue = hue_order[0] # stats compare against 'vehicles' 
+
+        #loop seaborn bars : xtick1, hue1 --> xtick2, hue1 --> xtick3, hue1   #seaborn v0.11.2
         for i, bar in enumerate(ax.patches):
 
 
             # Calculate the index of the group (region) and the hue for this bar
             group_index = i % len(order)
             hue_index = i // len(order)
-            
             # Get the region and hue names based on their indices
             region = order[group_index]
             hue = hue_order[hue_index]
 
-            # IF LOOPING BARS FROM LEFT TO RIGHT THROUGH ALL HUES
+            # IF LOOPING BARS FROM LEFT TO RIGHT THROUGH ALL HUES #if seaborn updates have different ordering of ax.patches
             # # Calculate the number of bars per group (number of hues)
             # bars_per_group = len(hue_order)
             # # Find the index of the group (region) and the hue for this bar
@@ -222,18 +223,17 @@ def buildHueHistogram(
             
             if hue == comparison_hue:
                 continue # do not plot stats on control/vehicle
+
             if region not in significance_infos['region'].unique():
-                continue
+                continue #continue if no stats for that region
 
             # Check if this hue is in a significant pair for this region
             significant_posthoc_pairs = significance_infos[significance_infos['region'] == region]['p_value'].values[0][0]  #  [ [(hue, hue), (hue,hue)] ,   [p_val, p_val] ]
             significant_posthoc_p_values = significance_infos[significance_infos['region'] == region]['p_value'].values[0][1]
             for pair, p_value in zip(significant_posthoc_pairs, significant_posthoc_p_values):
                 if comparison_hue in pair and hue in pair:
-                    # Apply the appropriate hatching based on the p-value
-                    hatch = '//' if p_value < 0.01 else '/'
-                    bar.set_hatch(hatch)
-                    break  # Once hatched, no need to check other pairs
+                    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + bar.get_yerr()[1] + 0.03, "*", ha='center', va='bottom', fontsize=12)
+                    break  
 
     sns.despine(left=False)
     return fig
