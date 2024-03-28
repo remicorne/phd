@@ -8,7 +8,7 @@ from module.quantitative import (
     quantitativeSummary,
     justStats
 )
-from module.correlogram import correlogram, corrSelector
+from module.correlogram import correlogram, corrSelector, plot_correlation
 from module.utils import initiateFileSystem
 from module.metadata import saveMetadata
 from module.utils import subselectDf
