@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np 
 from module.utils import figure_cache
-from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
+from module.getters import getCompoundAndRatiosDf
 import seaborn as sns
 from statannotations.Annotator import Annotator
 from module.core.Constants import REGIONS, COMPOUNDS
@@ -37,22 +37,6 @@ def buildHistogramData(  # REMI THIS IS NOT SO GENERIC its better in quantitativ
     return data, order, palette
 
 
-def buildHeadTwitchHistogramData(
-    HT_filename, experiment, vairable  # col to plot i.e. HT_20
-):
-    HT_df = getHeadTwitchDf(HT_filename)
-
-    data = HT_df[HT_df["experiment"] == experiment].rename(
-        columns={vairable: "value"}
-    )  # subselect experiment and set vairable col to 'value'
-
-    order = data.sort_values(by="group_id", ascending=True).treatment.unique()
-    palette = {
-        treatment: color
-        for treatment, color in data.groupby(by=["treatment", "color"]).groups.keys()
-    }
-
-    return data, order, palette
 
 
 def buildQuantitativeSummaryHistogramData(

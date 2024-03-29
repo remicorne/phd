@@ -111,9 +111,6 @@ def getNetworkStats(filename):
     return getOrBuildDf(filename, "network_stats", buildNetworkStatsDf)  # JJB working
 
 
-def getHeadTwitchDf(filename):
-    return getOrBuildDf(filename, "headtwitch_df", buildHeadTwitchDf)
-
 
 ########### SETTERS ######
 
@@ -214,9 +211,7 @@ def buildRawDf(filename):
 # contains the logic to build the df in the new format based on raw df
 
 
-def buildHeadTwitchDf(HT_filename):
-    new_format_df = applyTreatmentMapping(getRawDf(HT_filename), HT_filename)
-    return new_format_df
+
 
 
 def buildCompoundDf(filename):
