@@ -6,6 +6,7 @@ from module.getters import (
     getExperimentalInfo,
     getTreatmentMapping,
     getCompoundAndRatiosDf,
+    getAggregateStatsDf,
 )
 from module.utils import (
     askMultipleChoice,
@@ -14,6 +15,7 @@ from module.utils import (
     inputEscape,
     generate_figure,
     parallel_process,
+    subselectDf,
 )
 from module.statistics import (
     CORR_STAT_METHODS,
@@ -21,13 +23,59 @@ from module.statistics import (
     getPearsonR,
     getPearsonPValue,
 )  ##FIX ME REMIs OLD REDUNDANT SYSTEM lol just without diff corr methids
+
 from module.constants import getCorrelogramColumns, CORRELOGRAM_TYPE_CONVERTER
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 from scipy.spatial.distance import squareform
 from module.Matrix import Matrices
+from scipy import stats
 
 # TODO: Handle columns and more generality
+
+def plot_correlation(filename, compounds, regions, treatment='vehicles'):
+    # Ensure compounds and regions are lists
+    compounds = [compounds] if isinstance(compounds, str) else compounds
+    regions = [regions] if isinstance(regions, str) else regions
+
+    # Filter the DataFrame based on the provided parameters
+    df = subselectDf(getAggregateStatsDf(filename), {"treatment": treatment, "experiment": "dose_response", "region": regions, "compound": compounds})
+
+    if len(compounds) == 2 and len(regions) == 1:
+        # Correlation between two compounds in a single region
+        x_data = df[df['compound'] == compounds[0]]['values'].values[0]
+        y_data = df[df['compound'] == compounds[1]]['values'].values[0]
+        x_label = f"{compounds[0]} (ng/mg)"
+        y_label = f"{compounds[1]} (ng/mg)"
+    elif len(compounds) == 1 and len(regions) == 2:
+        # Single compound between two regions
+        x_data = df[df['region'] == regions[1]]['values'].values[0]
+        y_data = df[df['region'] == regions[0]]['values'].values[0]
+        x_label = f"{compounds[0]} in {regions[1]} (ng/mg)"
+        y_label = f"{compounds[0]} in {regions[0]} (ng/mg)"
+    else:
+        raise ValueError("Invalid combination of compounds and regions")
+
+    # Calculate Pearson correlation coefficient and p-value
+    pearson_r, p_value = stats.pearsonr(x_data, y_data)
+    color = 'red' if pearson_r > 0 else 'blue'
+
+    # Create the plot
+    fig, ax = plt.subplots()
+    sns.scatterplot(x=x_data, y=y_data, ax=ax, marker='o', s=30, color='black')
+    sns.regplot(x=x_data, y=y_data, ci=95, ax=ax, scatter=False, line_kws={"color": color})
+
+    ax.set_xlabel(x_label, fontsize=22)
+    ax.set_ylabel(y_label, fontsize=22)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.set_title(treatment)
+
+    # Add correlation values as text
+    labels = f'Pearson R: {pearson_r:.2f}\np-value: {p_value:.4f}'
+    ax.text(0.05, 0.9, labels, transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='white', boxstyle='round'))
+
+    plt.tight_layout()
+    plt.show()
 
 
 def getAndPlotMultipleCorrelograms(

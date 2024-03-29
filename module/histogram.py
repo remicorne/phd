@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+import numpy as np 
 from module.utils import figure_cache
 from module.getters import getCompoundAndRatiosDf, getHeadTwitchDf
 import seaborn as sns
@@ -154,6 +155,23 @@ def buildHueHistogram(
     hue_order=None,
     significance_infos=None,
 ):
+    '''
+    Plots histogram of quanatative data for each treatment across region subset. #TODO need to make reversible 
+    Args:
+        title (string): 
+        ylable (string):
+        data (pd.DataFrame):                    subset of data - single compound - region subset - experiment
+        order (list):                           list of strings corrisponding to x-ticks ['', '', ...]
+        x (string):                             column in data of x values
+        y (string):                             column in data of y values
+        hue (string):                           column name for hue in data  i.e. 'treatment'
+        palette (dict):                         dict mapping hue colors {'treatment1':'color1', ... }
+        hue_order ( np.array(string) ):         string of each hue in order
+        significance_infos (pd.DataFrame):      QuantativeStats for data * post hoc test *  optional pram
+
+    Retuns:
+        fig (figure):                           histograms/barplot 
+    '''
     fig, ax = plt.subplots(figsize=(20, 10))
     ax = sns.barplot(
         x=x,
@@ -179,83 +197,51 @@ def buildHueHistogram(
     ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
     plt.tight_layout()
 
-    #handel significance info 
-    #     if significance_infos is not None: ## JJB COMMENTED JUS TO RUN WITHOUT STARS SFN
-    #         print('PLOTTING SIGNIFICANCE')
-
-    # # Iterate through regions
-    #         for region, region_group in significance_infos.groupby('region'):
-    #             df_result = region_group['result'].values[0]  #  df of posthoc results for region
-
-    # # Find rows where either group1 or group2 contains 'vehicle' and p-adj is less than or equal to 0.05 #FOR TUKEY
-    #             is_vehicle_significant = df_result[(df_result['group1'].str.contains('vehicle') | df_result['group2'].str.contains('vehicle'))
-    #                                                & (df_result['p-adj'] <= 0.05)]
-    #             significant_treatments = [item for sublist in [is_vehicle_significant['group1'], is_vehicle_significant['group2']] for item in sublist if item != 'vehicles']
-
-    #             for treatment in significant_treatments: #loop gets x and y position and plots appropriate star
-    #     # Calculate the y_position based on the maximum value in the data
-    #                 max_y = data[(data['region'] == region) & (data['treatment'] == treatment)]['value'].max()
-    #                 y_position = max_y + 0.2
-
-    #     # Calculate the x_position based on the region and non-'vehicle' treatment
-    #                 for bar in ax.containers: # Iterate through the fig bars to find the x_position
-    #                     ax_region = bar.get_label()  #  label of the bar ie region #CHATGPT this is what i wanted but as explained in issue is the first bar
-    #                     ax_treatment =bar.get_x() # hue within bar ie treatment WHAT I WANTED BUT #CHAGPT doent run
-
-    #                     if ax_region == region and ax_treatment == treatment:
-    #                         x_position = bar.get_x() + bar.get_width() / 2  # get x_position #CHAGPT probably wont run
-    #                         p_value = is_vehicle_significant[(is_vehicle_significant['group1'] == treatment) | (is_vehicle_significant['group2'] == treatment)]['p-adj'].values[0]
-
-    #                         if p_value <= 0.001:
-    #                             asterisks = '***'
-    #                         elif p_value <= 0.01:
-    #                             asterisks = '**'
-    #                         elif p_value <= 0.05:
-    #                             asterisks = '*'
-    #                         else:
-    #                             asterisks = ''
-
-    #                         ax.annotate(asterisks, (x_position, y_position), ha='center', va='center', size=12, color='black')
-
-    # #TODO this is currently done only for plotting compound in regions will not work visa verssa! #WORKING CODE IS YOU FEED ONWWAYANOVA
+    # #handel significance info #already filtered to post hoc (check higher test passes?) # single compound across regions
+    
     if significance_infos is not None:
-        print("please make code for PLOTTING SIGNIFICANCE as in hist func")
-        # Iterate through regions and add asterisks based on p-values
-        # for i, row in significance_infos.iterrows():
-        #     fregion = row["region"] #region not fregion
-        #     p_value = row["p_value"]
-        #     if p_value <= 0.001:
-        #         asterisks = "***"
-        #     elif p_value <= 0.01:
-        #         asterisks = "**"
-        #     elif p_value <= 0.05:
-        #         asterisks = "*"
-        #     else:
-        #         asterisks = ""  # No asterisks for non-significant regions
+        comparison_hue = hue_order[0] # stats compare against 'vehicles' 
 
-        #     # Find the x-coordinate of the xtick for the region
-        #     x_coord = order.index(region)
+        #loop seaborn bars : xtick1, hue1 --> xtick2, hue1 --> xtick3, hue1   #seaborn v0.11.2
+        for i, bar in enumerate(ax.patches):
 
-        #     # Calculate the y-coordinate above the highest hue bar
-        #     max_y = data[data["region"] == region][
-        #         "value"
-        #     ].max()  # TODO does data include outliers?
-        #     y_coord = max_y + 0.001  # You can adjust the vertical position
 
-        #     ax.annotate(
-        #         asterisks,
-        #         (x_coord, y_coord),
-        #         ha="center",
-        #         va="center",
-        #         size=12,
-        #         color="black",
-        #     )
+            # Calculate the index of the group (region) and the hue for this bar
+            group_index = i % len(order)
+            hue_index = i // len(order)
+            # Get the region and hue names based on their indices
+            region = order[group_index]
+            hue = hue_order[hue_index]
+
+            # IF LOOPING BARS FROM LEFT TO RIGHT THROUGH ALL HUES #if seaborn updates have different ordering of ax.patches
+            # # Calculate the number of bars per group (number of hues)
+            # bars_per_group = len(hue_order)
+            # # Find the index of the group (region) and the hue for this bar
+            # group_index = i // bars_per_group
+            # hue_index = i % bars_per_group
+            # # Get the region and hue names based on their indices
+            # region = order[group_index]
+            # hue = hue_order[hue_index]
+            
+            if hue == comparison_hue:
+                continue # do not plot stats on control/vehicle
+
+            if region not in significance_infos['region'].unique():
+                continue #continue if no stats for that region
+
+            # Check if this hue is in a significant pair for this region
+            significant_posthoc_pairs = significance_infos[significance_infos['region'] == region]['p_value'].values[0][0]  #  [ [(hue, hue), (hue,hue)] ,   [p_val, p_val] ]
+            significant_posthoc_p_values = significance_infos[significance_infos['region'] == region]['p_value'].values[0][1]
+            for pair, p_value in zip(significant_posthoc_pairs, significant_posthoc_p_values):
+                if comparison_hue in pair and hue in pair:
+                    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.06, '*', ha='center', va='bottom', fontsize=14)
+
+                    break  
 
     sns.despine(left=False)
     return fig
 
 
-# TODO pretty sure is saw its possible to have this and the stat test done using special params #JJB: if you mean the seabourn stuff included the stats are too limited and it will not be as required
 def labelStats(ax, data, x, y, order, significance_infos):
     pairs, p_values = significance_infos
     annotator = Annotator(ax, pairs, data=data, x=x, y=y, order=order)

@@ -1,5 +1,6 @@
 import os
 from module.constants import CACHE_DIR
+import pandas as pd
 from module.utils import checkFileSystem, getJSON, saveJSON
 
 ####### FUNCTION THAT DEAL WITH SAVING INFORMATIONS ABOUT EXPERIMENTS ###########
@@ -17,11 +18,20 @@ def applyTreatmentMapping(df, filename):
     treatment_mapping = getJSON((treatment_mapping_path))
     # Get the future column names from one of the treatments
     new_columns = list(list(treatment_mapping.values())[0].keys())
-    df[new_columns] = df.apply(
-        lambda x: treatment_mapping[str(int(x["group_id"]))].values(),
-        axis=1,
-        result_type="expand",
-    )  # Get alll the values and assign to corresponding columns
+
+#OLD causing settingcopy warning 
+#     df[new_columns] = df.apply(
+#     lambda x: treatment_mapping[str(int(x["group_id"]))].values(),
+#     axis=1,
+#     result_type="expand",
+# )
+    #new
+    df.loc[:, new_columns] = df.apply(
+    lambda x: pd.Series(treatment_mapping[str(int(x["group_id"]))]),
+    axis=1
+)
+    
+    # Get alll the values and assign to corresponding columns
     # Duplicate rows belonging to multiple experiment so that groupby can be done later
     return df.explode("experiments").rename(columns={"experiments": "experiment"})
 
