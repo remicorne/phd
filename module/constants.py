@@ -7,7 +7,9 @@ import os
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 INPUT_DIR = f"{ROOT}/input"
 OUTPUT_DIR = f"{ROOT}/output"
+PROJECTS = f"{ROOT}/PROJECTS"
 CACHE_DIR = f"{INPUT_DIR}/cache"
+CACHE = "cache"
 
 COLUMN_ORDER = {
     "region": [

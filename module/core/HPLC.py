@@ -4,15 +4,12 @@ from typing import ClassVar
 import pandas as pd
 from module.core.Dataset import Dataset
 from module.core.Questions import Questions
-from module.core.Metadata import Metadata
+from module.core.Metadata import ProjectInformation
 from module.core.Constants import REGIONS, COMPOUNDS
-
-ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
-CACHE = "cache"
 
 
 def detect_raw_data(project):
-    for filename in os.listdir(ROOT):
+    for filename in os.listdir():
         if project.upper() in filename.upper():
             if os.path.splitext(filename)[1].lower() in [".csv", ".xlsx"]:
                 is_correct = Questions.yes_or_no(f"Detected {filename}. Confirm?")
@@ -44,9 +41,9 @@ def handle_raw_col_name(column):
 @dataclass
 class RawHPLC(Dataset):
     
-    _type: ClassVar[str] = "raw_hplc"
+    _name: ClassVar[str] = "raw_hplc"
 
-    def generate_data(self):
+    def generate(self):
         raw_data = self.get_raw_data()
         return raw_data.rename(columns=self.get_valid_columns(raw_data.columns))
 
@@ -54,12 +51,12 @@ class RawHPLC(Dataset):
         raw_data_filename = detect_raw_data(self.project) or Questions.input(
             "Enter HPLC excel filename"
         )
-        file_path = f"{ROOT}/{raw_data_filename}"
+        file_path = f"{os.getcwd()}/{raw_data_filename}"
 
         while not is_valid_file(file_path):
             print(raw_data_filename, "NOT FOUND")
             raw_data_filename = Questions.input("Enter excel HPLC filename")
-            file_path = f"{ROOT}/{raw_data_filename}"
+            file_path = f"{os.getcwd()}/{raw_data_filename}"
 
         extension = os.path.splitext(file_path)[1].lower()
         return pd.read_excel(file_path) if extension == ".xlsx" else pd.read_csv(file_path)
@@ -101,9 +98,9 @@ class RawHPLC(Dataset):
 @dataclass
 class HPLC(Dataset):
     
-    _type: ClassVar[str] = "compound_and_ratios"
+    _name: ClassVar[str] = "compound_and_ratios"
 
-    def generate_data(self):
+    def generate(self):
         raw_data = RawHPLC(self.project).get()
         compound_data = raw_data.melt(
             id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
@@ -111,7 +108,7 @@ class HPLC(Dataset):
         compound_data[["compound", "region"]] = compound_data.apply(
             lambda x: x.variable.split("_"), axis=1, result_type="expand"
         )
-        compound_data = Metadata(self.project).label_compound_data(compound_data)
+        compound_data = ProjectInformation(self.project, compound_data).label_compound_data(compound_data)
         compound_data = compound_data.drop(columns=["variable"])
         ratio_data = pd.merge(
             left=compound_data,
