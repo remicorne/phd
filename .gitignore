@@ -6,5 +6,8 @@ input
 debug.py
 debug2.py
 .DS_Store
-allen_sdk
 
+
+allen_sdk
+mouse_connectivity/manifest.json
+mouse_connectivity/structures.json
