@@ -1,4 +1,7 @@
-# phd
+# Neurochemical Network Analysis
+
+* user must be careful to input without error for treatment / experimental mapping
+* * figures will always be generated for an experiment 
 
 Notebook is used to do the actual data processing
 Module contains all necessary functions
