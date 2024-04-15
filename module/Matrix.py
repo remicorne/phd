@@ -210,7 +210,7 @@ class Matrices:
 
     Attributes:
         data (pd.DataFrame): The original dataframe containing the data.
-        group_by (str): The column name in 'data' to group by.
+        group_by (str): The column name in 'data' to group by (generally 'experiment').
         between (str): The first variable to correlate (e.g., compound or region).
         variables (str): The specific variables to correlate from 'between'.
                 accross (str): The second variable to correlate against 'between'.      
@@ -252,6 +252,7 @@ class Matrices:
         )
         self.var1, self.var2 = self.variables
 
+    ## TODO: delete when new model done, should have only pertinent data
     def sub_select(self):
         self.sub_selector[self.between] = self.variables
         if self.columns:

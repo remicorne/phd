@@ -29,5 +29,10 @@
   "VTA": "Ventral Tegmental Area",
   "DR": "Dorsal Raphe Nucleus",
   "MR": "Medial Raphe Nucleus",
-  "CE": "Cerebellum"
+  "CE": "Cerebellum",
+  "GP": "Globus Pallidus",
+  "ENT": "Entorhinal Cortex",
+  "IL": "Infralimbic Cortex",
+  "HYP": "Hypothalamus",
+  "LO": "Lateral Orbitofrontal Cortex"
 }

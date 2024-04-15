@@ -1,9 +1,8 @@
 import os, platform, subprocess
 import pandas as pd
 from dataclasses import dataclass
-from module.core.Questions import Questions
 from typing import ClassVar
-from module.core.ProjectMember import ProjectMember
+from module.core.Cacheable import Cacheable
 
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
@@ -25,23 +24,13 @@ def sub_select(df, selector):
 
 
 @dataclass
-class Dataset(ProjectMember):
+class Dataset(Cacheable):
 
     _name: ClassVar[str] = None
-    _subfolder: ClassVar[str] = 'cache'
-    _with_validation: ClassVar[str] = False
     _template: pd.DataFrame = None
 
-    def __post_init__(self):
-        file_path = f"{self.location}/{self._name}"
-        self.pkl_path = f"{file_path}.pkl"
-        self.excel_path = f"{file_path}.xlsx"
-        if not self.is_saved:
-            self.initialize()
-            
     def generate(self):
-        data = pd.DataFrame(self._template)
-        return data
+        return pd.DataFrame(self._template)
     
     def validate(self, data):
         if data.empty:
@@ -52,8 +41,6 @@ class Dataset(ProjectMember):
         print(f"CREATED AND CACHED {self.project}/{self._name}")
             
     def save(self, dataset):
-        if self._with_validation:
-            self.validate(dataset)
         dataset.to_pickle(self.pkl_path)
         try:
             dataset.to_excel(self.excel_path)
@@ -64,14 +51,6 @@ class Dataset(ProjectMember):
     def load(self):
         return pd.read_pickle(self.pkl_path)
             
-    def edit_excel_and_save(self):
-        self._open_excel()
-        user_finished = Questions.yes_or_no("Have you finished editing and saved the file?")
-        while not user_finished:
-            user_finished = Questions.yes_or_no("Have you finished editing and saved the file?")
-        updated_dataset = pd.read_excel(self.excel_path)
-        self.save(updated_dataset)
-
     def select(self, selector):
         sub_selection = sub_select(self.get(), selector)
         if sub_selection.empty:
@@ -91,12 +70,28 @@ class Dataset(ProjectMember):
         else:
             raise FileNotFoundError(self.excel_path)
         
-    def delete(self):
+    def clear_cache(self):
         if self.is_pickeled:
             os.remove(self.pkl_path)
+            
+    def delete(self):
+        self.clear_cache()
         if self. is_exceled:
-            os.remove(self.pkl_path)
-        
+            os.remove(self.excel_path)
+    
+    @property
+    def filepath(self):
+        return f"{self.location}/{self._name}"
+
+    # Probably useless to have all these properties if were only saving proper stuff
+    @property
+    def pkl_path(self):
+        return f"{self.filepath}.pkl"
+
+    @property
+    def excel_path(self):
+        return f"{self.filepath}.xlsx"
+    
     @property
     def is_saved(self):
         return self.is_pickeled
@@ -109,3 +104,6 @@ class Dataset(ProjectMember):
     def is_exceled(self):
         return os.path.isfile(self.excel_path)
 
+    @property
+    def df(self):
+        return self.get()

@@ -10,7 +10,7 @@ from module.core.Constants import REGIONS, COMPOUNDS
 
 def detect_raw_data(project):
     for filename in os.listdir():
-        if project.upper() in filename.upper():
+        if project.name.upper() in filename.upper():
             if os.path.splitext(filename)[1].lower() in [".csv", ".xlsx"]:
                 is_correct = Questions.yes_or_no(f"Detected {filename}. Confirm?")
                 if is_correct:
@@ -82,7 +82,7 @@ class RawHPLC(Dataset):
         }
         if invalid_regions:
             print(f"Invalid regions: {invalid_regions}")
-
+    
         compound_translator = {
             invalid_compound: COMPOUNDS.get_valid_choice(invalid_compound)
             for invalid_compound in invalid_compounds
@@ -103,12 +103,9 @@ class HPLC(Dataset):
     def generate(self):
         raw_data = RawHPLC(self.project).get()
         compound_data = raw_data.melt(
-            id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
+                id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
         )
-        compound_data[["compound", "region"]] = compound_data.apply(
-            lambda x: x.variable.split("_"), axis=1, result_type="expand"
-        )
-        compound_data = ProjectInformation(self.project, compound_data).label_compound_data(compound_data)
+        compound_data[['compound', 'region']] = compound_data['variable'].str.split('_', expand=True)
         compound_data = compound_data.drop(columns=["variable"])
         ratio_data = pd.merge(
             left=compound_data,
@@ -117,9 +114,6 @@ class HPLC(Dataset):
                 "mouse_id",
                 "group_id",
                 "region",
-                "experiment",
-                "color",
-                "treatment",
             ],
             suffixes=["_1", "_2"],
         ).reset_index(
@@ -151,3 +145,4 @@ class HPLC(Dataset):
             ]
         )
         return compound_and_ratios_df
+    

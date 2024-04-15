@@ -23,12 +23,14 @@ class Questions:
         return Questions.input_escape(question)
     
     def select_one(question, options):
+        if isinstance(options, list):
+            options = {str(i+1): option for i, option in enumerate(options)}
         choice = Questions.input_escape(
             f"""{question}
             {options}""")
         while choice not in options.keys():
             choice = Questions.input_escape(f"""Invalid choice, possibilities are:\{options}\n""")
-        return choice
+        return options[choice]
 
     def yes_or_no(question):
         answer = Questions.input_escape(f"""{question} (y/n)\n""").upper()

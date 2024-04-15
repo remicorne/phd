@@ -1,20 +1,19 @@
-import os
 from dataclasses import dataclass
-from module.core.Project import Project
-from typing import ClassVar
+from module.core.Questions import Questions
+from module.constants import ROOT
+import os
 
-ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
+PROJECTS = f"{ROOT}/PROJECTS"
 
 @dataclass
-class ProjectMember:
+class Cacheable:
 
-    project: str
-    _subfolder: ClassVar[str] = None
+    location: str
 
     def __post_init__(self):
-        self.project = Project(self.project)
-        self.location = f"{self.project.location}/{self._subfolder}"
-            
+        if not self.is_saved:
+            self.initialize()
+          
     def generate(self):
         pass
 
@@ -34,6 +33,10 @@ class ProjectMember:
         return self.load()
 
     @property
+    def filepath(self):
+        raise NotImplementedError
+    
+    @property
     def is_saved(self):
-        pass
+        os.path.isfile(self.filepath)
 
