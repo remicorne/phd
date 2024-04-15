@@ -45,7 +45,7 @@ class _ProjectSettings(Dataset):
 @dataclass
 class TreatmentInformation(_ProjectSettings):
     experiment: str
-    _name: ClassVar[str] = "experiment_info"
+    _name: ClassVar[str] = "treatment_information"
     _template: ClassVar[list] = {
         "group_id": [1, 5],
         "treatment": ["vehicles", "TCB2+MDL"],
@@ -74,10 +74,10 @@ class TreatmentInformation(_ProjectSettings):
     #     return next(filter(lambda treatment: treatment['treatment'] == name, self.df.treatments.tolist()))
     
     
-
+@dataclass
 class ExperimentInformation(_ProjectSettings):
-    _name: ClassVar[str] = "project_info"
-    _template: ClassVar[list] = {
+    _name: ClassVar[str] = "project_information"
+    _template: ClassVar[list] = {  # Assign the template dictionary here
         "experiment": ["agonist antagonist"],
         "groups": ["1, 2, 5, 8"],
         "independant_variables": ["TCB2, MDL"],
