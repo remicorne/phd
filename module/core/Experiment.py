@@ -1,14 +1,13 @@
 from __future__ import annotations
 import os
 from dataclasses import dataclass
-from Project import Project, PROJECTS
-from Questions import Questions
+from module.core.Questions import Questions
 
 
 @dataclass
 class Experiment:
 
-    project: Project
+    project: object #Project
     experiment_info: str
 
     def __post_init__(self):
@@ -29,13 +28,6 @@ class Experiment:
     @property
     def df(self):
         return self.project.hplc.df.merge(self.information.df, on="group_id")
-    
-    @classmethod
-    def list():
-        experiments = {}
-        for project in os.listdir(path=PROJECTS):
-            experiments.expand([(project.name, experiment.name) for experiment in os.listdir(project.path)])
-        return experiments
     
     @classmethod
     def find(cls, experiment):

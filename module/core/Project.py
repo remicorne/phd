@@ -1,9 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from Experiment import Experiment
-from Questions import Questions
-from Metadata import ExperimentInformation, TreatmentInformation
-from HPLC import HPLC
+from module.core.Experiment import Experiment
+from module.core.Questions import Questions
+from module.core.Metadata import ExperimentInformation, TreatmentInformation
+from module.core.HPLC import HPLC
 from ..constants import ROOT
 from module.outliers import OUTLIER_TESTS
 import os

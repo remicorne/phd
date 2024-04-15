@@ -4,7 +4,6 @@ from typing import ClassVar
 import pandas as pd
 from module.core.Dataset import Dataset
 from module.core.Questions import Questions
-from module.core.Metadata import ProjectInformation
 from module.core.Constants import REGIONS, COMPOUNDS
 
 
