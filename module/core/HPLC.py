@@ -47,7 +47,7 @@ class RawHPLC(Dataset):
         return raw_data.rename(columns=self.get_valid_columns(raw_data.columns))
 
     def get_raw_data(self):
-        raw_data_filename = detect_raw_data(self.project) or Questions.input(
+        Questions.input(
             "Enter HPLC excel filename"
         )
         file_path = f"{os.getcwd()}/{raw_data_filename}"
