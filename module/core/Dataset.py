@@ -38,7 +38,7 @@ class Dataset(Cacheable):
 
     def initialize(self):
         super().initialize()
-        print(f"CREATED AND CACHED {self.project}/{self._name}")
+        print(f"CREATED AND CACHED {self.filepath}")
             
     def save(self, dataset):
         dataset.to_pickle(self.pkl_path)

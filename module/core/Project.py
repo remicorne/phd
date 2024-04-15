@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from module.core.Experiment import Experiment
 from module.core.Questions import Questions
 from module.core.Metadata import ExperimentInformation, TreatmentInformation
-from module.core.HPLC import HPLC
+from module.core.HPLC import RawHPLC, HPLC
 from ..constants import ROOT
 from module.outliers import OUTLIER_TESTS
 import os

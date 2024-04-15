@@ -47,7 +47,7 @@ class RawHPLC(Dataset):
         return raw_data.rename(columns=self.get_valid_columns(raw_data.columns))
 
     def get_raw_data(self):
-        Questions.input(
+        raw_data_filename = Questions.input(
             "Enter HPLC excel filename"
         )
         file_path = f"{os.getcwd()}/{raw_data_filename}"
@@ -99,8 +99,12 @@ class HPLC(Dataset):
     
     _name: ClassVar[str] = "compound_and_ratios"
 
+    def __post_init__(self):
+        self.raw_data = RawHPLC(self.location)
+        super().__post_init__()
+
     def generate(self):
-        raw_data = RawHPLC(self.project).get()
+        raw_data = self.raw_data.df
         compound_data = raw_data.melt(
                 id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
         )
