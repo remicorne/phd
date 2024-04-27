@@ -79,9 +79,8 @@ def buildHistogram(
     palette=None,
     swarm_hue=None,
     swarm_palette=None,
-    significance_infos=None,  # x='treatment',y='value'
+    significance_infos=None, 
 ):
-    # JASMINE: in what case would the x and y be variables? #REMI we need to talk about this func as it should be more general
     x = "treatment"
     y = "value"
 

@@ -104,6 +104,24 @@ def justStats(
 
     print("DONE")
 
+def getPostHocTest(filename, experiment):
+    '''
+    Returns the post hoc test used for experiment.
+    '''
+    #will need to be modified when pLSD is added
+# TODO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
+    experiment_info = getExperimentalInfo(filename)[experiment]
+    multiple_factors = len(experiment_info["independant_vars"]) > 1
+    multiple_treatments = len(experiment_info["groups"]) > 1
+    paired = experiment_info["paired"]
+    parametric = experiment_info["parametric"]
+
+    tests = doQuantitativeStatLogic(
+        multiple_factors, multiple_treatments, paired, parametric
+    )
+    test = tests[-1]  # feed lowest test only post-hoc
+    return test
+
 
 def quantitativeHistogram(
     filename,
@@ -347,6 +365,7 @@ def buildSingleQuantitativeSummary(
         compound = columns
         region = to_plot  # this allows the use of the function both ways but feels fucking stupid tbh
 
+    # test = getPostHocTest(filename, experiment) #CHECK WORKS FIRST 
     # TODO / REMI pretty sure this should be its own function at some point statsTests(filename, experiment) also in processQuantitativeStats
     experiment_info = getExperimentalInfo(filename)[experiment]
     multiple_factors = len(experiment_info["independant_vars"]) > 1
