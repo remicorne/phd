@@ -14,4 +14,5 @@ statsmodels
 weasyprint
 networkx
 openpyxl
-allensdk
+tqdm
+# allensdk
