@@ -1,18 +1,19 @@
 import pandas as pd
+import numpy as np
 import os
 from module.core.Dataset import Dataset
-from module.core.Questions import Questions
+from module.core.Question import Question
+from module.core.JSON import JSONMapping
 from dataclasses import dataclass
 from typing import ClassVar
 from distutils.util import strtobool
-
+from module.core.Outliers import OUTLIER_TESTS
 
 
 class _ProjectSettings(Dataset):
     
-    
-    def load(self):
-        return pd.read_excel(self.excel_path)
+    def generate(self):
+        return pd.DataFrame(self._template)
     
     def validate(self, data):
         if data.isnull().any():
@@ -23,7 +24,7 @@ class _ProjectSettings(Dataset):
         question = "Press any key and ENTER when done editing file"
         user_finished = False
         while not user_finished:
-            Questions.input(question)
+            Question.input(question)
             try:
                 pd.read_excel(self.excel_path)
                 user_finished = True
@@ -34,23 +35,37 @@ class _ProjectSettings(Dataset):
                 question = "Error reading file. Press any key and ENTER when done correcting file"
                 user_finished = False
 
-    def generate(self):
-        super().generate().to_excel(self.excel_path)
-
     def initialize(self):
-        self.generate()
+        super().initialize()
         self.edit_excel()
         
+    def save(self, data):
+        print(f"Saving {self._name} dataframe")
+        data.to_excel(self.excel_path)
+        print(f"Saved {self._name} datarame to {self.excel_path}")
+    
+    def load(self):
+        return pd.read_excel(self.excel_path)
+       
+    @property
+    def is_saved(self):
+        return self.is_exceled
+        
+    @property
+    def list(self):
+        return self.df.to_dict(orient="index").values()
+
+
 
 @dataclass
 class TreatmentInformation(_ProjectSettings):
-    experiment: str
+
     _name: ClassVar[str] = "treatment_information"
     _template: ClassVar[list] = {
-        "group_id": [1, 5],
-        "treatment": ["vehicles", "TCB2+MDL"],
-        "color": ["white", "red"],
-        "independant_variables": ["", "TCB2, MDL"],
+        "group_id": [1, 5, 3, 4],
+        "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
+        "color": ["white", "pink", "orange", "red"],
+        "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
     }
     
     def __post_init__(self):
@@ -70,23 +85,21 @@ class TreatmentInformation(_ProjectSettings):
             raise Exception(f"Error creating experiment info : {e}")
 
 
-    # def get_treatment(self, name):
-    #     return next(filter(lambda treatment: treatment['treatment'] == name, self.df.treatments.tolist()))
+    def load(self):
+        return super().load().replace(np.nan, "") # vehicle.independant_var == nan, problem for var in independant_var (nan not iterable)
     
     
 @dataclass
 class ExperimentInformation(_ProjectSettings):
-    _name: ClassVar[str] = "project_information"
-    _template: ClassVar[list] = {  # Assign the template dictionary here
+    _name: ClassVar[str] = "experiment_information"
+    _template: ClassVar[list] = {  
         "experiment": ["agonist antagonist"],
-        "groups": ["1, 2, 5, 8"],
+        "groups": ["1, 5, 3, 4"],
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],
         "parametric": [True],
     }
 
-
-    # Outlier is no at project level and not in the df
     def validate(self, data):
         try:
             super().validate()
@@ -97,11 +110,24 @@ class ExperimentInformation(_ProjectSettings):
                     raise ValueError(f"{variable} must be a boolean ('True' or 'False')")
         except Exception as e:
             raise Exception(f"Error creating project info : {e}")
-    
-    @property
-    def experiments(self):
-        return self.df.experiment.tolist()
 
     def get_experiment(self, name):
         return next(filter(lambda experiment_information: experiment_information['experiment'] == name, self.experiments))
+    
+
+@dataclass
+class OutlierInformation(JSONMapping):
+    
+    name: str = "statistics_information"
+    _template = {
+        "outlier_test": None,
+        "p_value_threshold": None,
+    }
+    
+    def generate(self):
+        data = self._template
+        data["outlier_test"] = Question.select_one("Select outlier test", OUTLIER_TESTS.keys())
+        data["p_value_threshold"] = float(Question.input("Enter p value threshold"))
+        return data
+    
     

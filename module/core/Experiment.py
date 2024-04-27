@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 from dataclasses import dataclass
-from module.core.Questions import Questions
+from module.core.Question import Question
 
 
 @dataclass
@@ -18,7 +18,7 @@ class Experiment:
         self.parametric = self.experiment_info.parametric
         self.location = f"{self.project.location}/{self.name}"
         if not os.path.exists(self.location):
-            if Questions.yes_or_no(f"INITIALIZE NEW EXPERIMENT: '{self.name}' ?"):
+            if Question.yes_or_no(f"INITIALIZE NEW EXPERIMENT: '{self.name}' ?"):
                 os.mkdir(self.location)
             else:
                 print(f"UNKNOWN EXPERIMENT: {self.name}")
@@ -33,6 +33,6 @@ class Experiment:
     def find(cls, experiment):
         possible_projects = [project for project, experiment in Experiment.list() if experiment == 'experiment']
         if possible_projects:
-            project = possible_projects[0] if len(possible_projects == 1) else Questions.select_one(possible_projects)
+            project = possible_projects[0] if len(possible_projects == 1) else Question.select_one(possible_projects)
             return cls(experiment, project)
         raise(f"Experiment {experiment} not found in any project")

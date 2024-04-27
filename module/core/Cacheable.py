@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from module.core.Questions import Questions
+from module.core.Question import Question
 from module.constants import ROOT
 import os
 
@@ -15,8 +15,8 @@ class Cacheable:
             self.initialize()
           
     def generate(self):
-        pass
-
+        raise NotImplementedError('This method should be implemented for all custom Cacheables')
+    
     def initialize(self):
         data = self.generate()
         self.save(data)
@@ -38,5 +38,5 @@ class Cacheable:
     
     @property
     def is_saved(self):
-        os.path.isfile(self.filepath)
+        return os.path.isfile(self.filepath)
 

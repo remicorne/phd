@@ -27,11 +27,8 @@ def sub_select(df, selector):
 class Dataset(Cacheable):
 
     _name: ClassVar[str] = None
-    _template: pd.DataFrame = None
+    _template: ClassVar[pd.DataFrame] = None
 
-    def generate(self):
-        return pd.DataFrame(self._template)
-    
     def validate(self, data):
         if data.empty:
             raise ValueError("NO DATA")
@@ -40,13 +37,13 @@ class Dataset(Cacheable):
         super().initialize()
         print(f"CREATED AND CACHED {self.filepath}")
             
-    def save(self, dataset):
-        dataset.to_pickle(self.pkl_path)
-        try:
-            dataset.to_excel(self.excel_path)
-        except ValueError as e:
-            if "This sheet is too large" in str(e):
-                print(f"COULD NOT SAVE TO EXCEL: {self._name} TOO LARGE")
+    def save(self, data):
+        print(f"Caching {self._name} dataframe")
+        data.to_pickle(self.pkl_path)
+        print(f"Cached {self._name} datarame to {self.pkl_path}")
+        print(f"Saving {self._name} datarame (may take a minute or two)")
+        data.to_excel(self.excel_path)
+        print(f"Saved {self._name} datarame to {self.excel_path}")
 
     def load(self):
         return pd.read_pickle(self.pkl_path)
