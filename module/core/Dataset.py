@@ -42,7 +42,7 @@ class Dataset(Cacheable):
         data.to_pickle(self.pkl_path)
         print(f"Cached {self._name} datarame to {self.pkl_path}")
         print(f"Saving {self._name} datarame (may take a minute or two)")
-        data.to_excel(self.excel_path)
+        data.to_excel(self.excel_path, index=False)
         print(f"Saved {self._name} datarame to {self.excel_path}")
 
     def load(self):
@@ -61,7 +61,7 @@ class Dataset(Cacheable):
             elif platform.system() == "Darwin":
                 subprocess.call(("open", self.excel_path))
             elif platform.system() == "Linux":
-                subprocess.call(("xdg-open", self.excel_path))
+                print("Can't handle Linux")
             else:
                 raise OSError("Unknown operating system")
         else:

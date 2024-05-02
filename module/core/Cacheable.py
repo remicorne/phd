@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from module.core.Question import Question
 from module.constants import ROOT
 import os
 

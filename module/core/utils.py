@@ -1,14 +1,14 @@
 from tqdm.contrib.concurrent import process_map
 
 def parallel_process(executor, cases, description="Processing"):
-    """Executes the operations performed by {executor} once per c   ase in cases in parralel
+    """Executes the operations performed by {executor} once per case in cases in parralel
 
     Args:
-        executor (function): functio
-        cases (list(args)): different arguments to be used by executor
+        executor (function): function to be executed, must take a single argument and unpack if necessary
+        cases (list(args)): different arguments to be used by executor. Case == [arg1, arg2, ...] for executor(case)
 
     Returns:
-        [executor(case) for case in cases]
+        List of results from executor
     """
     results = process_map(executor, cases, desc=description, chunksize=1)
     return results

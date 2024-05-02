@@ -4,7 +4,7 @@ from typing import ClassVar
 import pandas as pd
 import numpy as np
 from module.core.Dataset import Dataset
-from module.core.Question import Question
+from module.core.questions import yes_or_no
 from module.core.Constants import REGIONS, COMPOUNDS
 from tqdm import tqdm
 
@@ -15,28 +15,16 @@ def detect_raw_data(project):
     for filename in os.listdir():
         if project.name.upper() in filename.upper():
             if os.path.splitext(filename)[1].lower() in [".csv", ".xlsx"]:
-                is_correct = Question.yes_or_no(f"Detected {filename}. Confirm?")
+                is_correct = yes_or_no(f"Detected {filename}. Confirm?")
                 if is_correct:
                     return filename
     return None
 
 
-def is_valid_file(file_path):
-    if not os.path.isfile(file_path):
-        print("Not found", file_path)
-        return False
-    extension = os.path.splitext(file_path)[1].lower()
-    if extension not in [".xlsx", ".csv"]:
-        print("Invalid extension:", extension)
-        return False
-
-    return True
-
-
 def handle_raw_col_name(column):
     match = re.match(r"(\w+)[-_ ](\w+)", column)
     while not match or not len(match.groups()) == 2:
-        column = Question.input(
+        column = input(
             f"Wrong format: '{column}', input new 'compound_region': "
         )
         match = re.match(r"(\w+)[-_ ](\w+)", column)
@@ -46,26 +34,14 @@ def handle_raw_col_name(column):
 @dataclass
 class RawHPLC(Dataset):
 
+    raw_data_filename: str
     _name: ClassVar[str] = "raw_hplc"
 
     def generate(self):
-        raw_data = self.get_raw_data()
+        filepath = f"{os.getcwd()}/{self.raw_data_filename}"
+        extension = os.path.splitext(self.raw_data_filename)[1].lower()
+        raw_data = pd.read_excel(filepath) if extension == ".xlsx" else pd.read_csv(filepath)
         return raw_data.rename(columns=self.get_valid_columns(raw_data.columns))
-
-    def get_raw_data(self):
-        # raw_data_filename = easygui.fileopenbox(title="Select raw HPLC file", filetypes=["*.xls", "*.xlsx"])
-        raw_data_filename = Question.input("Enter HPLC excel filename")
-        file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        while not is_valid_file(file_path):
-            print(raw_data_filename, "NOT FOUND")
-            raw_data_filename = Question.input("Enter excel HPLC filename")
-            file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        extension = os.path.splitext(file_path)[1].lower()
-        return (
-            pd.read_excel(file_path) if extension == ".xlsx" else pd.read_csv(file_path)
-        )
 
     def get_valid_columns(self, columns):
         mandatory_columns = ["mouse_id", "group_id"]

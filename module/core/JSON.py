@@ -2,11 +2,11 @@
 import json
 from dataclasses import dataclass
 from module.core.Cacheable import Cacheable
+from module.core.questions import input_escape
 
 @dataclass
 class JSONMapping(Cacheable):
     location = str
-    name: str
     
     def load(self):
         with open(self.filepath) as outfile:
@@ -41,4 +41,4 @@ class JSONMapping(Cacheable):
         
     @property
     def filepath(self):
-        return f"{self.location}/{self.name}.json"
+        return f"{self.location}/{input_escape('Enter mapping name:')}.json"

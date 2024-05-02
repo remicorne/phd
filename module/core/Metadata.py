@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from module.core.Dataset import Dataset
-from module.core.Question import Question
+from module.core.questions import select_one
 from module.core.JSON import JSONMapping
 from dataclasses import dataclass
 from typing import ClassVar
@@ -24,7 +24,7 @@ class _ProjectSettings(Dataset):
         question = "Press any key and ENTER when done editing file"
         user_finished = False
         while not user_finished:
-            Question.input(question)
+            input(question)
             try:
                 pd.read_excel(self.excel_path)
                 user_finished = True
@@ -115,19 +115,48 @@ class ExperimentInformation(_ProjectSettings):
         return next(filter(lambda experiment_information: experiment_information['experiment'] == name, self.experiments))
     
 
+
+
+def is_valid_file(file_path):
+    if not os.path.isfile(file_path):
+        print("Not found", file_path)
+        return False
+    extension = os.path.splitext(file_path)[1].lower()
+    if extension not in [".xlsx", ".csv"]:
+        print("Invalid extension:", extension)
+        return False
+
+    return True
+
 @dataclass
-class OutlierInformation(JSONMapping):
+class ProjectInformation(JSONMapping):
     
-    name: str = "statistics_information"
+    _name: ClassVar[str] = "project_information"
     _template = {
         "outlier_test": None,
         "p_value_threshold": None,
+        "raw_data_filename": None,
     }
     
     def generate(self):
         data = self._template
-        data["outlier_test"] = Question.select_one("Select outlier test", OUTLIER_TESTS.keys())
-        data["p_value_threshold"] = float(Question.input("Enter p value threshold"))
+        data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
+        data["p_value_threshold"] = float(input("Enter p value threshold"))
+        data["raw_data_filename"] = self.get_valid_filename()
         return data
     
-    
+    def get_valid_filename(self):
+        # raw_data_filename = easygui.fileopenbox(title="Select raw HPLC file", filetypes=["*.xls", "*.xlsx"])
+        raw_data_filename = input("Enter HPLC excel filename (must be in phd/)")
+        file_path = f"{os.getcwd()}/{raw_data_filename}"
+
+        while not is_valid_file(file_path):
+            print(raw_data_filename, "NOT FOUND")
+            raw_data_filename = input("Enter excel HPLC filename (must be in phd/)")
+            file_path = f"{os.getcwd()}/{raw_data_filename}"
+
+        return file_path
+        
+    @property
+    def filepath(self):
+        return f"{self.location}/{self._name}.json"
