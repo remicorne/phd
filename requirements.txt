@@ -15,4 +15,5 @@ weasyprint
 networkx
 openpyxl
 tqdm
+ipykernal
 # allensdk
