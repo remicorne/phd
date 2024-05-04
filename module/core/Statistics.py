@@ -337,7 +337,7 @@ class Statistics(Dataset):
             invalid_groupings = self.select({"test": "validation"})
             return invalid_groupings[invalid_groupings.result == 'Not enough data']
         except ValueError as e:
-            if "EMPTY SELECTION" in e:
+            if "EMPTY SELECTION" in str(e):
                 return "No data"
                 
         return self.df[(self.df.test == "validation" & self.df.result == "Not enough data")]
