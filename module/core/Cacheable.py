@@ -25,11 +25,6 @@ class Cacheable:
             
     def save(self, data):
         pass
-    
-    def get(self):
-        if not self.is_saved:
-            self.initialize()
-        return self.load()
 
     @property
     def filepath(self):

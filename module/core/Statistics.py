@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
-from module.core.Dataset import Dataset, sub_select
-from module.core.Outliers import Outliers
+import numpy as np
+from module.core.Dataset import Dataset
 from module.core.HPLC import HPLC
-from module.core.Metadata import TreatmentInformation
 from tqdm import tqdm
 import scipy
 import pingouin as pg
@@ -129,9 +128,7 @@ def process_quantitative_stats(
             - applied p-value threshold ('p_value_threshold'),
             - computed p-value ('p_value').
     """
-    data, test_pipeline, p_value_threshold = (
-        data__test_pipeline__p_value_threshold
-    )
+    data, test_pipeline, p_value_threshold = data__test_pipeline__p_value_threshold
     test_results = []
     data = data[data.value.notna()]
 
@@ -197,31 +194,22 @@ class Statistics(Dataset):
         insufficent_data: Returns a DataFrame of results flagged with "Not enough data".
     """
 
-    treatment_information: TreatmentInformation
+    full_df: pd.DataFrame
     experiments: object  # list(Experiment)
     p_value_threshold: float
-    hplc: HPLC
-    outliers: Outliers
     _name: ClassVar = "statistics"
 
     def generate(self):
         results = []
 
-        # Filter outliers
-        filtered_outliers = self.outliers.select({"is_outlier": False})
-        common_columns = filtered_outliers.columns.intersection(self.hplc.df.columns)
-        hplc_without_outliers = filtered_outliers.merge(
-            self.hplc.df, on=common_columns.tolist()
-        )
-
         # Create df with full experiment information, duplicating shared groups
         hplc_per_experiment_list = []
         for experiment in self.experiments.values():
-            exepriment_hplc = sub_select(
-                hplc_without_outliers, {"group_id": experiment.groups}
-            ).merge(self.treatment_information.df, on="group_id")
-            exepriment_hplc["experiment"] = experiment.name
-            hplc_per_experiment_list.append(exepriment_hplc)
+            experiment_hplc = self.full_df.select(
+                {"is_outlier": False, "group_id": experiment.groups}
+            )
+            experiment_hplc.loc[:, "experiment"] = experiment.name
+            hplc_per_experiment_list.append(experiment_hplc)
 
         hplc_per_experiment_df = pd.concat(hplc_per_experiment_list)
 
@@ -271,7 +259,7 @@ class Statistics(Dataset):
                     {
                         **experiment_compound_region,
                         "test": "validation",
-                        "is_significant": False,
+                        "is_significant": np.nan,
                         "result": "Not enough data",
                         "p_value_threshold": self.p_value_threshold,
                         "p_value": None,
@@ -279,7 +267,7 @@ class Statistics(Dataset):
                 )
             # Otherwise, add to the pipeline
             else:
-                #grouping info is used to merge the results back together
+                # grouping info is used to merge the results back together
                 grouping_infos.append(experiment_compound_region)
                 stats_pipeline_args.append(
                     (
@@ -298,9 +286,14 @@ class Statistics(Dataset):
 
         # Merge results back together with grouping info and add to results
         for experiment_result, experiment_compound_region in zip(
-                experiment_results, grouping_infos
-            ):
-            results.extend([{**experiment_sub_result, **experiment_compound_region} for experiment_sub_result in experiment_result])
+            experiment_results, grouping_infos
+        ):
+            results.extend(
+                [
+                    {**experiment_sub_result, **experiment_compound_region}
+                    for experiment_sub_result in experiment_result
+                ]
+            )
 
         return pd.DataFrame(results)
 
@@ -319,7 +312,6 @@ class Statistics(Dataset):
             ]
         )
 
-
     @property
     def significant_tests(self):
         """Return groupings where all tests are significant.
@@ -334,13 +326,18 @@ class Statistics(Dataset):
             ]
         )
 
-
     @property
     def insufficent_data(self):
-        """Return groupings one group has less than 5 data points.
+        """Return groupings where one group has less than 5 data points.
 
         Returns:
             pd.DataFrame: Insufficient data results.
         """
-
-        return self.df[self.df.result == "Not enough data"]
+        try:
+            invalid_groupings = self.select({"test": "validation"})
+            return invalid_groupings[invalid_groupings.result == 'Not enough data']
+        except ValueError as e:
+            if "EMPTY SELECTION" in e:
+                return "No data"
+                
+        return self.df[(self.df.test == "validation" & self.df.result == "Not enough data")]

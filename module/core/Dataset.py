@@ -3,6 +3,8 @@ import pandas as pd
 from dataclasses import dataclass
 from typing import ClassVar
 from module.core.Cacheable import Cacheable
+import pandas as pd
+
 
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
@@ -19,7 +21,7 @@ def mask(df, mask_conditions):
 
 
 def sub_select(df, selector):
-    df = df[mask(df, selector)]
+    df = df[mask(df, selector)].copy()
     return df
 
 
@@ -49,7 +51,7 @@ class Dataset(Cacheable):
         return pd.read_pickle(self.pkl_path)
             
     def select(self, selector):
-        sub_selection = sub_select(self.get(), selector)
+        sub_selection = sub_select(self.df, selector)
         if sub_selection.empty:
             raise ValueError(f"EMPTY SELECTION: {selector}")
         return sub_selection
@@ -103,4 +105,4 @@ class Dataset(Cacheable):
 
     @property
     def df(self):
-        return self.get()
+        return self.load()

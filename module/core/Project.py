@@ -7,17 +7,42 @@ from module.core.Metadata import (
     TreatmentInformation,
     ProjectInformation,
 )
+from module.core.Dataset import sub_select
 from module.core.HPLC import RawHPLC, HPLC
 from module.core.Outliers import Outliers
 
 from module.core.Statistics import Statistics
 import os
+import types
 
 ROOT = f"{os.getcwd()}/PROJECTS" 
 if not os.path.exists(ROOT):
         os.mkdir(ROOT)
 @dataclass
 class Project:
+    """
+    A class to manage and organize different components of a research project,
+    including handling of experimental setups, data collection, and analysis.
+
+    Attributes:
+        name (str): The name of the project.
+        location (str): The file path to the project's directory.
+        project_information (ProjectInformation): Contains metadata about the project.
+        experiment_information (ExperimentInformation): Handles the collection of experiments.
+        experiments (dict): Stores instantiated Experiment objects, keyed by experiment names.
+        treatment_information (TreatmentInformation): Manages information related to treatments in experiments.
+        treatments (list): A list of treatments derived from treatment_information.
+        raw_data (RawHPLC): An object handling raw high-performance liquid chromatography data.
+        hplc (HPLC): An object to manage processed HPLC data.
+        outliers (Outliers): Manages outlier detection based on project settings.
+        statistics (Statistics): Handles statistical analysis of experimental data.
+        full_df: the df with all values + outliers+ treatment nfo
+
+    Methods:
+        __post_init__(): Initializes a new Project instance, sets up necessary directories,
+                         loads or prompts for project information, and prepares all related
+                         components like experiments, treatments, and statistical analyses.
+    """
 
     name: str
     
@@ -49,12 +74,25 @@ class Project:
         )
         self.statistics = Statistics(
             self.location,
-            self.treatment_information,
+            self.full_df,
             self.experiments,
             self.project_information["p_value_threshold"],
-            self.hplc,
-            self.outliers,
         )
+    
+    @property
+    def full_df(self):
+        """Get df with full information (values, outliers, treatments)
+
+        Returns:
+            pd.datafFrame: A merge of hplc, outliers, and treatment_information, and df.select method
+        """
+        common_columns = self.hplc.df.columns.intersection(self.outliers.df.columns).tolist()
+        full_df = self.hplc.df.merge(self.outliers.df, on=common_columns, how='left').merge(
+            self.treatment_information.df, on="group_id", how='left'
+        )
+        full_df.select = lambda selector: sub_select(full_df, selector) # Bind select method to full df so it has it just like datasets
+        return full_df
+
 
     @classmethod
     def list(self):
