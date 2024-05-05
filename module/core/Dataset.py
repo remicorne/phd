@@ -24,6 +24,23 @@ def sub_select(df, selector):
     df = df[mask(df, selector)].copy()
     return df
 
+class SelectableDataFrame(pd.DataFrame):
+    
+    @property
+    def _constructor(self):
+        return SelectableDataFrame
+
+    def select(self, selector):
+        """
+        Filter the DataFrame based on a selector.
+
+        Args:
+            selector (dict): A dictionary of column conditions to filter by.
+
+        Returns:
+            CustomDataFrame: Filtered DataFrame that also includes the select method.
+        """
+        return sub_select(self, selector)
 
 @dataclass
 class Dataset(Cacheable):
@@ -51,7 +68,7 @@ class Dataset(Cacheable):
         return pd.read_pickle(self.pkl_path)
             
     def select(self, selector):
-        sub_selection = sub_select(self.df, selector)
+        sub_selection = self.df.select(selector)
         if sub_selection.empty:
             raise ValueError(f"EMPTY SELECTION: {selector}")
         return sub_selection
@@ -105,4 +122,21 @@ class Dataset(Cacheable):
 
     @property
     def df(self):
-        return self.load()
+        return SelectableDataFrame(self.load())
+
+    def __repr__(self) -> str:
+        """Called by terminal to display the dataframe (pretty)
+
+        Returns:
+            str: Pretty representation of the df
+        """
+        return repr(self.df)
+    
+    def _repr_html_(self) -> str:
+        """Called by jupyter notebook to display the dataframe as html (pretty)
+
+        Returns:
+            str: Pretty representation of the df
+        """
+        return self.df._repr_html_()
+    

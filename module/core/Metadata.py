@@ -57,7 +57,7 @@ class _ProjectSettings(Dataset):
 
 
 
-@dataclass
+@dataclass(repr=False)
 class TreatmentInformation(_ProjectSettings):
 
     _name: ClassVar[str] = "treatment_information"
@@ -89,7 +89,7 @@ class TreatmentInformation(_ProjectSettings):
         return super().load().replace(np.nan, "") # vehicle.independant_var == nan, problem for var in independant_var (nan not iterable)
     
     
-@dataclass
+@dataclass(repr=False)
 class ExperimentInformation(_ProjectSettings):
     _name: ClassVar[str] = "experiment_information"
     _template: ClassVar[list] = {  
@@ -128,7 +128,7 @@ def is_valid_file(file_path):
 
     return True
 
-@dataclass
+@dataclass(repr=False)
 class ProjectInformation(JSONMapping):
     
     _name: ClassVar[str] = "project_information"

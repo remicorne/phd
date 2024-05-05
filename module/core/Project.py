@@ -7,7 +7,7 @@ from module.core.Metadata import (
     TreatmentInformation,
     ProjectInformation,
 )
-from module.core.Dataset import sub_select
+from module.core.Dataset import SelectableDataFrame
 from module.core.HPLC import RawHPLC, HPLC
 from module.core.Outliers import Outliers
 
@@ -78,6 +78,10 @@ class Project:
             self.experiments,
             self.project_information["p_value_threshold"],
         )
+        
+    def histogram(self, experiment=None, compound=None, region=None):
+        pass
+        
     
     @property
     def full_df(self):
@@ -90,11 +94,21 @@ class Project:
         full_df = self.hplc.df.merge(self.outliers.df, on=common_columns, how='left').merge(
             self.treatment_information.df, on="group_id", how='left'
         )
-        full_df.select = lambda selector: sub_select(full_df, selector) # Bind select method to full df so it has it just like datasets
-        return full_df
+        return SelectableDataFrame(full_df)
 
 
     @classmethod
     def list(self):
         os.listdir(path=ROOT)
 
+
+    def __repr__(self) -> str:
+        experiments_string = '\n'.join(str(experiment )for experiment in self.experiments.values())
+        return f""""
+    Project: {self.name}
+    
+    Parameters
+    {self.project_information}
+    
+    Experiments
+    {experiments_string}"""

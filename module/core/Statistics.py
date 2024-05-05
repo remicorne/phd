@@ -174,7 +174,7 @@ def get_quantitative_statistics_pipeline(
     }[(multiple_factors, multiple_treatments, paired, parametric)]
 
 
-@dataclass
+@dataclass(repr=False)
 class Statistics(Dataset):
     """
     Manages the statistical analysis for a set of experiments, including outlier filtering, merging data with HPLC results,
@@ -201,81 +201,61 @@ class Statistics(Dataset):
 
     def generate(self):
         results = []
-
-        # Create df with full experiment information, duplicating shared groups
-        hplc_per_experiment_list = []
-        for experiment in self.experiments.values():
-            experiment_hplc = self.full_df.select(
-                {"is_outlier": False, "group_id": experiment.groups}
-            )
-            experiment_hplc.loc[:, "experiment"] = experiment.name
-            hplc_per_experiment_list.append(experiment_hplc)
-
-        hplc_per_experiment_df = pd.concat(hplc_per_experiment_list)
+        data_without_outliers = self.full_df.select({"is_outlier": False})
 
         # iterate over every data grouping to build a list of arguments for parallel processing
         stats_pipeline_args = []
         grouping_infos = []
-        for (experiment_name, compound, region), data in tqdm(
-            hplc_per_experiment_df.groupby(by=["experiment", "compound", "region"]),
+        for (compound, region), compound_region_data in tqdm(
+            data_without_outliers.groupby(by=["compound", "region"]),
             desc="Preparing experimental groups",
         ):
 
             # Get experiment object
-            experiment = self.experiments[experiment_name]
-
-            experiment_statistics_pipeline = get_quantitative_statistics_pipeline(
-                len(experiment.independant_variables) >= 2,
-                len(experiment.groups) >= 2,
-                experiment.paired,
-                experiment.parametric,
-            )
-
-            # Add independant variables as boolean columns
-            data[experiment.independant_variables] = list(
-                data.independant_variables.apply(
-                    lambda group_independant_variables: [
-                        experiment_variable in group_independant_variables
-                        for experiment_variable in experiment.independant_variables
-                    ],
+            for experiment in self.experiments.values():
+                experiment_data = experiment.get_data(compound_region_data)
+                experiment_statistics_pipeline = get_quantitative_statistics_pipeline(
+                    len(experiment.independant_variables) >= 2,
+                    len(experiment.groups) >= 2,
+                    experiment.paired,
+                    experiment.parametric,
                 )
-            )
 
-            # Create result base
-            experiment_compound_region = {
-                "experiment": experiment.name,
-                "region": region,
-                "compound": compound,
-            }
+                # Create result base
+                experiment_compound_region = {
+                    "experiment": experiment.name,
+                    "region": region,
+                    "compound": compound,
+                }
 
-            # Groupings where there is not enough data for a group are not treated as stat tests reject them
-            if any(
-                [
-                    treatment_data.value.count() < 5
-                    for _, treatment_data in data.groupby("treatment")
-                ]
-            ):
-                results.append(
-                    {
-                        **experiment_compound_region,
-                        "test": "validation",
-                        "is_significant": np.nan,
-                        "result": "Not enough data",
-                        "p_value_threshold": self.p_value_threshold,
-                        "p_value": None,
-                    }
-                )
-            # Otherwise, add to the pipeline
-            else:
-                # grouping info is used to merge the results back together
-                grouping_infos.append(experiment_compound_region)
-                stats_pipeline_args.append(
-                    (
-                        data,
-                        experiment_statistics_pipeline,
-                        self.p_value_threshold,  # Structured this way for parallel processing
+                # Groupings where there is not enough data for a group are not treated as stat tests reject them
+                if any(
+                    [
+                        treatment_data.value.count() < 5
+                        for _, treatment_data in experiment_data.groupby("treatment")
+                    ]
+                ):
+                    results.append(
+                        {
+                            **experiment_compound_region,
+                            "test": "validation",
+                            "is_significant": False,
+                            "result": "Not enough data",
+                            "p_value_threshold": self.p_value_threshold,
+                            "p_value": None,
+                        }
                     )
-                )
+                # Otherwise, add to the pipeline
+                else:
+                    # grouping info is used to merge the results back together
+                    grouping_infos.append(experiment_compound_region)
+                    stats_pipeline_args.append(
+                        (
+                            experiment_data,
+                            experiment_statistics_pipeline,
+                            self.p_value_threshold,  # Structured this way for parallel processing
+                        )
+                    )
 
         # Process the statistical tests in parallel
         experiment_results = parallel_process(

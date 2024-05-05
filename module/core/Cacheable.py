@@ -21,7 +21,7 @@ class Cacheable:
         self.save(data)
             
     def load(self):
-        pass
+        raise NotImplementedError('This method should be implemented for all custom Cacheables')
             
     def save(self, data):
         pass

@@ -31,7 +31,7 @@ def handle_raw_col_name(column):
     return match.groups()
 
 
-@dataclass
+@dataclass(repr=False)
 class RawHPLC(Dataset):
 
     raw_data_filename: str
@@ -79,7 +79,7 @@ class RawHPLC(Dataset):
         }
 
 
-@dataclass
+@dataclass(repr=False)
 class HPLC(Dataset):
 
     raw_data: RawHPLC

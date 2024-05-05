@@ -30,7 +30,7 @@ def get_labeled_df(df, test, p_value_threshold):
 OUTLIER_TESTS = {"grubbs": grubbs_test}
 
 
-@dataclass
+@dataclass(repr=False)
 class Outliers(Dataset):
 
     test: str

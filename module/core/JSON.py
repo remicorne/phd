@@ -22,14 +22,6 @@ class JSONMapping(Cacheable):
         mapping[key] = value
         self.save(mapping)
     
-    @property
-    def dict(self):
-        return self.load()        
-    
-    @property
-    def list(self):
-        return self.dict.keys()
-    
     def __contains__(self, key):
         return key in self.list
     
@@ -39,6 +31,18 @@ class JSONMapping(Cacheable):
     def __setitem__(self, key, value):
         self.add(key, value)    
         
+    def __repr__(self) -> str:
+        return "\n".join(f"{k}: {v}" for k, v in self.dict.items())
+    
+    @property
+    def dict(self):
+        return self.load()        
+    
+    @property
+    def list(self):
+        return self.dict.keys()
+
     @property
     def filepath(self):
         return f"{self.location}/{input_escape('Enter mapping name:')}.json"
+

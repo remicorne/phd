@@ -23,6 +23,7 @@ class TestProject(unittest.TestCase):
     def test_project(self):
         # This runs the test
         project = Project(self.project_name)
+        project.full_df.select({'is_outlier': True}).select({"treatment": ["vehicles", "MDL"]})
         project.statistics.df
         project.statistics.significant_tests
         project.statistics.significant_results

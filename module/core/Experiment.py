@@ -1,9 +1,11 @@
 from distutils.util import strtobool
 from dataclasses import dataclass
+
+
 @dataclass
 class Experiment:
 
-    project: object # Project
+    project: object  # Project
     experiment_information: dict
 
     def __post_init__(self):
@@ -31,3 +33,24 @@ class Experiment:
         )
         self.location = f"{self.project.location}/{self.name}"
         del self.experiment_information
+
+    def get_data(self, full_hplc):
+        data = full_hplc.select({"group_id": self.groups})
+        data.loc[:, "experiment"] = self.name
+        data[self.independant_variables] = list(
+            data.independant_variables.apply(
+                lambda group_independant_variables: [
+                    experiment_independant_variable in group_independant_variables
+                    for experiment_independant_variable in self.independant_variables
+                ],
+            )
+        )
+        return data
+
+    def __repr__(self) -> str:
+        return f"""
+    groups: {self.groups}
+    independant variables: {self.independant_variables}
+    paired: {self.paired}
+    parametric: {self.parametric}
+    """
