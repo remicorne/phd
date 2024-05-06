@@ -60,6 +60,7 @@ def singlePCA(
 ):
     #fetch df subselection and restructre df
     df = subselectDf(getCompoundAndRatiosDf(filename), {"experiment": experiment, "compound":compounds, "region":regions})
+    df=df.copy()
     df['compound_region'] = df['compound'] + '_' + df['region']
     df_X = df.pivot( index = [ 'mouse_id', 'treatment', 'color'], columns=['compound_region'], values='value')
     df_X.reset_index(inplace=True)

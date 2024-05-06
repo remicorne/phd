@@ -34,7 +34,7 @@ treatment_mapping = (
 
 experimental_info = {
     "Alzheimers": {"groups": [1, 2, 3, 4], 
-                      "independant_vars": ["age", "genetic_background"], 
+                      "independant_vars": ["old", "AD"], 
                       "paired": False,
                       "parametric": True, #idealy this would be True / False / Check : check would involve checking the data using the spearman test which should already be done then taking the majority of the data to be parametric or not chose that 
                       "outliers": 'grubbs'

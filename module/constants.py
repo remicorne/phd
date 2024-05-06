@@ -57,7 +57,8 @@ def getCorrelogramColumns(correlogram_type):
     Get the default correlogram colums to display based on correlogram_type in ['region', 'compound']
     """
     return COLUMN_ORDER[CORRELOGRAM_TYPE_CONVERTER[correlogram_type]]
-
+########## STATS #########
+p_value_threshold = 0.05
 
 ########## SUBCLASIFICATIONS ########## 
 
@@ -117,3 +118,37 @@ compounds = {
     'GABA': 'Gamma-Aminobutyric acid'
 }
 
+# TCB2 regions need to be replaced with allen or atlas regions , and aditionaly the x,y,z spacial cordinates 
+regions = {
+  "OF": "Orbital Frontal Cortex",
+    "PL": "Prelimbic Cortex",
+    "CC": "Cingulate Cortex",
+    "IC": "Insular Cortex",
+    "M": "Motor Cortex",
+    "SJ": "Primary Somatosensory Cortex",
+    "SL1": "Left Somatosensory Cortex Layer 1",
+    "SL6": "Left Somatosensory Cortex Layer 6",
+    "SR6": "Right Somatosensory Cortex Layer 6",
+    "SR1": "Right Somatosensory Cortex Layer 1",
+    "AC": "Auditory Cortex",
+    "V": "Visual Cortex",
+    "Am": "Amygdala",
+    "dH": "Dorsal Hippocampus",
+    "vH": "Ventral Hippocampus",
+    "NAc": "Nucleus Accumbens",
+    "VM": "Ventromedial Thalamus",
+    "DM": "Dorsomedial Thalamus",
+    "VL": "Ventrolateral Thalamus",
+    "DL": "Dorsolateral Thalamus",
+    "MD": "Medio Dorsal Thalamus",
+    "VPL": "Left Ventral Posterior Medial Thalamus",
+    "VPR": "Right Ventral Posterior Medial Thalamus",
+    "DG": "Lateral Geniculate Nucleus",
+    "Y": "Lateral Hypothalamus",
+    "SC": "Superior Colliculus",
+    "SN": "Substantia Nigra",
+    "VTA": "Ventral Tegmental Area",
+    "DR": "Dorsal Raphe Nucleus",
+    "MR": "Medial Raphe Nucleus",
+    "CE": "Cerebellum"
+}

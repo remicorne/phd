@@ -29,6 +29,7 @@ def labelOutliers(subselection_df, outlier_test, p_value_threshold):
     Return labelled dataset
     """
     outlier_col_name = f"{outlier_test}_outlier"
+    subselection_df = subselection_df.copy()
     for treatment in subselection_df.treatment.unique():
         treatment_indices = subselection_df[
             subselection_df.treatment == treatment

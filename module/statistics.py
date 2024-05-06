@@ -113,3 +113,5 @@ QUANTITATIVE_STAT_METHODS = {
 CORR_STAT_METHODS = {'pearson': [getPearson, getPearsonR, getPearsonPValue], 
                      'spearman': [getSpearman, getSpearmanR, getSpearmanPValue], 
                      'kendall': [getKendall, getKendallTau, getKendallPValue] }
+
+

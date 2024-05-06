@@ -4,5 +4,11 @@ output
 __pycache__
 input
 debug.py
+debug2.py
 .DS_Store
 PROJECTS
+
+
+allen_sdk
+mouse_connectivity/manifest.json
+mouse_connectivity/structures.json
