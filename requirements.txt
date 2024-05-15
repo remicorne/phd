@@ -13,3 +13,4 @@ statsmodels
 openpyxl
 networkx
 ipykernel
+ipython==8.18.1
