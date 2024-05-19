@@ -10,6 +10,10 @@ class ConstantRegistry(JSONMapping):
 
     name: str
     
+    def __post_init__(self):
+        self.filepath = f"{self.location}/{self.name}.json"
+        return super().__post_init__()
+    
     def generate(self):
         raise NotImplementedError('Contant registries should be handled directly in the JSON')
 
@@ -40,11 +44,6 @@ class ConstantRegistry(JSONMapping):
         except SystemExit:
             print("EDIT REGISTRY AND RETRY")
             exit(1)
-                        
-    @property
-    def filepath(self):
-        return f"{self.location}/{self.name}.json"
-
 
 
 constant_registry_location = f"{ROOT}/module/json"

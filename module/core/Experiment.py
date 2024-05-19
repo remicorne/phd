@@ -1,5 +1,6 @@
 from distutils.util import strtobool
 from dataclasses import dataclass
+import pandas as pd
 
 
 @dataclass
@@ -7,6 +8,7 @@ class Experiment:
 
     project: object  # Project
     experiment_information: dict
+    treatment_information: dict
 
     def __post_init__(self):
         self.name = self.experiment_information["experiment"]
@@ -16,6 +18,11 @@ class Experiment:
             .replace(" ", "")
             .split(",")
         ]
+        self.treatments = [self.treatment_information.dict[group_id]["treatment"] for group_id in self.groups]
+        self.palette = {
+            treatment: self.treatment_information.dict[treatment]["color"]
+            for treatment in self.treatments
+        }
         self.independant_variables = (
             self.experiment_information["independant_variables"]
             .replace(" ", "")
@@ -33,9 +40,11 @@ class Experiment:
         )
         self.location = f"{self.project.location}/{self.name}"
         del self.experiment_information
+        del self.treatment_information
 
-    def get_data(self, full_hplc):
-        data = full_hplc.select({"group_id": self.groups})
+    @property
+    def df(self):
+        data = self.project.full_df.select(group_id=self.groups)
         data.loc[:, "experiment"] = self.name
         data[self.independant_variables] = list(
             data.independant_variables.apply(

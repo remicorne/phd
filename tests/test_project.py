@@ -8,6 +8,12 @@ class TestProject(unittest.TestCase):
         self.project_name = 'TEST'
         self.project_location = f"{ROOT}/{self.project_name}"
         self.raw_data_filename = 'raw_data.xlsx'
+        
+        # If deletion idn't happen (quit debug session too early for ex)
+        if os.path.exists(self.project_location):
+            os.remove(os.path.join(os.getcwd(), self.raw_data_filename))
+            shutil.rmtree(self.project_location)
+        
         os.mkdir(self.project_location)
 
         # Copy necessary test data to the project location
@@ -23,11 +29,14 @@ class TestProject(unittest.TestCase):
     def test_project(self):
         # This runs the test
         project = Project(self.project_name)
-        project.full_df.select({'is_outlier': True}).select({"treatment": ["vehicles", "MDL"]})
+        project.full_df.select(is_outlier=True).select(treatment=["vehicles", "MDL"])
         project.statistics.df
-        project.statistics.significant_tests
-        project.statistics.significant_results
-        project.statistics.insufficent_data
+        project.experiments['agonist antagonist'].df.select(treatment="MDL")
+        
+        assert len(project.statistics.significant_tests) == 9
+        assert len(project.statistics.significant_results) == 6
+        assert len(project.statistics.insufficent_data) == 5
+        
         print('PROJECT INITIALIZATION TEST PASSED')
 
     def tearDown(self):
@@ -36,7 +45,7 @@ class TestProject(unittest.TestCase):
         os.remove(os.path.join(os.getcwd(), self.raw_data_filename))
         shutil.rmtree(self.project_location)
         print('TEST FILES DELETED')
-        
+
         
 if __name__ == '__main__':
     unittest.main()

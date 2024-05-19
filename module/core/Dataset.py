@@ -30,7 +30,7 @@ class SelectableDataFrame(pd.DataFrame):
     def _constructor(self):
         return SelectableDataFrame
 
-    def select(self, selector):
+    def select(self, **selector):
         """
         Filter the DataFrame based on a selector.
 
@@ -40,7 +40,10 @@ class SelectableDataFrame(pd.DataFrame):
         Returns:
             CustomDataFrame: Filtered DataFrame that also includes the select method.
         """
-        return sub_select(self, selector)
+        sub_selection = sub_select(self, selector)
+        # if sub_selection.empty:
+        #     raise ValueError(f"NO DATA FOR SELECTION: {selector}")
+        return sub_selection
 
 @dataclass
 class Dataset(Cacheable):
@@ -67,11 +70,8 @@ class Dataset(Cacheable):
     def load(self):
         return pd.read_pickle(self.pkl_path)
             
-    def select(self, selector):
-        sub_selection = self.df.select(selector)
-        if sub_selection.empty:
-            raise ValueError(f"EMPTY SELECTION: {selector}")
-        return sub_selection
+    def select(self, **selector):
+        return self.df.select(**selector)
 
     def _open_excel(self):
         if self.is_exceled:

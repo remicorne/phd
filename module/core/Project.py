@@ -57,13 +57,8 @@ class Project:
                 exit(1)
         self.project_information = ProjectInformation(self.location) 
         self.experiment_information = ExperimentInformation(self.location)
-        self.experiments = {
-            experiment["experiment"]: Experiment(self, experiment)
-            for experiment in self.experiment_information.list
-        }
         self.treatment_information = TreatmentInformation(self.location)
         self.treatments = self.treatment_information.list
-
         self.raw_data = RawHPLC(self.location, self.project_information["raw_data_filename"]    )
         self.hplc = HPLC(self.location, self.raw_data)
         self.outliers = Outliers(
@@ -72,15 +67,16 @@ class Project:
             self.project_information["p_value_threshold"],
             self.hplc,
         )
+        self.experiments = {
+            experiment_info["experiment"]: Experiment(self, experiment_info, self.treatment_information)
+            for experiment_info in self.experiment_information.list
+        }
         self.statistics = Statistics(
             self.location,
-            self.full_df,
             self.experiments,
             self.project_information["p_value_threshold"],
-        )
+        )        
         
-    def histogram(self, experiment=None, compound=None, region=None):
-        pass
         
     
     @property

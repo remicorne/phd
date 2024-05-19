@@ -8,6 +8,10 @@ from module.core.questions import input_escape
 class JSONMapping(Cacheable):
     location = str
     
+    def __post_init__(self):
+        self.filepath = self.filepath or f"{self.location}/{input_escape('Enter mapping name:')}.json"
+        return super().__post_init__()
+    
     def load(self):
         with open(self.filepath) as outfile:
             mapping = json.load(outfile)
@@ -41,8 +45,3 @@ class JSONMapping(Cacheable):
     @property
     def list(self):
         return self.dict.keys()
-
-    @property
-    def filepath(self):
-        return f"{self.location}/{input_escape('Enter mapping name:')}.json"
-

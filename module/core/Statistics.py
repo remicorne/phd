@@ -106,16 +106,18 @@ QUANTITATIVE_STAT_METHODS = {
 }
 
 
-def process_quantitative_stats(
-    data__test_pipeline__p_value_threshold,  # Structured this way for parallel processing
+def execute_quantitative_stats_pipeline(
+    data,
+    statistics_pipeline,
+    p_value_threshold,  # Structured this way for parallel processing
 ):
     """
     Processes quantitative statistical tests based on the given parameters and dataset.
 
     Args:
-        data__test_pipeline__p_value_threshold__experiment_region_compound (tuple): A tuple containing:
+        data__statistics_pipeline__p_value_threshold__experiment_region_compound (tuple): A tuple containing:
             - data (DataFrame): The data for a single experiment with non-NA values.
-            - test_pipeline (list): A list of test names to be applied.
+            - statistics_pipeline (list): A list of test names to be applied.
             - p_value_threshold (float): The p-value threshold for significance determination.
             - experiment_region_compound (dict): Additional experiment info mapping.
 
@@ -128,11 +130,9 @@ def process_quantitative_stats(
             - applied p-value threshold ('p_value_threshold'),
             - computed p-value ('p_value').
     """
-    data, test_pipeline, p_value_threshold = data__test_pipeline__p_value_threshold
     test_results = []
-    data = data[data.value.notna()]
 
-    for test in test_pipeline:
+    for test in statistics_pipeline:
         p_value, is_significant, stats_results = QUANTITATIVE_STAT_METHODS[test](
             data=data,
             p_value_threshold=p_value_threshold,
@@ -174,6 +174,68 @@ def get_quantitative_statistics_pipeline(
     }[(multiple_factors, multiple_treatments, paired, parametric)]
 
 
+@dataclass
+class StatisticalGrouping:
+
+    experiment: object  # Experiment
+    compound: str
+    region: str
+    p_value_threshold: float
+
+    def __post_init__(self):
+
+        self.statistics_pipeline = get_quantitative_statistics_pipeline(
+            len(self.experiment.independant_variables) >= 2,
+            len(self.experiment.groups) >= 2,
+            self.experiment.paired,
+            self.experiment.parametric,
+        )
+
+        # Create result base
+        self.grouping_information = {
+            "experiment": self.experiment.name,
+            "region": self.region,
+            "compound": self.compound,
+        }
+
+        self.data = self.experiment.df.select(
+            compound=self.compound, region=self.region
+        )
+        self.filtered_data = self.data[self.data.value.notna()].select(is_outlier=False)
+
+        # all([]) == True if the iterable is empty
+        self.has_enough_data = not self.filtered_data.empty and all(
+            [
+                treatment_data.value.count() >= 5
+                for _, treatment_data in self.filtered_data.groupby("treatment")
+            ]
+        )
+        self.quantitative_stats_parameters = self.filtered_data, self.statistics_pipeline, self.p_value_threshold
+        del self.experiment # Avoid pickling issues with parallel execution caused by complex objects
+
+    def calculate_results(self):
+        return (
+            execute_quantitative_stats_pipeline(*self.quantitative_stats_parameters)
+            if self.has_enough_data
+            else [{
+                **self.grouping_information,
+                "test": "validation",
+                "is_significant": False,
+                "result": "Not enough data",
+                "p_value_threshold": self.p_value_threshold,
+                "p_value": np.nan,
+            }]
+        )
+        
+    def get_results(self):
+        return [{**self.grouping_information, **result} for result in self.calculate_results()]
+
+    
+    
+def parallel_execution_wrapper(grouping):
+    return grouping.get_results()
+
+
 @dataclass(repr=False)
 class Statistics(Dataset):
     """
@@ -194,88 +256,49 @@ class Statistics(Dataset):
         insufficent_data: Returns a DataFrame of results flagged with "Not enough data".
     """
 
-    full_df: pd.DataFrame
     experiments: object  # list(Experiment)
     p_value_threshold: float
     _name: ClassVar = "statistics"
 
     def generate(self):
-        results = []
-        data_without_outliers = self.full_df.select({"is_outlier": False})
+        groupings = []
 
-        # iterate over every data grouping to build a list of arguments for parallel processing
-        stats_pipeline_args = []
-        grouping_infos = []
-        for (compound, region), compound_region_data in tqdm(
-            data_without_outliers.groupby(by=["compound", "region"]),
-            desc="Preparing experimental groups",
-        ):
+        # Get experiment object
+        for experiment in self.experiments.values():
 
-            # Get experiment object
-            for experiment in self.experiments.values():
-                experiment_data = experiment.get_data(compound_region_data)
-                experiment_statistics_pipeline = get_quantitative_statistics_pipeline(
-                    len(experiment.independant_variables) >= 2,
-                    len(experiment.groups) >= 2,
-                    experiment.paired,
-                    experiment.parametric,
-                )
-
-                # Create result base
-                experiment_compound_region = {
-                    "experiment": experiment.name,
-                    "region": region,
-                    "compound": compound,
-                }
-
-                # Groupings where there is not enough data for a group are not treated as stat tests reject them
-                if any(
-                    [
-                        treatment_data.value.count() < 5
-                        for _, treatment_data in experiment_data.groupby("treatment")
-                    ]
-                ):
-                    results.append(
-                        {
-                            **experiment_compound_region,
-                            "test": "validation",
-                            "is_significant": False,
-                            "result": "Not enough data",
-                            "p_value_threshold": self.p_value_threshold,
-                            "p_value": None,
-                        }
-                    )
-                # Otherwise, add to the pipeline
-                else:
-                    # grouping info is used to merge the results back together
-                    grouping_infos.append(experiment_compound_region)
-                    stats_pipeline_args.append(
-                        (
-                            experiment_data,
-                            experiment_statistics_pipeline,
-                            self.p_value_threshold,  # Structured this way for parallel processing
-                        )
-                    )
+            # iterate over every data grouping to build a list of arguments for parallel processing
+           for (compound, region), _ in tqdm(
+                experiment.df.groupby(by=["compound", "region"]),
+                desc=f"Preparing stat groupings for {experiment.name}",
+            ):
+                groupings.append(StatisticalGrouping(experiment, compound, region, self.p_value_threshold))
 
         # Process the statistical tests in parallel
-        experiment_results = parallel_process(
-            process_quantitative_stats,
-            stats_pipeline_args,
+        results = parallel_process(
+            parallel_execution_wrapper,
+            groupings,
             description=f"Calculating stats for each group",
         )
 
-        # Merge results back together with grouping info and add to results
-        for experiment_result, experiment_compound_region in zip(
-            experiment_results, grouping_infos
-        ):
-            results.extend(
-                [
-                    {**experiment_sub_result, **experiment_compound_region}
-                    for experiment_sub_result in experiment_result
-                ]
-            )
+        # Unpack results and merge
+        return pd.DataFrame(grouping_subresult for grouping_results in results for grouping_subresult in grouping_results)
 
-        return pd.DataFrame(results)
+
+    def get_quantitative_stats(self, experiment, compound, region, p_value_threshold):
+        """
+        Calculates the statistics for a grouping using the test pipeline
+        Saves the results to the fulll statistical df
+        Returns the quantitative statistical results for a specific experiment, compound, and region.
+
+        Args:
+            experiment (str): The name of the experiment.
+            compound (str): The name of the compound.
+            region (str): The name of the region.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the statistical results for the specified experiment, compound, and region.
+        """
+        return StatisticalGrouping(experiment, compound, region, p_value_threshold).get_results()
 
     @property
     def significant_results(self):
@@ -314,10 +337,12 @@ class Statistics(Dataset):
             pd.DataFrame: Insufficient data results.
         """
         try:
-            invalid_groupings = self.select({"test": "validation"})
-            return invalid_groupings[invalid_groupings.result == 'Not enough data']
+            invalid_groupings = self.select(test="validation")
+            return invalid_groupings[invalid_groupings.result == "Not enough data"]
         except ValueError as e:
             if "EMPTY SELECTION" in str(e):
                 return "No data"
-                
-        return self.df[(self.df.test == "validation" & self.df.result == "Not enough data")]
+
+        return self.df[
+            (self.df.test == "validation" & self.df.result == "Not enough data")
+        ]
