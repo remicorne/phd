@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import Dataset
-from module.core.HPLC import HPLC
+from module.core.Dataset import PickleDataset
+from module.core.FullHPLC import ExperimentFullHPLC
+from module.core.Metadata import ExperimentInformation, ProjectInformation
 from tqdm import tqdm
 import scipy
 import pingouin as pg
@@ -177,7 +178,8 @@ def get_quantitative_statistics_pipeline(
 @dataclass
 class StatisticalGrouping:
 
-    experiment: object  # Experiment
+    data: pd.DataFrame
+    experiment_infos: object  # Experiment
     compound: str
     region: str
     p_value_threshold: float
@@ -185,22 +187,19 @@ class StatisticalGrouping:
     def __post_init__(self):
 
         self.statistics_pipeline = get_quantitative_statistics_pipeline(
-            len(self.experiment.independant_variables) >= 2,
-            len(self.experiment.groups) >= 2,
-            self.experiment.paired,
-            self.experiment.parametric,
+            len(self.experiment_infos["independant_variables"]) >= 2,
+            len(self.experiment_infos["groups"]) >= 2,
+            self.experiment_infos["paired"],
+            self.experiment_infos["parametric"],
         )
 
         # Create result base
         self.grouping_information = {
-            "experiment": self.experiment.name,
+            "experiment": self.experiment_infos["experiment"],
             "region": self.region,
             "compound": self.compound,
         }
-
-        self.data = self.experiment.df.select(
-            compound=self.compound, region=self.region
-        )
+        
         self.filtered_data = self.data[self.data.value.notna()].select(is_outlier=False)
 
         # all([]) == True if the iterable is empty
@@ -211,7 +210,7 @@ class StatisticalGrouping:
             ]
         )
         self.quantitative_stats_parameters = self.filtered_data, self.statistics_pipeline, self.p_value_threshold
-        del self.experiment # Avoid pickling issues with parallel execution caused by complex objects
+        # del self.experiment_infos # Avoid pickling issues with parallel execution caused by complex objects
 
     def calculate_results(self):
         return (
@@ -232,12 +231,12 @@ class StatisticalGrouping:
 
     
     
-def parallel_execution_wrapper(grouping):
+def parallel_execution_wrapper(grouping: StatisticalGrouping):
     return grouping.get_results()
 
 
 @dataclass(repr=False)
-class Statistics(Dataset):
+class Statistics(PickleDataset):
     """
     Manages the statistical analysis for a set of experiments, including outlier filtering, merging data with HPLC results,
     and generating statistical results based on defined experiments.
@@ -256,22 +255,21 @@ class Statistics(Dataset):
         insufficent_data: Returns a DataFrame of results flagged with "Not enough data".
     """
 
-    experiments: object  # list(Experiment)
-    p_value_threshold: float
-    _name: ClassVar = "statistics"
+    project: str
+    filename: ClassVar[str] = "statistics"
 
     def generate(self):
         groupings = []
-
-        # Get experiment object
-        for experiment in self.experiments.values():
-
+        experiment_information = ExperimentInformation(self.project)
+        project_information = ProjectInformation(self.project)
+        for single_experiment_infos in experiment_information.list:
+            experiment_df = ExperimentFullHPLC(self.project, single_experiment_infos['experiment'])
             # iterate over every data grouping to build a list of arguments for parallel processing
-           for (compound, region), _ in tqdm(
-                experiment.df.groupby(by=["compound", "region"]),
-                desc=f"Preparing stat groupings for {experiment.name}",
+            for (compound, region), data in tqdm(
+                experiment_df.select(experiment=single_experiment_infos['experiment']).groupby(by=["compound", "region"]),
+                desc=f"Preparing stat groupings for ",
             ):
-                groupings.append(StatisticalGrouping(experiment, compound, region, self.p_value_threshold))
+                groupings.append(StatisticalGrouping(data, single_experiment_infos, compound, region, project_information.p_value_threshold))
 
         # Process the statistical tests in parallel
         results = parallel_process(
@@ -298,7 +296,9 @@ class Statistics(Dataset):
         Returns:
             pd.DataFrame: A DataFrame containing the statistical results for the specified experiment, compound, and region.
         """
-        return StatisticalGrouping(experiment, compound, region, p_value_threshold).get_results()
+        data = ExperimentFullHPLC(self.project, experiment).select(compound=compound, region=region)
+        experiment_infos = ExperimentInformation(self.project).get_experiment(experiment)
+        return StatisticalGrouping(data, experiment_infos, compound, region, p_value_threshold).get_results()
 
     @property
     def significant_results(self):
