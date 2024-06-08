@@ -20,19 +20,18 @@ class Figure(Cacheable):
     figure_type: ClassVar[str] = "histogram"
     plotter: ClassVar = None
     
-    def get_parameters(self):
-        raise NotImplementedError 
-        
+    def __post_init__(self):
+        self.plotter_params = self.plotter.__match_args__
+        missing_params = [param for param in self.plotter_params if not hasattr(self, param)]
+        if missing_params:
+            raise ValueError(f"Missing parameters: {missing_params}")
+        super().__post_init__()
     def generate(self):
         self.fig, self.ax = self.plotter(
-            *self.get_parameters()
+            *[getattr(self, param) for param in self.plotter_params]
         ).generate()
-        self.label_stats()
         return self.fig
         
-    def label_stats(self):
-        pass
-
     def save(self, fig):
         def target():
             fig.savefig(self.filepath)
@@ -202,8 +201,11 @@ class Histogram(Figure):
         self.significant_pairs = statistics.get_significance_pairs(self.experiment, self.compound, self.region)
         super().__post_init__()
         
-    def get_parameters(self):
-        return self.data,self.x,self.y,self.hue,self.palette,self.title,self.ylabel, self.order
+        
+    def generate(self):
+        super().generate()
+        self.label_stats()
+        return self.fig
         
     def label_stats(self):
         if self.is_significant:
