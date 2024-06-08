@@ -24,7 +24,6 @@ class Figure(Cacheable):
         raise NotImplementedError 
         
     def generate(self):
-        print('generate')
         self.fig, self.ax = self.plotter(
             *self.get_parameters()
         ).generate()
@@ -35,7 +34,6 @@ class Figure(Cacheable):
         pass
 
     def save(self, fig):
-        print('save')
         def target():
             fig.savefig(self.filepath)
             print(f"SAVED {self.filepath}.png")
@@ -46,12 +44,10 @@ class Figure(Cacheable):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(target)
 
-    # def load(self):
-    #     print('load')
-    #     display(Image(filename=f"{self.filepath}"))
+    def load(self):
+        display(Image(filename=f"{self.filepath}"))
         
     def set(self, **kwargs):
-        print('SET')
         for attibute, value in kwargs.items():
             if not hasattr(self, attibute):
                 raise ValueError(f"Unknown parameter {attibute}")
@@ -59,7 +55,6 @@ class Figure(Cacheable):
         self.initialize()
 
     def _repr_html_(self):
-        print('repr')
         if self.is_saved:
             self.load()
         else:
@@ -78,13 +73,9 @@ class BarPlotter:
     order: list[str]
 
     def generate(self):
-        print('start')
         fig, ax = plt.subplots(figsize=(20, 10))
-        print('subplots')
         ax = self.draw_ax(ax)
-        print('draw')
         self.refine_ax(ax)
-        print('refine')
         return fig, ax
 
     def draw_ax(self, ax):
@@ -196,7 +187,6 @@ class Histogram(Figure):
     extension: ClassVar[str] = "png"
     
     def __post_init__(self):
-        print('init')
         self.data = FullHPLC(self.project, self.experiment).select(compound=self.compound, region=self.region, nan=False)
         self.is_ratio = "/" in self.compound
         self.x = self.hue = "treatment"
@@ -210,7 +200,6 @@ class Histogram(Figure):
         self.statistics = statistics.select(experiment=self.experiment, compound=self.compound, region=self.region)
         self.is_significant = statistics.is_signigicant(self.experiment, self.compound, self.region)
         self.significant_pairs = statistics.get_significance_pairs(self.experiment, self.compound, self.region)
-        print('init don')
         super().__post_init__()
         
     def get_parameters(self):
