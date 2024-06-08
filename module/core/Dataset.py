@@ -1,6 +1,6 @@
-import os, platform, subprocess
+import os
 import pandas as pd
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 from module.core.Cacheable import Cacheable
 import pandas as pd
@@ -9,9 +9,15 @@ import pandas as pd
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
-def mask(df, mask_conditions):
-    selected = True
-    for column, value in mask_conditions.items():
+def mask(df: pd.DataFrame, mask_conditions: dict):
+    selected = df.index != None # Select all
+    nan = mask_conditions.pop('nan', None)
+    absent_columns = [col for col in mask_conditions if col not in df]
+    if absent_columns:
+        raise ValueError(f"Unknown columns: {absent_columns}, possible columns are {df.columns}")
+    if nan is not None:
+        selected &= df.value.isna() if nan else df.value.notna()
+    for column, value in mask_conditions.items(): # Refine selection
         if isinstance(value, list):
             sub_selection = df[column].isin(value)
         else:
@@ -44,86 +50,44 @@ class SelectableDataFrame(pd.DataFrame):
         # if sub_selection.empty:
         #     raise ValueError(f"NO DATA FOR SELECTION: {selector}")
         return sub_selection
+    
+    def extend(self, other):
+        if isinstance(other, Dataset):
+            df = other.df
+        common_columns = self.columns.intersection(df.columns).tolist()
+        return self.merge(df, on=common_columns, how="left")
 
 @dataclass
 class Dataset(Cacheable):
-
-    _name: ClassVar[str] = None
-    _template: ClassVar[pd.DataFrame] = None
+    
+    _loader: ClassVar = None
+    _saver: ClassVar = None
+    
+    def initialize(self):
+        super().initialize()
+        print(f"CREATED AND CACHED {self.filepath}")
 
     def validate(self, data):
         if data.empty:
             raise ValueError("NO DATA")
 
-    def initialize(self):
-        super().initialize()
-        print(f"CREATED AND CACHED {self.filepath}")
-            
-    def save(self, data):
-        print(f"Caching {self._name} dataframe")
-        data.to_pickle(self.pkl_path)
-        print(f"Cached {self._name} datarame to {self.pkl_path}")
-        print(f"Saving {self._name} datarame (may take a minute or two)")
-        data.to_excel(self.excel_path, index=False)
-        print(f"Saved {self._name} datarame to {self.excel_path}")
-
-    def load(self):
-        return pd.read_pickle(self.pkl_path)
-            
-    def select(self, **selector):
+    def select(self, **selector) -> SelectableDataFrame:
         return self.df.select(**selector)
-
-    def _open_excel(self):
-        if self.is_exceled:
-            if platform.system() == "Windows":
-                os.startfile(self.excel_path)
-            elif platform.system() == "Darwin":
-                subprocess.call(("open", self.excel_path))
-            elif platform.system() == "Linux":
-                print("Can't handle Linux")
-            else:
-                raise OSError("Unknown operating system")
-        else:
-            raise FileNotFoundError(self.excel_path)
         
-    def clear_cache(self):
-        if self.is_pickeled:
-            os.remove(self.pkl_path)
-            
-    def delete(self):
-        self.clear_cache()
-        if self. is_exceled:
-            os.remove(self.excel_path)
-    
     @property
-    def filepath(self):
-        return f"{self.location}/{self._name}"
-
-    # Probably useless to have all these properties if were only saving proper stuff
-    @property
-    def pkl_path(self):
-        return f"{self.filepath}.pkl"
+    def list(self):
+        return self.df.to_dict(orient="index").values()
 
     @property
-    def excel_path(self):
-        return f"{self.filepath}.xlsx"
-    
-    @property
-    def is_saved(self):
-        return self.is_pickeled
-
-    @property
-    def is_pickeled(self):
-        return os.path.isfile(self.pkl_path)
-
-    @property
-    def is_exceled(self):
-        return os.path.isfile(self.excel_path)
-
-    @property
-    def df(self):
+    def df(self) -> SelectableDataFrame:
         return SelectableDataFrame(self.load())
-
+    
+    def extend(self, other) -> SelectableDataFrame:
+        return self.df.extend(other)
+    
+    def __contains__(self, column):
+        return column in self.df
+        
     def __repr__(self) -> str:
         """Called by terminal to display the dataframe (pretty)
 
@@ -140,3 +104,25 @@ class Dataset(Cacheable):
         """
         return self.df._repr_html_()
     
+@dataclass
+class PickleDataset(Dataset):
+
+    extension: ClassVar[str] = "pkl"
+    
+    def save(self, data):
+        data.to_pickle(self.filepath)
+
+    def load(self):
+        return pd.read_pickle(self.filepath)
+
+
+@dataclass
+class ExcelDataset(Dataset):
+
+    extension: ClassVar[str] = "xlsx"
+    
+    def save(self, data):
+        data.to_excel(self.filepath, ignore_index=True)
+
+    def load(self):
+        return pd.read_excel(self.filepath)

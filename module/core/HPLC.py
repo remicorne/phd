@@ -3,12 +3,11 @@ from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import Dataset
+from module.core.Dataset import PickleDataset, SelectableDataFrame
+from module.core.Metadata import ProjectInformation, ExperimentInformation, TreatmentInformation
 from module.core.questions import yes_or_no
 from module.core.Constants import REGIONS, COMPOUNDS
 from tqdm import tqdm
-
-# import easygui
 
 
 def detect_raw_data(project):
@@ -32,14 +31,15 @@ def handle_raw_col_name(column):
 
 
 @dataclass(repr=False)
-class RawHPLC(Dataset):
+class RawHPLC(PickleDataset):
 
-    raw_data_filename: str
-    _name: ClassVar[str] = "raw_hplc"
+    project: str
+    filename: ClassVar[str] = "raw_hplc"
 
     def generate(self):
-        filepath = f"{os.getcwd()}/{self.raw_data_filename}"
-        extension = os.path.splitext(self.raw_data_filename)[1].lower()
+        project_information = ProjectInformation(self.project)
+        filepath = f"{os.getcwd()}/{project_information.raw_data_filename}"
+        extension = os.path.splitext(project_information.raw_data_filename)[1].lower()
         raw_data = pd.read_excel(filepath) if extension == ".xlsx" else pd.read_csv(filepath)
         return raw_data.rename(columns=self.get_valid_columns(raw_data.columns))
 
@@ -80,13 +80,13 @@ class RawHPLC(Dataset):
 
 
 @dataclass(repr=False)
-class HPLC(Dataset):
+class HPLC(PickleDataset):
 
-    raw_data: RawHPLC
-    _name: ClassVar[str] = "hplc"
+    project: str
+    filename: ClassVar[str] = "hplc"
 
     def generate(self):
-        raw_data = self.raw_data.df
+        raw_data = RawHPLC(self.project).df
         compound_data = raw_data.melt(
             id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
         )
@@ -133,3 +133,9 @@ class HPLC(Dataset):
             ]
         )
         return compound_and_ratios_df.replace(0, np.nan)
+
+    @property
+    def full_df(self) -> SelectableDataFrame:
+        return self.extend(
+            TreatmentInformation(self.project)
+        )

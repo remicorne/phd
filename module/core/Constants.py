@@ -1,19 +1,13 @@
 from module.core.JSON import JSONMapping
-from module.constants import ROOT
+from module.core.FileSystem import FileSystem
+import os
 from dataclasses import dataclass
 import difflib
 from module.core.questions import yes_or_no, select_one
 
-
 @dataclass
 class ConstantRegistry(JSONMapping):
 
-    name: str
-    
-    def __post_init__(self):
-        self.filepath = f"{self.location}/{self.name}.json"
-        return super().__post_init__()
-    
     def generate(self):
         raise NotImplementedError('Contant registries should be handled directly in the JSON')
 
@@ -46,11 +40,9 @@ class ConstantRegistry(JSONMapping):
             exit(1)
 
 
-constant_registry_location = f"{ROOT}/module/json"
-
 # Rewrite the following code but inverting the two parameters of the function select_one
-REGIONS = ConstantRegistry(constant_registry_location, "regions")
-COMPOUNDS = ConstantRegistry(constant_registry_location, "compounds")
-COMPOUND_CLASSES = ConstantRegistry(constant_registry_location, "compound_classes")
-MACRO_REGIONS = ConstantRegistry(constant_registry_location, "macro_regions")
-CIRCUITS = ConstantRegistry(constant_registry_location, "circuits")
+REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))
+COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compounds"))
+COMPOUND_CLASSES = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compound_classes"))
+MACRO_REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "macro_regions"))
+CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))

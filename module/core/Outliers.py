@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
-from module.core.Dataset import Dataset
+from module.core.Dataset import PickleDataset
+from module.core.Metadata import ProjectInformation, TreatmentInformation
 from module.core.HPLC import HPLC
 from tqdm import tqdm
-
 from outliers import smirnov_grubbs as grubbs
 
 
@@ -31,21 +31,27 @@ OUTLIER_TESTS = {"grubbs": grubbs_test}
 
 
 @dataclass(repr=False)
-class Outliers(Dataset):
+class Outliers(PickleDataset):
 
-    test: str
-    p_value_threshold: float
-    hplc: HPLC
-    _name: ClassVar = "outliers"
+    project: str
+    filename: ClassVar[str] = "outliers"
 
     def generate(self):
+        hplc = HPLC(self.project)
+        project_information = ProjectInformation(self.project)
         cases = [
-            (subset_df, self.test, self.p_value_threshold)
-            for _, subset_df in self.hplc.df.groupby(["group_id", "compound", "region"])
+            (subset_df, project_information.outlier_test, project_information.p_value_threshold)
+            for _, subset_df in hplc.df.groupby(["group_id", "compound", "region", "region"])
         ]
-        # Timing the list comprehension with tqdm
+        # Timin=region list comprehension with tqdm
         results = [
             get_labeled_df(*case)
             for case in tqdm(cases, desc="Calculating outliers", unit="group")
         ]
         return pd.concat(results)
+    
+    def select_outliers(self, treatment, compound, region):
+        df = self.extend(TreatmentInformation(self.project)).select(treatment=treatment, compound=compound, region=region)
+        return TreatmentOutlierFigure(df,  compound, region,treatment)
+        
+        

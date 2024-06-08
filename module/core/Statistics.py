@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 import pandas as pd
 import numpy as np
 from module.core.Dataset import PickleDataset
-from module.core.FullHPLC import ExperimentFullHPLC
+from module.core.FullHPLC import FullHPLC
+from module.core.HPLC import HPLC
 from module.core.Metadata import ExperimentInformation, ProjectInformation
 from tqdm import tqdm
 import scipy
@@ -62,7 +63,6 @@ def get_one_way_anova(data, p_value_threshold):
     F_value, p_value = scipy.stats.f_oneway(
         *[list(group_df["value"]) for _, group_df in data.groupby("treatment")]
     )
-    # print(f'oneWAY_ANOVA F_value: {F_value}, p_value: {p_value}')
     return (
         p_value,
         p_value <= p_value_threshold,
@@ -176,63 +176,154 @@ def get_quantitative_statistics_pipeline(
 
 
 @dataclass
-class StatisticalGrouping:
+class QuantitativeStatistic:
 
     data: pd.DataFrame
-    experiment_infos: object  # Experiment
-    compound: str
-    region: str
+    group_column: str
+    independant_variables: list[str]
+    is_paired: bool
+    is_parametric: bool
     p_value_threshold: float
+    is_parallel: bool = field(default=False, kw_only=True)
 
     def __post_init__(self):
 
-        self.statistics_pipeline = get_quantitative_statistics_pipeline(
-            len(self.experiment_infos["independant_variables"]) >= 2,
-            len(self.experiment_infos["groups"]) >= 2,
-            self.experiment_infos["paired"],
-            self.experiment_infos["parametric"],
-        )
-
-        # Create result base
-        self.grouping_information = {
-            "experiment": self.experiment_infos["experiment"],
-            "region": self.region,
-            "compound": self.compound,
-        }
-        
-        self.filtered_data = self.data[self.data.value.notna()].select(is_outlier=False)
-
         # all([]) == True if the iterable is empty
-        self.has_enough_data = not self.filtered_data.empty and all(
+        self.has_enough_data = not self.data.empty and all(
             [
-                treatment_data.value.count() >= 5
-                for _, treatment_data in self.filtered_data.groupby("treatment")
+                group_data.value.count() >= 5
+                for _, group_data in self.data.groupby(self.group_column)
             ]
         )
-        self.quantitative_stats_parameters = self.filtered_data, self.statistics_pipeline, self.p_value_threshold
-        # del self.experiment_infos # Avoid pickling issues with parallel execution caused by complex objects
+        if not self.is_parallel:
+            self.results = pd.DataFrame(self.get_results())
 
-    def calculate_results(self):
-        return (
-            execute_quantitative_stats_pipeline(*self.quantitative_stats_parameters)
-            if self.has_enough_data
-            else [{
-                **self.grouping_information,
-                "test": "validation",
-                "is_significant": False,
-                "result": "Not enough data",
-                "p_value_threshold": self.p_value_threshold,
-                "p_value": np.nan,
-            }]
-        )
-        
     def get_results(self):
-        return [{**self.grouping_information, **result} for result in self.calculate_results()]
+        results = []
+        if self.has_enough_data:
+            for test in get_quantitative_statistics_pipeline(
+                len(self.independant_variables) >= 2,
+                len(self.data[self.group_column].unique()) >= 2,
+                self.is_paired,
+                self.is_parametric,
+            ):
+                test_method_name = f"get_{test}"
+                if not hasattr(self, test_method_name):
+                    raise ValueError(f"Unknown test: {test}")
+                test_method = self.__getattribute__(test_method_name)
+                results.append(
+                    {
+                        **test_method(),
+                        "test": test,
+                        "p_value_threshold": self.p_value_threshold,
+                    }
+                )
+        else:
+            results.append(
+                {
+                    "test": "validation",
+                    "is_significant": False,
+                    "result": "Not enough data",
+                    "p_value_threshold": self.p_value_threshold,
+                    "p_value": np.nan,
+                }
+            )
+        return results
 
-    
-    
-def parallel_execution_wrapper(grouping: StatisticalGrouping):
-    return grouping.get_results()
+    def get_tukey(self):
+        """
+        Performs Tukey's HSD (Honest Significant Difference) test to identify significant differences between groups.
+
+        Args:
+            data (pd.DataFrame): The DataFrame containing the data to analyze, which must include a 'value' column and a 'treatment' column.
+            p_value_threshold (float): The significance level to determine if the results are statistically significant.
+
+        Returns:
+            tuple: A tuple containing:
+                - A list of tuples, where each tuple contains the pairs of treatments that have a significant difference.
+                - A boolean indicating if any significant results were found.
+                - A DataFrame of the complete results from the Tukey HSD test.
+        """
+        columns, *stats_data = pairwise_tukeyhsd(
+            endog=self.data.value,
+            groups=self.data[self.group_column],
+            alpha=self.p_value_threshold,
+        )._results_table.data
+        results = pd.DataFrame(stats_data, columns=columns)
+        significance_infos = pd.DataFrame(
+            list(
+                results[results.reject].apply(
+                    lambda res: [(res.group1, res.group2), res["p-adj"]], axis=1
+                )
+            ),
+            columns=["pairs", "p_values"],
+        )
+        return {
+            "p_value": [
+                significance_infos.pairs.tolist(),
+                significance_infos.p_values.tolist(),
+            ],
+            "is_significant": len(significance_infos) > 0,
+            "result": results,
+        }
+
+    def get_one_way_anova(self):
+        """
+        Performs a one-way ANOVA test to determine if there are any statistically significant differences between the means of three or more independent (unrelated) groups.
+
+        Args:
+            data (pd.DataFrame): The DataFrame containing the data, where 'value' is the dependent variable and 'treatment' is the independent variable used to define groups.
+            p_value_threshold (float): The alpha level used to determine the threshold for significance.
+
+        Returns:
+            tuple: A tuple containing:
+                - The p-value from the ANOVA test.
+                - A boolean indicating if the test result is significant at the given threshold.
+                - A DataFrame containing the ANOVA test results (F-value and p-value).
+        """
+        F_value, p_value = scipy.stats.f_oneway(
+            *[
+                list(group_df.value)
+                for _, group_df in self.data.groupby(self.group_column)
+            ]
+        )
+        return {
+            "p_value": p_value,
+            "is_significant": p_value <= self.p_value_threshold,
+            "result": pd.DataFrame([[F_value, p_value]], columns=["F", "p_value"]),
+        }
+
+    def get_two_way_anova(self):
+        """
+        Performs a two-way ANOVA to evaluate the effect of two nominal predictor variables on a continuous outcome variable.
+
+        Args:
+            data (pd.DataFrame): The DataFrame containing the experimental data. 'value' is the dependent variable. The independent variables should be specified as columns following the 'experiment' column.
+
+        Returns:
+            tuple: A tuple containing:
+                - The p-value of the interaction term in the ANOVA table.
+                - A boolean indicating if the interaction effect is significant below the given p_value_threshold.
+                - A DataFrame with detailed ANOVA results including F-values and p-values for each effect.
+        """
+
+        results = pg.anova(
+            data=self.data,
+            dv="value",
+            between=self.independant_variables,
+            detailed=True,
+        ).round(3)
+        return {
+            "p_value": results["p-unc"][2],
+            "is_significant": isinstance(results["p-unc"][2], float)
+            and results["p-unc"][2] < self.p_value_threshold,
+            "result": results,
+        }
+
+
+def parallel_execution_wrapper(quantitative_statistic_and_groupingg_info: list):
+    quantitative_statistic, grouping = quantitative_statistic_and_groupingg_info
+    return [{**result, **grouping} for result in quantitative_statistic.get_results()]
 
 
 @dataclass(repr=False)
@@ -260,16 +351,27 @@ class Statistics(PickleDataset):
 
     def generate(self):
         groupings = []
-        experiment_information = ExperimentInformation(self.project)
-        project_information = ProjectInformation(self.project)
-        for single_experiment_infos in experiment_information.list:
-            experiment_df = ExperimentFullHPLC(self.project, single_experiment_infos['experiment'])
+        for experiment in ExperimentInformation(self.project).experiments:
             # iterate over every data grouping to build a list of arguments for parallel processing
-            for (compound, region), data in tqdm(
-                experiment_df.select(experiment=single_experiment_infos['experiment']).groupby(by=["compound", "region"]),
+            for (compound, region), _ in tqdm(
+                HPLC(self.project).df.groupby(by=["compound", "region"]),
                 desc=f"Preparing stat groupings for ",
             ):
-                groupings.append(StatisticalGrouping(data, single_experiment_infos, compound, region, project_information.p_value_threshold))
+                groupings.append(
+                    (
+                        self.get_quantitative_stats(
+                            experiment,
+                            compound,
+                            region,
+                            is_parallel=True,
+                        ),
+                        {
+                            "experiment": experiment,
+                            "compound": compound,
+                            "region": region,
+                        },
+                    )
+                )
 
         # Process the statistical tests in parallel
         results = parallel_process(
@@ -279,10 +381,11 @@ class Statistics(PickleDataset):
         )
 
         # Unpack results and merge
-        return pd.DataFrame(grouping_subresult for grouping_results in results for grouping_subresult in grouping_results)
+        return pd.DataFrame([subresult for result in results for subresult in result])
 
-
-    def get_quantitative_stats(self, experiment, compound, region, p_value_threshold):
+    def get_quantitative_stats(
+        self, experiment, compound, region, p_value_threshold=None, is_parallel=False
+    ):
         """
         Calculates the statistics for a grouping using the test pipeline
         Saves the results to the fulll statistical df
@@ -296,9 +399,24 @@ class Statistics(PickleDataset):
         Returns:
             pd.DataFrame: A DataFrame containing the statistical results for the specified experiment, compound, and region.
         """
-        data = ExperimentFullHPLC(self.project, experiment).select(compound=compound, region=region)
-        experiment_infos = ExperimentInformation(self.project).get_experiment(experiment)
-        return StatisticalGrouping(data, experiment_infos, compound, region, p_value_threshold).get_results()
+        data = FullHPLC(self.project, experiment).select(
+            compound=compound, region=region, is_outlier=False, nan=False
+        )
+        experiment_infos = ExperimentInformation(self.project).get_experiment(
+            experiment
+        )
+        p_value_threshold = (
+            p_value_threshold or ProjectInformation(self.project).p_value_threshold
+        )
+        return QuantitativeStatistic(
+            data,
+            "treatment",
+            experiment_infos["independant_variables"],
+            experiment_infos["paired"],
+            experiment_infos["parametric"],
+            p_value_threshold,
+            is_parallel=is_parallel,
+        )
 
     @property
     def significant_results(self):
@@ -346,3 +464,13 @@ class Statistics(PickleDataset):
         return self.df[
             (self.df.test == "validation" & self.df.result == "Not enough data")
         ]
+
+    def is_signigicant(self, experiment, compound, region):
+        return self.select(
+            experiment=experiment, compound=compound, region=region
+        ).is_significant.all()
+
+    def get_significance_pairs(self, experiment, compound, region):
+        return self.select(
+            experiment=experiment, compound=compound, region=region, test="tukey"
+        ).p_value.iloc[0]

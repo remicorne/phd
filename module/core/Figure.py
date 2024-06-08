@@ -10,105 +10,262 @@ import numpy as np
 from threading import Thread
 from IPython.display import Image, display
 import pandas as pd
+import os
+import concurrent.futures
 
 
 @dataclass
 class Figure(Cacheable):
-
-    def __post_init__(self):
-        self.filepath = f"{self.location}/{self.identifier}"
-        self.png_path = f"{self.filepath}.png"
-        self.svg_path = f"{self.filepath}.svg"
-        super().__post_init__()
-
     
-    def save(self):
+    figure_type: ClassVar[str] = "histogram"
+    plotter: ClassVar = None
+    
+    def get_parameters(self):
+        raise NotImplementedError 
+        
+    def generate(self):
+        print('generate')
+        self.fig, self.ax = self.plotter(
+            *self.get_parameters()
+        ).generate()
+        self.label_stats()
+        return self.fig
+        
+    def label_stats(self):
+        pass
+
+    def save(self, fig):
+        print('save')
         def target():
-            self.fig.savefig(f"{self.filepath}.svg")  # dpi also?
-            print(f"SAVED {self.filepath}.svg")
-            self.fig.savefig(f"{self.filepath}.png", dpi=self.fig.dpi)
+            fig.savefig(self.filepath)
             print(f"SAVED {self.filepath}.png")
+            filepath_no_extension, _ = os.path.splitext(self.filepath)
+            fig.savefig(f"{filepath_no_extension}.svg")
+            print(f"SAVED {filepath_no_extension}.svg")
 
-        Thread(target=target).start()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(target)
 
-    def load(self):
-        display(Image(filename=f"{self.filepath}.png"))
+    # def load(self):
+    #     print('load')
+    #     display(Image(filename=f"{self.filepath}"))
+        
+    def set(self, **kwargs):
+        print('SET')
+        for attibute, value in kwargs.items():
+            if not hasattr(self, attibute):
+                raise ValueError(f"Unknown parameter {attibute}")
+            self.__setattr__(attibute, value)
+        self.initialize()
+
+    def _repr_html_(self):
+        print('repr')
+        if self.is_saved:
+            self.load()
+        else:
+            return self.fig
+
+@dataclass
+class BarPlotter:
+
+    data: pd.DataFrame
+    x: str
+    y: str
+    hue: str
+    palette: dict
+    title: str
+    ylabel: str
+    order: list[str]
+
+    def generate(self):
+        print('start')
+        fig, ax = plt.subplots(figsize=(20, 10))
+        print('subplots')
+        ax = self.draw_ax(ax)
+        print('draw')
+        self.refine_ax(ax)
+        print('refine')
+        return fig, ax
+
+    def draw_ax(self, ax):
+        return sns.barplot(**self.bar_parameters())
+    
+    def refine_ax(self, ax):
+        ax.set_ylabel(self.ylabel, fontsize=24)
+        ax.set_xlabel(" ", fontsize=20)
+        ax.set_title(self.title, y=1.04, fontsize=34)
+        sns.despine(left=False)
+        
+
+    def common_parameters(self):
+        return {
+            "data": self.data,
+            "x": self.x,
+            "y": self.y,
+            "order": self.order,
+            "hue": self.hue,
+            "palette": self.palette
+        }
+
+    def bar_parameters(self):
+        return {
+            **self.common_parameters(),
+            "errorbar": ("ci", 68),
+            "capsize": 0.1,
+            "alpha": 0.8,
+            "errcolor": ".2",
+            "edgecolor": ".2",
+        }
 
 
 @dataclass
-class RegionCompoundParameters:
-    compound: str | list
-    region: str | list
+class SwarmPlotter(BarPlotter):
+    
+    def draw_ax(self, ax):
+        ax = super().draw_ax(ax)
+        return sns.swarmplot(**self.swarm_parameters())
+    
+    def refine_ax(self, ax):
+        ax.tick_params(labelsize=24)
+    
 
-    def __post_init__(self):
-        if isinstance(self.compound, str):
-            pass
+    def common_parameters(self):
+        return {
+            **super().common_parameters(),
+            "dodge": False,
+        }
+
+    def swarm_parameters(self):
+        return {
+            **self.common_parameters(),
+            "edgecolor": "k",
+            "linewidth": 1,
+            "linestyle": "-",
+            "legend": False,
+        }
 
 
 @dataclass
-class MatrixParameters:
+class OutlierPlotter(SwarmPlotter):
 
-    type: str
-    var1: str
-    columns: list[str]
-    var2: str = None
+    swarm_hue: str
+    swarm_palette: list[str]
 
-    def __post_init__(self):
-        self.var2 = self.var2 or self.var1
+    def swarm_parameters(self):
+        swarm_parameters = super().swarm_parameters()
+        swarm_parameters["hue"] = self.swarm_hue
+        swarm_parameters["palette"] = self.swarm_palette
+        swarm_parameters["legend"] = True
+        return swarm_parameters
 
 
 @dataclass
-class FigureParameters:
-    compound: str | list
-    region: str | list
+class SummaryPlotter(BarPlotter):
+    
+    hue_order: list[str]
+
+    def refine_ax(self, ax):
+        ax.tick_params(labelsize=16)
+        ax.yaxis.set_label_coords(-0.035, 0.5)
+        ax.legend(loc="upper right")
+        plt.tight_layout()
+
+    def bar_parameters(self):
+        return {
+            **super().common_parameters(),
+            "errwidth": 1,
+            "hue_order": self.hue_order,
+        }
+        
+from module.core.FullHPLC import FullHPLC
+from module.core.Metadata import TreatmentInformation
+
+from statannotations.Annotator import Annotator
+from module.core.Statistics import Statistics
+
+@dataclass
+class Histogram(Figure):
+    
+    project: str
     experiment: str
-
-
-@dataclass
-class HistogramParameters(FigureParameters):
     compound: str
     region: str
-    experiment: str
+    show_outliers: bool = field(default=False)
+    plotter: ClassVar[SwarmPlotter] = SwarmPlotter
+    figure_type: ClassVar[str] = "histogram"
+    extension: ClassVar[str] = "png"
+    
+    def __post_init__(self):
+        print('init')
+        self.data = FullHPLC(self.project, self.experiment).select(compound=self.compound, region=self.region, nan=False)
+        self.is_ratio = "/" in self.compound
+        self.x = self.hue = "treatment"
+        self.y = "value"
+        self.order = self.data.sort_values(by="group_id").treatment.unique().tolist()
+        self.palette = TreatmentInformation(self.project).get_palette()
+        self.title = f"{self.compound} in {self.region}"
+        self.ylabel = " " if self.is_ratio else "ng/mg of tissue"
+        self.filename = self.title
+        statistics = Statistics(self.project)
+        self.statistics = statistics.select(experiment=self.experiment, compound=self.compound, region=self.region)
+        self.is_significant = statistics.is_signigicant(self.experiment, self.compound, self.region)
+        self.significant_pairs = statistics.get_significance_pairs(self.experiment, self.compound, self.region)
+        print('init don')
+        super().__post_init__()
+        
+    def get_parameters(self):
+        return self.data,self.x,self.y,self.hue,self.palette,self.title,self.ylabel, self.order
+        
+    def label_stats(self):
+        if self.is_significant:
+            pairs, p_values = self.significant_pairs
+            annotator = Annotator(self.ax, pairs, data=self.data, x=self.x, y=self.y, order=self.order)
+            annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+            annotator.set_pvalues_and_annotate(p_values)
 
-
+    
+class OutlierHistogram(Histogram):
+    
+    plotter: ClassVar[OutlierPlotter] = OutlierPlotter
+    
+    def __post_init__(self):
+        super().__post_init__()
+        self.swarm_palette = {**self.palette, "current": "black", "outlier": "grey"}
+        self.swarm_hue = 'treatment'
+        
+    def get_parameters(self):
+        return *super().get_parameters(), self.swarm_hue, self.swarm_palette
+        
+    
 @dataclass
-class SummaryHistogramParameters(FigureParameters):
-    compound: list
+class TreatmentOutlierFigure:
+    
+    data: pd.DataFrame
+    compound: str
     region: str
-    experiment: str
-
-
-@dataclass()
-class Parameters:
-    compound: list
-    region: str
-    experiment: str
-
+    treatment: str
+    
+    def __post_init__(self):
+        self.x = 'treatment'
+        self.y = 'value'
+        self.hue = 'treatment'
+        self.palette = None
+        self.title = f"Outliers for {self.compound} {self.region} {self.treatment}"
+        self.ylabel = " " if "/" in self.compound else "ng/mg of tissue"
+    
     def generate(self):
-        pass  # format parameters appropriately
-
-
-@dataclass()
-class DataSelection:
-
-    full_hplc: pd.DataFrame
-    parameters: Parameters
-
-    def generate(self):
-        self.hplc.select(self.parameters)
-
-
-@dataclass()
-class Figure:
-
-    data_selection: DataSelection
-
-    def generate(self):
-        pass  # sns something with dataselection
-
-    def indentifier(self):
-        pass  # format params into indetifier string
-
+        return BarPlotter(
+            self.data,
+            self.x,
+            self.y,
+            self.hue,
+            self.palette,
+            self.title,
+            self.ylabel,
+        )
+    
+    
+    
 
 @dataclass()
 class MatricesFigure(Figure):
@@ -240,146 +397,3 @@ class NetworkFigure(MatricesFigure):
 
         Network(matrix).plot_ax(ax)
 
-
-@dataclass
-class BarPlotter:
-
-    data: pd.DataFrame
-    x: str
-    y: str
-    order: list[str]
-    hue: str
-    palette: dict
-    title: str
-    ylabel: str
-
-    def generate(self):
-        fig, ax = plt.subplots(figsize=(20, 10))
-        ax = self.draw_ax()
-        self.refine_ax(ax)
-        return fig, ax
-
-    def draw_ax(self):
-        return sns.barplot(**self.bar_parameters())
-    
-    def refine_ax(self, ax):
-        ax.set_ylabel(self.ylabel, fontsize=24)
-        ax.set_xlabel(" ", fontsize=20)
-        ax.set_title(self.title, y=1.04, fontsize=34)
-        sns.despine(left=False)
-        
-
-    def common_parameters(self):
-        return {
-            "data": self.data,
-            "x": self.x,
-            "y": self.y,
-            "order": self.order,
-            "hue": self.hue,
-            "palette": self.palette,
-        }
-
-    def bar_parameters(self):
-        return {
-            **self.common_parameters(),
-            "errorbar": ("ci", 68),
-            "capsize": 0.1,
-            "alpha": 0.8,
-            "errcolor": ".2",
-            "edgecolor": ".2",
-        }
-
-
-@dataclass
-class SwarmPlotter(BarPlotter):
-    
-    def draw_ax(self, ax):
-        ax = super().draw_ax(ax)
-        return sns.swarmplot(**self.swarm_parameters())
-    
-    def refine_ax(self, ax):
-        ax.tick_params(labelsize=24)
-    
-
-    def common_parameters(self):
-        return {
-            **super().common_parameters(),
-            "dodge": False,
-        }
-
-    def swarm_parameters(self):
-        return {
-            **self.common_parameters(),
-            "edgecolor": "k",
-            "linewidth": 1,
-            "linestyle": "-",
-            "legend": False,
-        }
-
-
-@dataclass
-class OutlierPlotter(SwarmPlotter):
-
-    swarm_hue: str
-    swarm_palette: list[str]
-
-    def swarm_parameters(self):
-        swarm_parameters = self.common_parameters()
-        swarm_parameters["hue"] = self.swarm_hue
-        swarm_parameters["palette"] = self.swarm_palette
-        swarm_parameters["legend"] = True
-        return swarm_parameters
-
-
-@dataclass
-class SummaryPlotter(BarPlotter):
-    
-    hue_order: list[str]
-
-    def refine_ax(self, ax):
-        ax.tick_params(labelsize=16)
-        ax.yaxis.set_label_coords(-0.035, 0.5)
-        ax.legend(loc="upper right")
-        plt.tight_layout()
-
-    def bar_parameters(self):
-        return {
-            **super().common_parameters(),
-            "errwidth": 1,
-            "hue_order": self.hue_order,
-        }
-
-@dataclass
-class HistogramFigure(Cacheable):
-    
-    experiment: Experiment
-    compound: str
-    region: str
-    
-    def __post_init__(self):
-        self.is_ratio = "/" in self.compound
-        self.data = self.experiment.df.select(compound=self.compound, region=self.region),
-        self.x, self.hue = "treatment"
-        self.y = "value"
-        self.order = self.experiment.groups,
-        self.palete = self.experiment.palette,
-        self.title = self.title,
-        self.ylabel = " " if self.is_ratio else "ng/mg of tissue"
-        
-        
-    def generate(self):
-        self.figure = SwarmPlotter(
-            self.data,
-            self.x,
-            self.y,
-            self.order,
-            self.hue,
-            self.palete,
-            self.title,
-            self.ylabel,
-            
-        )
-        
-    @property
-    def title(self):
-        return f"{self.compound} in {self.region}"

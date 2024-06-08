@@ -1,5 +1,7 @@
 import unittest
 from module.core.Project import Project, ROOT
+from module.core.Statistics import Statistics
+from module.core.Figure import Histogram
 import os, shutil
 
 class TestProject(unittest.TestCase):
@@ -10,8 +12,10 @@ class TestProject(unittest.TestCase):
         self.raw_data_filename = 'raw_data.xlsx'
         
         # If deletion idn't happen (quit debug session too early for ex)
+        raw_data_location = os.path.join(os.getcwd(), self.raw_data_filename)
+        if os.path.exists(raw_data_location):
+            os.remove(raw_data_location)
         if os.path.exists(self.project_location):
-            os.remove(os.path.join(os.getcwd(), self.raw_data_filename))
             shutil.rmtree(self.project_location)
         
         os.mkdir(self.project_location)
@@ -31,11 +35,12 @@ class TestProject(unittest.TestCase):
         project = Project(self.project_name)
         project.full_df.select(is_outlier=True).select(treatment=["vehicles", "MDL"])
         project.statistics.df
-        project.experiments['agonist antagonist'].df.select(treatment="MDL")
-        
+        stats = Statistics(self.project_name).get_quantitative_stats('agonist antagonist', '5HTP/5HT', 'OF', 0.01)
+        assert [stat["is_significant"] for stat in stats] == [True, False, True]
         assert len(project.statistics.significant_tests) == 9
         assert len(project.statistics.significant_results) == 6
         assert len(project.statistics.insufficent_data) == 5
+        Histogram(self.project_name, 'agonist antagonist', "DA", "OF")._repr_html_()
         
         print('PROJECT INITIALIZATION TEST PASSED')
 

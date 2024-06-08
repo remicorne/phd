@@ -3,14 +3,12 @@ import json
 from dataclasses import dataclass
 from module.core.Cacheable import Cacheable
 from module.core.questions import input_escape
+from typing import ClassVar
 
 @dataclass
 class JSONMapping(Cacheable):
-    location = str
     
-    def __post_init__(self):
-        self.filepath = self.filepath or f"{self.location}/{input_escape('Enter mapping name:')}.json"
-        return super().__post_init__()
+    extension: ClassVar[str] = "json"
     
     def load(self):
         with open(self.filepath) as outfile:

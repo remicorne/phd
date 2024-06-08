@@ -1,21 +1,28 @@
 from dataclasses import dataclass, field
-from module.constants import ROOT
-import os
-
-PROJECTS = f"{ROOT}/PROJECTS"
-
+from typing import ClassVar
+import os, platform, subprocess
+from module.core.FileSystem import FileSystem
 
 @dataclass
 class Cacheable:
 
-    location: str
-    filepath: str = field(init=False, default=None)
+    extension: ClassVar[str] = None
+    filename: ClassVar[str] = None
+    filepath: str = field(default=None, kw_only=True)
 
     def __post_init__(self):
-        if self.filepath is None:
-            raise ValueError(
-                "Subclasses must initialize 'filepath' before calling super().__post_init__()"
+        if not self.filepath:
+            if not self.filename:
+                raise ValueError("Child classes must define filename")
+            # Automatically extrat relevant params for laction building
+            self.filepath = os.path.join(
+                FileSystem.get_location(**self.__dict__), self.filename
             )
+        if not self.extension:
+            raise ValueError("Child classes must definee extension") 
+        # Remove extension if it has already been added
+        filepath, _ = os.path.splitext(self.filepath)
+        self.filepath = f"{filepath}.{self.extension}"
         if not self.is_saved:
             self.initialize()
 
@@ -26,6 +33,7 @@ class Cacheable:
 
     def initialize(self):
         data = self.generate()
+        self.validate(data)
         self.save(data)
 
     def load(self):
@@ -37,8 +45,26 @@ class Cacheable:
         raise NotImplementedError(
             "This method should be implemented for all custom Cacheables"
         )
+        
+    def validate(self, data):
+        pass
+        
+    def delete(self):
+        os.remove(self.filepath)
+                
+    def open(self):
+        if self.is_saved:
+            if platform.system() == "Windows":
+                os.startfile(self.filepath)
+            elif platform.system() == "Darwin":
+                subprocess.call(("open", self.filepath))
+            elif platform.system() == "Linux":
+                print("Can't handle Linux")
+            else:
+                raise OSError("Unknown operating system")
+        else:
+            raise FileNotFoundError(self.filepath)
 
     @property
     def is_saved(self):
         return os.path.isfile(self.filepath)
-

@@ -7,7 +7,7 @@ from module.core.Metadata import (
     TreatmentInformation,
     ProjectInformation,
 )
-from module.core.Dataset import SelectableDataFrame
+from module.core.FullHPLC import FullHPLC
 from module.core.HPLC import RawHPLC, HPLC
 from module.core.Outliers import Outliers
 
@@ -55,27 +55,13 @@ class Project:
                 print(f"UNKNOWN PROJECT: {self.name}")
                 print(f"KNOW PROJECTS ARE: {Project.list()}")
                 exit(1)
-        self.project_information = ProjectInformation(self.location) 
-        self.experiment_information = ExperimentInformation(self.location)
-        self.treatment_information = TreatmentInformation(self.location)
-        self.treatments = self.treatment_information.list
-        self.raw_data = RawHPLC(self.location, self.project_information["raw_data_filename"]    )
-        self.hplc = HPLC(self.location, self.raw_data)
-        self.outliers = Outliers(
-            self.location,
-            self.project_information["outlier_test"],
-            self.project_information["p_value_threshold"],
-            self.hplc,
-        )
-        self.experiments = {
-            experiment_info["experiment"]: Experiment(self, experiment_info, self.treatment_information)
-            for experiment_info in self.experiment_information.list
-        }
-        self.statistics = Statistics(
-            self.location,
-            self.experiments,
-            self.project_information["p_value_threshold"],
-        )        
+        self.project_information = ProjectInformation(self.name)
+        self.experiment_information = ExperimentInformation(self.name)
+        self.treatment_information = TreatmentInformation(self.name)
+        self.raw_data = RawHPLC(self.name)
+        self.hplc = HPLC(self.name)
+        self.outliers = Outliers(self.name)
+        self.statistics = Statistics(self.name)        
         
         
     
@@ -86,11 +72,8 @@ class Project:
         Returns:
             pd.datafFrame: A merge of hplc, outliers, and treatment_information, and df.select method
         """
-        common_columns = self.hplc.df.columns.intersection(self.outliers.df.columns).tolist()
-        full_df = self.hplc.df.merge(self.outliers.df, on=common_columns, how='left').merge(
-            self.treatment_information.df, on="group_id", how='left'
-        )
-        return SelectableDataFrame(full_df)
+        
+        return FullHPLC(self.name).df
 
 
     @classmethod
@@ -108,3 +91,74 @@ class Project:
     
     Experiments
     {experiments_string}"""
+    
+    
+    
+from distutils.util import strtobool
+
+@dataclass
+class Experiment:
+
+    project: str
+    name: str
+
+    def __post_init__(self):
+        experiment_information = ExperimentInformation(self.project).get_experiment(self.name)
+        treatment_information = TreatmentInformation(self.project)
+        self.name = experiment_information["experiment"]
+        self.groups = [
+            int(group)
+            for group in experiment_information["groups"]
+            .replace(" ", "")
+            .split(",")
+        ]
+        self.treatments = [treatment_information.dict[group_id]["treatment"] for group_id in self.groups]
+        self.palette = {
+            treatment: treatment_information.dict[treatment]["color"]
+            for treatment in self.treatments
+        }
+        self.independant_variables = (
+            experiment_information["independant_variables"]
+            .replace(" ", "")
+            .split(",")
+        )
+        self.paired = (
+            experiment_information["paired"]
+            if isinstance(experiment_information["paired"], bool)
+            else strtobool(experiment_information["paired"])
+        )
+        self.parametric = (
+            experiment_information["parametric"]
+            if isinstance(experiment_information["parametric"], bool)
+            else strtobool(experiment_information["parametric"])
+        )
+
+    @property
+    def df(self):
+        """Get df with full information (values, outliers, treatments)
+
+        Returns:
+            pd.datafFrame: A merge of hplc, outliers, and treatment_information, and df.select method
+        """
+        common_columns = self.hplc.df.columns.intersection(self.outliers.df.columns).tolist()
+        full_df = self.hplc.df.merge(self.outliers.df, on=common_columns, how='left').merge(
+            self.treatment_information.df, on="group_id", how='left'
+        )
+        full_df.loc[:, "experiment"] = self.name
+        full_df[self.independant_variables] = list(
+            full_df.independant_variables.apply(
+                lambda group_independant_variables: [
+                    experiment_independant_variable in group_independant_variables
+                    for experiment_independant_variable in self.independant_variables
+                ],
+            )
+        )
+        return full_df
+
+    def __repr__(self) -> str:
+        return f"""
+        groups: {self.groups}
+        independant variables: {self.independant_variables}
+        paired: {self.paired}
+        parametric: {self.parametric}
+        """
