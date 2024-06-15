@@ -53,14 +53,21 @@ class _ProjectSettings(ExcelDataset):
     def convert_dtypes(self, df):
         for col_name, col_info in self._template_types.items():
             if col_info["type"] == list:
-                df[col_name] = df[col_name].apply(lambda val: [col_info["subtype"](subval) for subval in val.replace(" ", "").split(",")])
+                df[col_name] = df[col_name].apply(
+                    lambda val: [
+                        col_info["subtype"](subval)
+                        for subval in val.replace(" ", "").split(",")
+                    ]
+                )
             elif col_info["type"] == bool:
                 df[col_name] = df[col_name].apply(lambda val: bool(strtobool(str(val))))
             else:
                 df[col_name] = df[col_name].apply(col_info["type"])
         return df
+
+
 @dataclass(repr=False)
-class TreatmentInformation(_ProjectSettings): # TODO: generalize to GroupInformation?
+class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
     filename: ClassVar[str] = "treatment_information"
     _template: ClassVar[dict] = {
@@ -75,7 +82,7 @@ class TreatmentInformation(_ProjectSettings): # TODO: generalize to GroupInforma
         "color": {"type": str},
         "independant_variables": {"type": list, "subtype": str},
     }
-    
+
     def get_palette(self):
         return {group["treatment"]: group["color"] for group in self.list}
 
@@ -111,7 +118,7 @@ class ExperimentInformation(_ProjectSettings):
         "paired": {"type": bool},
         "parametric": {"type": bool},
     }
-    
+
     @property
     def experiments(self):
         return self.df.experiment.tolist()
@@ -124,13 +131,23 @@ class ExperimentInformation(_ProjectSettings):
                 self.list,
             )
         )
-        
+
     def get_experiments(self, group_id):
-        return list(self.df[self.df.groups.apply(lambda groups: group_id in groups)].experiment)
-    
-    
-    # def label(self, df):
-        
+        return list(
+            self.df[self.df.groups.apply(lambda groups: group_id in groups)].experiment
+        )
+
+    def load(self):
+        data = super().load()
+        treatment_information = TreatmentInformation(self.project)
+        data["treatments"] = data.groups.apply(
+            lambda groups: [
+                treatment_information.select(group_id=group, get="treatment")
+                for group in groups
+            ]
+        )
+        return data
+
 
 def is_valid_file(file_path):
     if not os.path.isfile(file_path):

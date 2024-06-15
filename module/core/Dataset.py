@@ -27,7 +27,10 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
 
 
 def sub_select(df, selector):
+    column = selector.pop('get', None)
     df = df[mask(df, selector)].copy()
+    if column:
+        return df[column].iloc[0] if len(df) == 1 else df[column].to_list()        
     return df
 
 class SelectableDataFrame(pd.DataFrame):
@@ -47,8 +50,6 @@ class SelectableDataFrame(pd.DataFrame):
             CustomDataFrame: Filtered DataFrame that also includes the select method.
         """
         sub_selection = sub_select(self, selector)
-        # if sub_selection.empty:
-        #     raise ValueError(f"NO DATA FOR SELECTION: {selector}")
         return sub_selection
     
     def extend(self, other):

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import PickleDataset
+from module.core.Dataset import PickleDataset, SelectableDataFrame
 from module.core.FullHPLC import FullHPLC
 from module.core.HPLC import HPLC
 from module.core.Metadata import ExperimentInformation, ProjectInformation
@@ -181,6 +181,7 @@ class QuantitativeStatistic:
     data: pd.DataFrame
     group_column: str
     independant_variables: list[str]
+    conditions: list[str]
     is_paired: bool
     is_parametric: bool
     p_value_threshold: float
@@ -195,18 +196,26 @@ class QuantitativeStatistic:
                 for _, group_data in self.data.groupby(self.group_column)
             ]
         )
+         
+        self.pipeline = get_quantitative_statistics_pipeline(
+                len(self.independant_variables) >= 2,
+                len(self.conditions) >= 2,
+                self.is_paired,
+                self.is_parametric,
+            )
+        self.post_hoc_test = self.pipeline[-1]
+        
         if not self.is_parallel:
-            self.results = pd.DataFrame(self.get_results())
+            self.results = SelectableDataFrame(self.get_results())
+            self.is_significant = self.results["is_significant"].all()
+            self.significant_pairs = self.results.select(test=self.post_hoc_test).p_value.iloc[0]
+            
+            
 
     def get_results(self):
         results = []
         if self.has_enough_data:
-            for test in get_quantitative_statistics_pipeline(
-                len(self.independant_variables) >= 2,
-                len(self.data[self.group_column].unique()) >= 2,
-                self.is_paired,
-                self.is_parametric,
-            ):
+            for test in self.pipeline:
                 test_method_name = f"get_{test}"
                 if not hasattr(self, test_method_name):
                     raise ValueError(f"Unknown test: {test}")
@@ -412,6 +421,7 @@ class Statistics(PickleDataset):
             data,
             "treatment",
             experiment_infos["independant_variables"],
+            experiment_infos["treatments"],
             experiment_infos["paired"],
             experiment_infos["parametric"],
             p_value_threshold,

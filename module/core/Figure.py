@@ -57,7 +57,7 @@ class Figure(Cacheable):
         if self.is_saved:
             self.load()
         else:
-            return self.fig
+            return self.fig._repr_html_()
 
 @dataclass
 class BarPlotter:
@@ -171,7 +171,7 @@ from module.core.FullHPLC import FullHPLC
 from module.core.Metadata import TreatmentInformation
 
 from statannotations.Annotator import Annotator
-from module.core.Statistics import Statistics
+from module.core.Statistics import Statistics   
 
 @dataclass
 class Histogram(Figure):
@@ -195,24 +195,18 @@ class Histogram(Figure):
         self.title = f"{self.compound} in {self.region}"
         self.ylabel = " " if self.is_ratio else "ng/mg of tissue"
         self.filename = self.title
-        statistics = Statistics(self.project)
-        self.statistics = statistics.select(experiment=self.experiment, compound=self.compound, region=self.region)
-        self.is_significant = statistics.is_signigicant(self.experiment, self.compound, self.region)
-        self.significant_pairs = statistics.get_significance_pairs(self.experiment, self.compound, self.region)
+        self.statistics = Statistics(self.project).get_quantitative_stats(self.experiment, self.compound, self.region)
         super().__post_init__()
         
         
     def generate(self):
         super().generate()
-        self.label_stats()
-        return self.fig
-        
-    def label_stats(self):
-        if self.is_significant:
-            pairs, p_values = self.significant_pairs
+        if self.statistics.is_significant:
+            pairs, p_values = self.statistics.significant_pairs
             annotator = Annotator(self.ax, pairs, data=self.data, x=self.x, y=self.y, order=self.order)
             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
             annotator.set_pvalues_and_annotate(p_values)
+        return self.fig
 
     
 class OutlierHistogram(Histogram):
