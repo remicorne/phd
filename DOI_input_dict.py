@@ -8,68 +8,66 @@ PROJECT : DOI
 from module.constants import CACHE_DIR
 from module.utils import checkFileSystem, saveJSON
 
-filename = "DOI_data_HPLC.csv" #file name of the excel file saved as csv
+filename = "DOI_data_HPLC.xlsx" #file name of the excel file saved as csv
 # columns : 'mouse_id'  'group_id'  'compound_regions'   ...
 
 
 
 ########## Project Prams ##########
-
 treatment_mapping = (
     {  # TO DO : change name to treatment_info and add columns in df REMI
-        1: {"treatment": "vehicle_orange",
-            "color": "white",
-            "experiments": ["dose_response", "environment", "DOI_environment"],
+        1: {"treatment": "vehicle_cage",
+            "color": "thistle",
+            "experiments": ["environment"],
             },
-        2: {"treatment": "0.03mg/kgDOI_orange",
-            "color": "salmon",
-            "experiments": ["dose_response"],
-            },
-        3: {"treatment": "0.3mg/kgDOI_orange",
-            "color": "red",
-            "experiments": ["dose_response"],
-            },
-        4: {"treatment": "3mg/kgDOI_orange",
-            "color": "firebrick",
-            "experiments": ["dose_response", "DOI_environment"],
-            },
-        5: {"treatment": "vehicle_plastic",
-            "color": "grey",
+        2: {"treatment": "vehicle_plastic",
+            "color": "lavender",
             "experiments": ["environment", "DOI_environment"],
             },
-        6: {"treatment": "3mg/kgDOI_plastic",
-            "color": "black",
+        3: {"treatment": "vehicle_orange",
+            "color": "sandybrown",
+            "experiments": ["dose_response", "environment", "DOI_environment"],
+            },
+        4: {"treatment": "3mg/kgDOI_plastic",
+            "color": "darkgreen",
             "experiments": ["DOI_environment"],
             },
-	    7: {"treatment": "vehicle_cage",
-            "color": "black",
-            "experiments": ["environment"]
+        5: {"treatment": "0.03mg/kgDOI_orange",
+            "color": "lightskyblue",
+            "experiments": ["dose_response"],
+            },
+        6: {"treatment": "0.3mg/kgDOI_orange",
+            "color": "cornflowerblue",
+            "experiments": ["dose_response"],
+            },
+        7: {"treatment": "3mg/kgDOI_orange",
+            "color": "darkcyan",
+            "experiments": ["dose_response", "DOI_environment"],
             } } )
 
 
 experimental_info = {
-    "dose_response": {"groups": [1, 2, 3, 4], 
+    "dose_response": {"groups": [3, 5, 6, 7], 
                       "independant_vars": ["DOI"], 
                       "paired": False,
                       "parametric": True, #idealy this would be True / False / Check : check would involve checking the data using the spearman test which should already be done then taking the majority of the data to be parametric or not chose that 
                       "outliers": 'grubbs'
                       },
 
-    "environment": {"groups": [1,5,7],  
+    "environment": {"groups": [1,2,3],  
                          "independant_vars": ["environment"],
                          "paired": False,
                          "parametric": True,
                          "outliers": "grubbs"
                            },
 
-    "DOI_environment": {"groups": [1,4,5,6],  
+    "DOI_environment": {"groups": [2,3,4,7],  
                          "independant_vars": ["DOI","environment"],
                          "paired": False,
                          "parametric": True,
                          "outliers": "grubbs"
                            },
 }
-
 
 ########## KEYS ##########
 

@@ -22,15 +22,15 @@ treatment_mapping = (
             "experiments": ["dose_response", "agonist_antagonist"],
             },
         2: {"treatment": "0.3mg/kgTCB",
-            "color": "salmon",
+            "color": "lightgreen", #salmon
             "experiments": ["dose_response"],
             },
         3: {"treatment": "3mg/kgTCB",
-            "color": "red",
+            "color": "limegreen", #red forestgreen
             "experiments": ["dose_response", "agonist_antagonist"],
             },
         4: {"treatment": "10mg/kgTCB",
-            "color": "firebrick",
+            "color": "darkgreen", #firebrick 
             "experiments": ["dose_response"],
             },
         5: {"treatment": "0.2mg/kgMDL",
