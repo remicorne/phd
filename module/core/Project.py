@@ -1,19 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from module.core.Experiment import Experiment
+from module.core.Dataset import SelectableDataFrame
 from module.core.questions import yes_or_no
 from module.core.Metadata import (
     ExperimentInformation,
     TreatmentInformation,
     ProjectInformation,
 )
-from module.core.FullHPLC import FullHPLC
 from module.core.HPLC import RawHPLC, HPLC
 from module.core.Outliers import Outliers
 
 from module.core.Statistics import Statistics
 import os
-import types
 
 ROOT = f"{os.getcwd()}/PROJECTS" 
 if not os.path.exists(ROOT):
@@ -62,19 +60,10 @@ class Project:
         self.hplc = HPLC(self.name)
         self.outliers = Outliers(self.name)
         self.statistics = Statistics(self.name)        
-        
-        
-    
+
     @property
-    def full_df(self):
-        """Get df with full information (values, outliers, treatments)
-
-        Returns:
-            pd.datafFrame: A merge of hplc, outliers, and treatment_information, and df.select method
-        """
-        
-        return FullHPLC(self.name).df
-
+    def data(self) -> SelectableDataFrame:
+        return self.hplc.extend(self.treatment_information).extend(self.outliers)
 
     @classmethod
     def list(self):
@@ -92,73 +81,3 @@ class Project:
     Experiments
     {experiments_string}"""
     
-    
-    
-from distutils.util import strtobool
-
-@dataclass
-class Experiment:
-
-    project: str
-    name: str
-
-    def __post_init__(self):
-        experiment_information = ExperimentInformation(self.project).get_experiment(self.name)
-        treatment_information = TreatmentInformation(self.project)
-        self.name = experiment_information["experiment"]
-        self.groups = [
-            int(group)
-            for group in experiment_information["groups"]
-            .replace(" ", "")
-            .split(",")
-        ]
-        self.treatments = [treatment_information.dict[group_id]["treatment"] for group_id in self.groups]
-        self.palette = {
-            treatment: treatment_information.dict[treatment]["color"]
-            for treatment in self.treatments
-        }
-        self.independant_variables = (
-            experiment_information["independant_variables"]
-            .replace(" ", "")
-            .split(",")
-        )
-        self.paired = (
-            experiment_information["paired"]
-            if isinstance(experiment_information["paired"], bool)
-            else strtobool(experiment_information["paired"])
-        )
-        self.parametric = (
-            experiment_information["parametric"]
-            if isinstance(experiment_information["parametric"], bool)
-            else strtobool(experiment_information["parametric"])
-        )
-
-    @property
-    def df(self):
-        """Get df with full information (values, outliers, treatments)
-
-        Returns:
-            pd.datafFrame: A merge of hplc, outliers, and treatment_information, and df.select method
-        """
-        common_columns = self.hplc.df.columns.intersection(self.outliers.df.columns).tolist()
-        full_df = self.hplc.df.merge(self.outliers.df, on=common_columns, how='left').merge(
-            self.treatment_information.df, on="group_id", how='left'
-        )
-        full_df.loc[:, "experiment"] = self.name
-        full_df[self.independant_variables] = list(
-            full_df.independant_variables.apply(
-                lambda group_independant_variables: [
-                    experiment_independant_variable in group_independant_variables
-                    for experiment_independant_variable in self.independant_variables
-                ],
-            )
-        )
-        return full_df
-
-    def __repr__(self) -> str:
-        return f"""
-        groups: {self.groups}
-        independant variables: {self.independant_variables}
-        paired: {self.paired}
-        parametric: {self.parametric}
-        """

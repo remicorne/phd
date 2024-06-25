@@ -7,7 +7,7 @@ debug.py
 debug2.py
 .DS_Store
 PROJECTS
-*HPLC*
+*_HPLC*
 
 allen_sdk
 mouse_connectivity/manifest.json

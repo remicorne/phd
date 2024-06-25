@@ -22,3 +22,8 @@ def yes_or_no(question):
     while answer not in ["Y", "N"]:
         answer = input_escape(f"""{question} (y/n)\n""").upper()
     return answer == "Y"
+
+
+def input_list(question):
+    return input_escape(f"""{question}\n (input values separated by comma)""").replace(" ", "").split(",")
+    

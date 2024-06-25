@@ -41,5 +41,5 @@ class JSONMapping(Cacheable):
         return self.load()        
     
     @property
-    def list(self):
-        return self.dict.keys()
+    def list(self) -> list:
+        return list(self.dict.keys())

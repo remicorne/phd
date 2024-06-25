@@ -9,14 +9,6 @@ class FileSystem:
     PATH_ELEMENT_ORDER = ["project", "experiment", "figure_type"]
     
     @staticmethod
-    def to_path(**path_elements):
-        path = os.path.join(FileSystem.PROJECTS)
-        for element in FileSystem.PATH_ELEMENT_ORDER:
-            if element in path_elements:
-                path = os.path.join(path, path_elements[element])
-        return path
-
-    @staticmethod
     def list_projects():
         projects = os.listdir(FileSystem.PROJECTS)
         return [project.split("/")[-1] for project in projects]
@@ -37,15 +29,11 @@ class FileSystem:
 
     @staticmethod
     def get_location(**path_elements):
-        for i, element in enumerate(FileSystem.PATH_ELEMENT_ORDER):
-            location = FileSystem.to_path(
-                **{
-                    element: path_elements[element]
-                    for element in FileSystem.PATH_ELEMENT_ORDER[: i + 1]
-                    if element in path_elements
-                }
-            )
-            if not os.path.exists(location):
-                os.mkdir(location)
-                print(f"Created {path_elements[element]} {element} folder")
+        location = FileSystem.PROJECTS
+        for element in FileSystem.PATH_ELEMENT_ORDER:
+            if path_elements.get(element):
+                location = os.path.join(location, path_elements[element])
+                if not os.path.exists(location):
+                    os.mkdir(location)
+                    print(f"Created {path_elements[element]} {element} folder")
         return location

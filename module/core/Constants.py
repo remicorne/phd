@@ -46,3 +46,7 @@ COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compou
 COMPOUND_CLASSES = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compound_classes"))
 MACRO_REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "macro_regions"))
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
+COMPOUNDS_AND_REGIONS = {
+    "region": REGIONS.list,
+    "compund": COMPOUNDS.list
+}

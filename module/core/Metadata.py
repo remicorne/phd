@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
-from module.core.Dataset import ExcelDataset
+from module.core.Dataset import ExcelDataset, SelectableDataFrame
 from module.core.questions import select_one
 from module.core.JSON import JSONMapping
 from dataclasses import dataclass
@@ -18,9 +18,6 @@ class _ProjectSettings(ExcelDataset):
 
     def generate(self):
         return pd.DataFrame(self._template)
-
-    def validate(self, data):
-        super().validate(data)
 
     def make_user_edit_excel(self):
         self.open()
@@ -72,32 +69,29 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
     filename: ClassVar[str] = "treatment_information"
     _template: ClassVar[dict] = {
         "group_id": [1, 5, 3, 4],
-        "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
+        "label": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
         "color": ["white", "pink", "orange", "red"],
         "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
     }
     _template_types: ClassVar[dict] = {
         "group_id": {"type": int},
-        "treatment": {"type": str},
+        "label": {"type": str},
         "color": {"type": str},
         "independant_variables": {"type": list, "subtype": str},
     }
+    control_group: ClassVar[list] = "vehicles"
 
-    def get_palette(self):
-        return {group["treatment"]: group["color"] for group in self.list}
+    @property
+    def palette(self):
+        return {t.label: t.color for t in self}
 
-    # @property
-    # def dict(self):
-    #     """Generates a treatment: infos, group_id: infos mapping
-    #     for easy access
-    #     Returns:
-    #         dict: { treatment_x: {infos_x}, goup_id_x: {infos_x}}
-    #     """
-    #     mapping = {}
-    #     for treatment in self.list:
-    #         mapping[treatment["treatment"]] = treatment
-    #         mapping[treatment["group_id"]] = treatment
-    #     return mapping
+    def get_hue_order(self):
+        return self.df.sort_values(by="group_id").treatment.tolist()
+    
+    def load(self):
+        data = super().load()
+        data["treatment"] = data.label
+        return data    
 
 
 @dataclass(repr=False)
@@ -105,48 +99,33 @@ class ExperimentInformation(_ProjectSettings):
 
     filename: ClassVar[str] = "experiment_information"
     _template: ClassVar[dict] = {
-        "experiment": ["agonist antagonist"],
+        "label": ["agonist antagonist"],
         "groups": ["1, 5, 3, 4"],
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],
-        "parametric": [True],
+        "parametric": [True],        
+        "control_group_id": [1]
     }
     _template_types: ClassVar[dict] = {
-        "experiment": {"type": str},
+        "label": {"type": str},
         "groups": {"type": list, "subtype": int},
         "independant_variables": {"type": list, "subtype": str},
         "paired": {"type": bool},
         "parametric": {"type": bool},
-    }
-
-    @property
-    def experiments(self):
-        return self.df.experiment.tolist()
-
-    def get_experiment(self, name):
-        return next(
-            filter(
-                lambda experiment_information: experiment_information["experiment"]
-                == name,
-                self.list,
-            )
-        )
-
-    def get_experiments(self, group_id):
-        return list(
-            self.df[self.df.groups.apply(lambda groups: group_id in groups)].experiment
-        )
+        "control_group_id": {"type": int}
+    }        
 
     def load(self):
         data = super().load()
         treatment_information = TreatmentInformation(self.project)
-        data["treatments"] = data.groups.apply(
-            lambda groups: [
-                treatment_information.select(group_id=group, get="treatment")
-                for group in groups
-            ]
-        )
-        return data
+        full_experiment_info = []
+        for _, experiment in data.iterrows():
+            experiment["experiment"] = experiment.label
+            experiment["treatments"] = treatment_information.select(group_id=experiment.groups).label.to_list()
+            experiment["control_treatment"] = experiment.treatments[experiment.groups.index(experiment["control_group_id"])]
+            experiment["palette"] = {t: treatment_information.palette[t] for t in experiment.treatments}
+            full_experiment_info.append(experiment)
+        return SelectableDataFrame(full_experiment_info)
 
 
 def is_valid_file(file_path):
@@ -174,7 +153,6 @@ class ProjectInformation(JSONMapping):
 
     def generate(self):
         from module.core.Outliers import OUTLIER_TESTS
-
         data = self._template
         data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
         data["p_value_threshold"] = float(input("Enter p value threshold"))

@@ -19,11 +19,12 @@ def get_labeled_df(df, test, p_value_threshold):
     # if standar variation is 0, we can't calculate outliers
     only_values = df[df.value != 0].dropna()
     if only_values.value.count() < 3:
-        df["is_outlier"] = False
+        df["outlier_status"] = False
         return df
     outlier_test = OUTLIER_TESTS[test]
     normal_values = outlier_test(only_values.value.tolist(), p_value_threshold)
-    df["is_outlier"] = df.value.apply(lambda x: x not in normal_values)
+    df["is_outlier"] = df.value.apply(lambda value: value not in normal_values)
+    df["outlier_status"] = df.is_outlier.apply(lambda is_outlier: "suspected" if is_outlier else "normal")
     return df
 
 
@@ -43,15 +44,16 @@ class Outliers(PickleDataset):
             (subset_df, project_information.outlier_test, project_information.p_value_threshold)
             for _, subset_df in hplc.df.groupby(["group_id", "compound", "region", "region"])
         ]
-        # Timin=region list comprehension with tqdm
         results = [
             get_labeled_df(*case)
             for case in tqdm(cases, desc="Calculating outliers", unit="group")
         ]
         return pd.concat(results)
     
-    def select_outliers(self, treatment, compound, region):
-        df = self.extend(TreatmentInformation(self.project)).select(treatment=treatment, compound=compound, region=region)
-        return TreatmentOutlierFigure(df,  compound, region,treatment)
-        
+    def update(self, updates):
+        columns = self.df.columns.to_list() + ["updated_outlier_status"] # Eliminate redundant columns to avoid mergs pb
+        data = self.extend(updates[columns])
+        data.outlier_status = data.updated_outlier_status.combine_first(data.outlier_status)
+        data.drop(columns="updated_outlier_status", inplace=True)
+        self.save(data)
         
