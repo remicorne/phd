@@ -8,15 +8,17 @@ def input_escape(question):
     return answer
 
 def select_one(question, options):
+    return_key = True
     if not isinstance(options, dict):
+        return_key = False
         options = {str(i+1): option for i, option in enumerate(options)}
     pretty_choices = ' -- '.join(': '.join(item) for item in sorted(options.items()))
     choice = input_escape(
         f"""{question}
         {pretty_choices}""")
     while choice not in options:
-        choice = input_escape(f"""Invalid choice, possibilities are:\{options}\n""")
-    return options[choice]
+        choice = input_escape(f"""Invalid choice, possibilities are:\{pretty_choices}\n""")
+    return choice if return_key else options[choice]
 
 def yes_or_no(question):
     answer = input_escape(f"""{question} (y/n)\n""").upper()
