@@ -28,11 +28,11 @@ class ConstantRegistry(JSONMapping):
                 return lazy_guess
         try:
             new_choice = select_one(
-                f"UNKNOWN: {invalid_choice}, SELECT FROM:", self.dict.items()
+                f"UNKNOWN: {invalid_choice}, SELECT FROM:", self.dict
             )
             while new_choice[0] not in self:
                 new_choice = select_one(
-                    f"UNKNOWN {invalid_choice}, SELECT FROM:", self.dict.items()
+                    f"UNKNOWN {invalid_choice}, SELECT FROM:", self.dict
                 )
             return new_choice[0]
         except SystemExit:

@@ -12,7 +12,7 @@ def select_one(question, options):
         options = {str(i+1): option for i, option in enumerate(options)}
     choice = input_escape(
         f"""{question}
-        {options}""")
+        {'\n'.join(':'.join(item) for item in options.items())}""")
     while choice not in options:
         choice = input_escape(f"""Invalid choice, possibilities are:\{options}\n""")
     return options[choice]
