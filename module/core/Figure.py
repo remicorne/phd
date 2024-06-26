@@ -50,6 +50,7 @@ class Figure(Cacheable):
             )
         self.define_filename()
         super().__post_init__()
+        
     def handle_parameter_logic(self):
         if self.experiment:
             self.experiment_information = ExperimentInformation(self.project).select(experiment=self.experiment)
