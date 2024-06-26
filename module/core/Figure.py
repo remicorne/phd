@@ -87,7 +87,7 @@ class Figure(Cacheable):
             data = data.select(compound=self.compound)
         if self.region:
             data = data.select(region=self.region)
-        return data
+        return data.select(nan=False)
 
     def generate(self):
         self.setup_plotter_parameters()
