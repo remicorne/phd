@@ -10,9 +10,10 @@ def input_escape(question):
 def select_one(question, options):
     if not isinstance(options, dict):
         options = {str(i+1): option for i, option in enumerate(options)}
+    pretty_choices = ' -- '.join(': '.join(item) for item in sorted(options.items()))
     choice = input_escape(
         f"""{question}
-        {'\n'.join(':'.join(item) for item in options.items())}""")
+        {pretty_choices}""")
     while choice not in options:
         choice = input_escape(f"""Invalid choice, possibilities are:\{options}\n""")
     return options[choice]
