@@ -70,14 +70,14 @@ class Project:
         os.listdir(path=ROOT)
 
 
-    def __repr__(self) -> str:
-        experiments_string = '\n'.join(str(experiment )for experiment in self.experiments.values())
-        return f""""
-    Project: {self.name}
-    
-    Parameters
-    {self.project_information}
-    
-    Experiments
-    {experiments_string}"""
+    def _repr_html_(self) -> str:
+        return f"""
+            <h3>Project: {self.name}</h3>
+            <h4>Project Information</h4>
+            {self.project_information._repr_html_()}
+            <h4>Experiments</h4>
+            {self.experiment_information._repr_html_()}
+            <h4>Treatments</h4>
+            {self.treatment_information._repr_html_()}
+        """
     
