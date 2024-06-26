@@ -4,7 +4,7 @@ import os
 from module.core.Dataset import ExcelDataset, SelectableDataFrame
 from module.core.questions import select_one
 from module.core.JSON import JSONMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 from distutils.util import strtobool
 
@@ -12,7 +12,7 @@ from distutils.util import strtobool
 @dataclass(repr=False)
 class _ProjectSettings(ExcelDataset):
 
-    project: str
+    project: str = field(default=None)
     _template: ClassVar[dict] = None
     _template_types: ClassVar[dict] = None
 
@@ -63,6 +63,7 @@ class _ProjectSettings(ExcelDataset):
         return df
 
 
+
 @dataclass(repr=False)
 class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
@@ -91,7 +92,10 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
     def load(self):
         data = super().load()
         data["treatment"] = data.label
-        return data    
+        return data
+    
+    # def _repr_html_(self) -> str:
+            
 
 
 @dataclass(repr=False)
@@ -140,20 +144,59 @@ def is_valid_file(file_path):
     return True
 
 
+
+
+# @dataclass(repr=False)
+# class ProjectInformation(JSONMapping):
+
+#     project: str
+#     filename: ClassVar[str] = "project_information"
+#     _template = {
+#         "outlier_test": None,
+#         "p_value_threshold": None,
+#         "raw_data_filename": None,
+#     }
+
+
+#     @property
+#     def outlier_test(self):
+#         return self.dict["outlier_test"]
+
+#     @property
+#     def p_value_threshold(self):
+#         return self.dict["p_value_threshold"]
+
+#     @property
+#     def raw_data_filename(self):
+#         return self.dict["raw_data_filename"]
+
+
 @dataclass(repr=False)
-class ProjectInformation(JSONMapping):
+class ProjectInformation(_ProjectSettings):
 
-    project: str
     filename: ClassVar[str] = "project_information"
-    _template = {
-        "outlier_test": None,
-        "p_value_threshold": None,
-        "raw_data_filename": None,
+    _template: ClassVar[dict] = {
+        "label": ["TEST"],
+        "outlier_test": ["grubbs"],
+        "p_value_threshold": [0.05],
+        "raw_data_filename": ["raw_data.csv"],
     }
-
+    _template_types: ClassVar[dict] = {
+        "label": {"type": str},
+        "outlier_test": {"type": str},
+        "p_value_threshold": {"type": float},
+        "raw_data_filename": {"type": str},
+    }
+    
+    def __post_init__(self):
+        super().__post_init__()
+        for key in self._template:
+            self.__setattr__(key, self.df.loc[0, key])
+            
     def generate(self):
         from module.core.Outliers import OUTLIER_TESTS
-        data = self._template
+        data = super().generate()
+        data["label"] = input("Enter project name")
         data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
         data["p_value_threshold"] = float(input("Enter p value threshold"))
         data["raw_data_filename"] = self.get_valid_filename()
@@ -171,14 +214,15 @@ class ProjectInformation(JSONMapping):
 
         return file_path
 
-    @property
-    def outlier_test(self):
-        return self.dict["outlier_test"]
 
-    @property
-    def p_value_threshold(self):
-        return self.dict["p_value_threshold"]
+    def _repr_html_(self) -> str:
+        return f"""
+            <b>Project Information:</b><br>
+            <ul>
+                <li>Project: {self.project}</li>
+                <li>Raw Data Filename: {self.raw_data_filename}</li>
+                <li>Outlier Test: {self.outlier_test}</li>
+                <li>P-Value Threshold: {self.p_value_threshold}</li>
+            </ul>
+        """
 
-    @property
-    def raw_data_filename(self):
-        return self.dict["raw_data_filename"]

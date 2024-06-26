@@ -1,5 +1,0 @@
-{
-  "outlier_test": "grubbs",
-  "p_value_threshold": 0.05,
-  "raw_data_filename": "raw_data.xlsx"
-}
