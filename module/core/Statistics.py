@@ -192,7 +192,8 @@ class QuantitativeStatistic:
                 - A boolean indicating if the interaction effect is significant below the given p_value_threshold.
                 - A DataFrame with detailed ANOVA results including F-values and p-values for each effect.
         """
-        self.filtered_data[self.independant_variables] = self.filtered_data.apply(
+        data = self.filtered_data.copy()
+        data[self.independant_variables] = data.apply(
             lambda row: [
                 variable in row.independant_variables
                 for variable in self.independant_variables
@@ -201,7 +202,7 @@ class QuantitativeStatistic:
             result_type="expand",
         )
         results = pg.anova(
-            data=self.filtered_data,
+            data=data,
             dv="value",
             between=self.independant_variables,
             detailed=True,
