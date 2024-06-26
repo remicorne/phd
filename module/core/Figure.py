@@ -179,7 +179,7 @@ class Histogram(Figure):
                         swarm_palette = {**base_swarm_palette, **{hue: extra_colors.pop(0) for hue in subselection.updated_outlier_status.unique() if "suspected" in hue}}
                         self.plot_histogram(custom_params={"data": subselection, "title": title, "swarm_hue": "updated_outlier_status", "swarm_palette": swarm_palette, "legend": True, "size": 10})
                         plt.show()
-                        eliminated = input_list(f"Select outliers ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'")
+                        eliminated = input_list(f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'")
                         def label_eliminated(row):
                             if row.is_outlier:
                                 return "eliminated" if str(row.mouse_id) in eliminated else "kept"
