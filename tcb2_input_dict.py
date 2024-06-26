@@ -58,6 +58,7 @@ experimental_info = {
                          "parametric": True,
                          "outliers": "grubbs"
                            },
+
 }
 
 

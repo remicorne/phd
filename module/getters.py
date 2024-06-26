@@ -210,6 +210,17 @@ def buildRawDf(filename):
 
 # contains the logic to build the df in the new format based on raw df
 
+# def updateTreatmentMapping(filename):
+#     filename_no_extension = filename.split(".")[0]
+#     # Check cache to avoid recalcuating from scratch if alreasy done
+#     if isCached(filename_no_extension, 'compound_and_ratios_df'):
+#         compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+#         df = applyTreatmentMapping(compound_and_ratios_df, filename)
+#         cache(filename_no_extension, 'compound_and_ratios_df', df)
+#         print('updated df.')
+#     else:
+#         print('No cahced df to update.')
+#     return 
 
 
 

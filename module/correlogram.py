@@ -109,7 +109,7 @@ def correlogram(
     n_minimum=5,
     columns=None,
     from_scratch=None,
-    corr_method="pearson",  # HARD CODE FIXME    
+    corr_method="pearson",  # defult pearson
     # hierarchical_clustering=None,
 ):
     """
@@ -146,7 +146,8 @@ def correlogram(
         between =correlogram_type, 
         variables = to_correlate.split('-'),
         accross="compound" if correlogram_type == "region" else "region",
-        sub_selector ={"experiment":experiment},
+        sub_selector = {"experiment":experiment} if experiment else {},
+        # sub_selector ={"experiment":experiment},
         columns=columns,  # ordered to plot
         method=corr_method,  # 'pearson' 'spearman' 'kendall'
         pvalue_threshold=p_value_threshold,
@@ -179,14 +180,14 @@ def corrSelector(  # generic prompter for selecting corr matrices
     """
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
     experiments = getExperimentalInfo(filename)
-    experiment = (
-        experiment
-        if experiment
-        else askMultipleChoice(
-            "Which experiment?",
-            experiments.keys(),
-        )
-    )
+    # experiment = (
+    #     experiment
+    #     if experiment
+    #     else askMultipleChoice(
+    #         "Which experiment?",
+    #         experiments.keys(),
+    #     )
+    # )
     correlogram_type = (
         correlogram_type
         if correlogram_type
