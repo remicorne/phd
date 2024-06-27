@@ -77,7 +77,6 @@ class QuantitativeStatistic:
                 self.filtered_data = self.data.select(nan=False)
                 # all([]) == True if the iterable is empty
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
-                self.is_significant = self.results.is_significant.all()
                 self.significant_pairs = (
                     self.results.select(test=self.post_hoc_test).p_value
                     if self.post_hoc_test in self.results.test.to_list()
@@ -95,6 +94,7 @@ class QuantitativeStatistic:
                         }
                     ]
                 )
+            self.is_significant = self.results.is_significant.all()
 
     def __call__(self):
         self.__post_init__()
