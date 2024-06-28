@@ -363,6 +363,11 @@ class Histogram(Figure):
         # kwargs["palette"] = {**self.palette, **kwargs.get("palette", {})}
         self.custom_params = kwargs
         self.initialize()
+        
+    @property
+    def statistics(self):
+        return SelectableDataFrame(pd.concat([s.results for s in self._statistics]) if self.is_summary else self._statistics.results) 
+    
 
 @dataclass
 class Table(Figure):
