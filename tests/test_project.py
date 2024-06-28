@@ -1,10 +1,8 @@
+from module.core.Statistics import Statistics
 import unittest
 from module.core.Project import Project, ROOT
-from module.core.Statistics import Statistics
 from module.core.Figure import Histogram
 import os, shutil
-
-
 
 class TestProject(unittest.TestCase):
     def setUp(self):
@@ -38,13 +36,13 @@ class TestProject(unittest.TestCase):
         assert project.data.columns.to_list() == ['mouse_id', 'group_id', 'value', 'compound', 'region', 'treatment', 'color', 'independant_variables', 'label', 'is_outlier', 'outlier_status']
         assert len(project.data) == 1152
         assert len(project.data.select(is_outlier=True).select(treatment=["vehicles", "MDL"])) == 18
-        stats = Statistics(self.project_name).get_quantitative_stats('agonist antagonist', '5HTP/5HT', 'OF', 0.05)
+        stats = Statistics(self.project_name).get_quantitative_stats(experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.05)
         assert stats.results.is_significant.to_list() == [True, True, True]
-        stats = Statistics(self.project_name).get_quantitative_stats('agonist antagonist', '5HTP/5HT', 'OF', 0.01)
-        assert stats.results.is_significant.to_list() == [False, False, False]
-        assert len(project.statistics.select(is_significant=True)) == 9
+        stats = Statistics(self.project_name).get_quantitative_stats(experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.01)
+        assert stats.results.is_significant.to_list() == [False, True, False]
+        assert len(project.statistics.select(is_significant = True)) == 9
         assert len(project.statistics.significant_results) == 6
-        assert len(project.statistics.select(fully_significant=True)) == 9
+        assert len(project.statistics.select(fully_significant=True)) == 6
         assert len(project.statistics.insufficent_data) == 5
         Histogram("TCB2", experiment='dose response', compound="5HIAA/5HT", region="OF", from_scratch=True, handle_outliers=False)
         Histogram('TCB2', experiment='dose response', compound="5HIAA/5HT", from_scratch=True, handle_outliers=False)

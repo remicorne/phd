@@ -96,6 +96,7 @@ class QuantitativeStatistic:
                 )
             self.is_significant = self.results.is_significant.all()
 
+    #for parallel
     def __call__(self):
         self.__post_init__()
         return self
@@ -256,7 +257,7 @@ class Statistics(PickleDataset):
         groupings = []
         for experiment in ExperimentInformation(self.project):
             for (compound, region), data in tqdm(
-                self.data.groupby(["compound", "region"]),
+                self.data.select(treatment=experiment.treatments).groupby(["compound", "region"]),
                 desc=f"Preparing stats groupings for {experiment.label}",
             ):
                 groupings.append(
@@ -321,7 +322,7 @@ class Statistics(PickleDataset):
             if isinstance(experiment, ExperimentInformation)
             else ExperimentInformation(self.project).select(experiment=experiment)
         )
-        p_value_threshold = self.p_value_threshold or p_value_threshold
+        p_value_threshold = p_value_threshold or self.p_value_threshold
         data = self.data.select(
             region=region, compound=compound, treatment=experiment.treatments
         )
