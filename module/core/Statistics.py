@@ -48,6 +48,7 @@ class QuantitativeStatistic:
 
     data: pd.DataFrame
     independant_variables: list[str]
+    treatments: list[str]
     is_paired: bool
     is_parametric: bool
     p_value_threshold: float
@@ -69,7 +70,7 @@ class QuantitativeStatistic:
             if self.has_enough_data:
                 self.pipeline = get_quantitative_statistics_pipeline(
                     len(self.independant_variables) >= 2,
-                    len(self.data[self.group_column].unique()) >= 2,
+                    len(self.treatments) >= 2,
                     self.is_paired,
                     self.is_parametric,
                 )
@@ -264,6 +265,7 @@ class Statistics(PickleDataset):
                     QuantitativeStatistic(
                         data.select(is_outlier=False),
                         experiment.independant_variables,
+                        experiment.treatments,
                         experiment.paired,
                         experiment.parametric,
                         self.p_value_threshold,
@@ -337,6 +339,7 @@ class Statistics(PickleDataset):
         return QuantitativeStatistic(
             data.select(compound=compound, region=region),
             experiment.independant_variables,
+            experiment.treatments,
             experiment.paired,
             experiment.parametric,
             p_value_threshold,

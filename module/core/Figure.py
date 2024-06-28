@@ -295,6 +295,7 @@ class Histogram(Figure):
             self._statistics = QuantitativeStatistic(
                     self.data,
                     self.experiment_information.independant_variables,
+                    self.experiment_information.treatments,
                     self.experiment_information.paired,
                     self.experiment_information.parametric,
                     self.p_value_threshold,
@@ -316,6 +317,7 @@ class Histogram(Figure):
                         QuantitativeStatistic(
                             self.data.select(**{self.to_plot: x}),
                             self.experiment_information.independant_variables,
+                            self.experiment_information.treatments,
                             self.experiment_information.paired,
                             self.experiment_information.parametric,
                             self.p_value_threshold,
@@ -364,6 +366,11 @@ class Histogram(Figure):
 @dataclass
 class Table(Figure):
     
+    def setup_plotter_parameters(self):
+        pass
+    
+    def plot(self):
+        pass
     
     def generate(self):
         super().generate()
