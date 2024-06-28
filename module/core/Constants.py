@@ -12,11 +12,11 @@ class ConstantRegistry(JSONMapping):
         raise NotImplementedError('Contant registries should be handled directly in the JSON')
 
     def detect(self, invalid_name):
-        lazy_dict = {k.upper(): k for k in self.list}
-        lazy_guess = difflib.get_close_matches(
-            invalid_name.upper(), lazy_dict.keys(), n=1, cutoff=0.6
+        lazy_dict_upper = {k.upper(): k for k in self.list}
+        lazy_guess_upper= difflib.get_close_matches(
+            invalid_name.upper(), lazy_dict_upper.keys(), n=1, cutoff=0.6
         )
-        return lazy_guess[0] if lazy_guess else None
+        return lazy_dict_upper[lazy_guess_upper[0]] if lazy_guess_upper else None
 
     def get_valid_choice(self, invalid_choice):
         lazy_guess = self.detect(invalid_choice)
