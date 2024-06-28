@@ -288,6 +288,8 @@ class Histogram(Figure):
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
         self.ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
         plt.tight_layout()
 
     def label_histogram_stats(self):
