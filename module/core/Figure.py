@@ -176,9 +176,7 @@ class Histogram(Figure):
         )
         self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
-            self.ylabel = (
-                self.__getattribute__(self.summary_type) + self.ylabel + "+/-98CI"
-            )
+            self.ylabel = f"{self.__getattribute__(self.summary_type)} {self.ylabel} +/-98CI"
             self.order = [
                 item
                 for item in COMPOUNDS_AND_REGIONS[self.to_plot]
