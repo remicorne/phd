@@ -6,6 +6,7 @@ from module.core.Metadata import ProjectInformation, TreatmentInformation
 from module.core.HPLC import HPLC
 from tqdm import tqdm
 from outliers import smirnov_grubbs as grubbs
+from module.core.utils import parallel_process
 
 
 def grubbs_test(values, p_value_threshold):
@@ -15,8 +16,9 @@ def grubbs_test(values, p_value_threshold):
     return grubbs.test(values, alpha=float(p_value_threshold))
 
 
-def get_labeled_df(df, test, p_value_threshold):
+def get_labeled_df(df__test__p_value_threshold):
     # if standar variation is 0, we can't calculate outliers
+    df, test, p_value_threshold = df__test__p_value_threshold
     only_values = df[df.value != 0].dropna()
     if only_values.value.count() < 3:
         df["outlier_status"] = False
@@ -44,10 +46,8 @@ class Outliers(PickleDataset):
             (subset_df, project_information.outlier_test, project_information.p_value_threshold)
             for _, subset_df in hplc.df.groupby(["group_id", "compound", "region", "region"])
         ]
-        results = [
-            get_labeled_df(*case)
-            for case in tqdm(cases, desc="Calculating outliers", unit="group")
-        ]
+        results = parallel_process(
+            cases, get_labeled_df, description="Calculating outliers")
         return pd.concat(results)
     
     def update(self, updates):
