@@ -34,7 +34,7 @@ class ConstantRegistry(JSONMapping):
                 new_choice = select_one(
                     f"UNKNOWN CHOICE: {new_choice}, SELECT FROM:", self.dict
                 )
-            return new_choice[0]
+            return new_choice
         except SystemExit:
             print("EDIT REGISTRY AND RETRY")
             exit(1)
