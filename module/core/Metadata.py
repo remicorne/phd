@@ -63,7 +63,6 @@ class _ProjectSettings(ExcelDataset):
         return df
 
 
-
 @dataclass(repr=False)
 class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
@@ -99,6 +98,24 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
 
 
 @dataclass(repr=False)
+class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
+
+    filename: ClassVar[str] = "palette"
+    _template: ClassVar[dict] = {
+        "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
+        "color": ["white", "pink", "orange", "red"],
+    }
+    _template_types: ClassVar[dict] = {
+        "treatment": {"type": str},
+        "color": {"type": str},
+    }
+
+    @property
+    def dict(self):
+        return {t.treatment: t.color for t in self}
+
+
+@dataclass(repr=False)
 class ExperimentInformation(_ProjectSettings):
 
     filename: ClassVar[str] = "experiment_information"
@@ -122,12 +139,13 @@ class ExperimentInformation(_ProjectSettings):
     def load(self):
         data = super().load()
         treatment_information = TreatmentInformation(self.project)
+        palette = Palette(self.project)
         full_experiment_info = []
         for _, experiment in data.iterrows():
             experiment["experiment"] = experiment.label
             experiment["treatments"] = treatment_information.select(group_id=experiment.groups).label.to_list()
             experiment["control_treatment"] = experiment.treatments[experiment.groups.index(experiment["control_group_id"])]
-            experiment["palette"] = {t: treatment_information.palette[t] for t in experiment.treatments}
+            experiment["palette"] = {t: palette.dict[t] for t in experiment.treatments}
             full_experiment_info.append(experiment)
         return SelectableDataFrame(full_experiment_info)
 
@@ -142,34 +160,6 @@ def is_valid_file(file_path):
         return False
 
     return True
-
-
-
-
-# @dataclass(repr=False)
-# class ProjectInformation(JSONMapping):
-
-#     project: str
-#     filename: ClassVar[str] = "project_information"
-#     _template = {
-#         "outlier_test": None,
-#         "p_value_threshold": None,
-#         "raw_data_filename": None,
-#     }
-
-
-#     @property
-#     def outlier_test(self):
-#         return self.dict["outlier_test"]
-
-#     @property
-#     def p_value_threshold(self):
-#         return self.dict["p_value_threshold"]
-
-#     @property
-#     def raw_data_filename(self):
-#         return self.dict["raw_data_filename"]
-
 
 @dataclass(repr=False)
 class ProjectInformation(_ProjectSettings):
