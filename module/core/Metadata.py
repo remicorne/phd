@@ -70,13 +70,11 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
     _template: ClassVar[dict] = {
         "group_id": [1, 5, 3, 4],
         "label": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
-        "color": ["white", "pink", "orange", "red"],
         "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
     }
     _template_types: ClassVar[dict] = {
         "group_id": {"type": int},
         "label": {"type": str},
-        "color": {"type": str},
         "independant_variables": {"type": list, "subtype": str},
     }
     control_group: ClassVar[list] = "vehicles"
