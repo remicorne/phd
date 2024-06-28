@@ -292,24 +292,26 @@ class Histogram(Figure):
 
     def label_histogram_stats(self):
         if not hasattr(self, "statistics"):
-            self.statistics = QuantitativeStatistic(
+            self._statistics = QuantitativeStatistic(
                     self.data,
                     self.experiment_information.independant_variables,
                     self.experiment_information.paired,
                     self.experiment_information.parametric,
                     self.p_value_threshold,
                 )
-        if self.statistics.is_significant:
-            pairs, p_values = self.statistics.significant_pairs
+        if self._statistics.is_significant:
+            pairs, p_values = self._statistics.significant_pairs
             annotator = Annotator(
                 self.ax, pairs, data=self.data, x="treatment", y="value", order=self.hue_order
             )
             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
             annotator.set_pvalues_and_annotate(p_values)
+            self.statistics = self._statistics.results 
+            
 
     def label_summary_stats(self):
         if not hasattr(self, "statistics"):
-            self.statistics = parallel_process(
+            self._statistics = parallel_process(
                     [
                         QuantitativeStatistic(
                             self.data.select(**{self.to_plot: x}),
@@ -323,7 +325,8 @@ class Histogram(Figure):
                         for x in self.order
                     ]
                 )
-        for statistics in self.statistics:
+            self.statistics = SelectableDataFrame(pd.concat([s.results for s in self._statistics])) 
+        for statistics in self._statistics:
             if statistics.is_significant:
                 significant_vs_control = set(
                     flatten(
