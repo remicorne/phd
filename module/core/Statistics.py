@@ -247,6 +247,11 @@ class Statistics(PickleDataset):
         )
         super().__post_init__()
 
+    def select(self, **kwargs):
+        if kwargs.pop("fully_significant", False):
+            return self.significant_results.select(kwargs)
+        return self.df.select(kwargs)
+
     def generate(self):
         groupings = []
         for experiment in ExperimentInformation(self.project):
@@ -288,7 +293,6 @@ class Statistics(PickleDataset):
             results.append(statistic.results)
         # Unpack results and merge
         return pd.concat(results)
-
 
     def get_quantitative_stats(
         self,
@@ -351,26 +355,16 @@ class Statistics(PickleDataset):
         Returns:
             pd.DataFrame: Significant results.
         """
-        return pd.concat(
-            [
-                results
-                for _, results in self.df.groupby(["experiment", "compound", "region"])
-                if results.is_significant.all()
-            ]
-        )
-
-    @property
-    def significant_tests(self):
-        """Return groupings where all tests are significant.
-
-        Returns:
-            pd.DataFrame: Significant results.
-        """
-        return pd.concat(
-            [
-                results[results.is_significant]
-                for _, results in self.df.groupby(["experiment", "compound", "region"])
-            ]
+        return SelectableDataFrame(
+            pd.concat(
+                [
+                    results
+                    for _, results in self.df.groupby(
+                        ["experiment", "compound", "region"]
+                    )
+                    if results.is_significant.all()
+                ]
+            )
         )
 
     @property
@@ -390,13 +384,3 @@ class Statistics(PickleDataset):
         return self.df[
             (self.df.test == "validation" & self.df.result == "Not enough data")
         ]
-
-    def is_signigicant(self, experiment, compound, region):
-        return self.select(
-            experiment=experiment, compound=compound, region=region
-        ).is_significant.all()
-
-    def get_significance_pairs(self, experiment, compound, region):
-        return self.select(
-            experiment=experiment, compound=compound, region=region, test="tukey"
-        ).p_value.iloc[0]

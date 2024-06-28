@@ -42,8 +42,9 @@ class TestProject(unittest.TestCase):
         assert stats.results.is_significant.to_list() == [True, True, True]
         stats = Statistics(self.project_name).get_quantitative_stats('agonist antagonist', '5HTP/5HT', 'OF', 0.01)
         assert stats.results.is_significant.to_list() == [False, False, False]
-        assert len(project.statistics.significant_tests) == 9
+        assert len(project.statistics.select(is_significant=True)) == 9
         assert len(project.statistics.significant_results) == 6
+        assert len(project.statistics.select(fully_significant=True)) == 9
         assert len(project.statistics.insufficent_data) == 5
         Histogram("TCB2", experiment='dose response', compound="5HIAA/5HT", region="OF", from_scratch=True, handle_outliers=False)
         Histogram('TCB2', experiment='dose response', compound="5HIAA/5HT", from_scratch=True, handle_outliers=False)
