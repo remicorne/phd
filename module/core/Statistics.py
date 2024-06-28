@@ -249,8 +249,8 @@ class Statistics(PickleDataset):
 
     def select(self, **kwargs):
         if kwargs.pop("fully_significant", False):
-            return self.significant_results.select(kwargs)
-        return self.df.select(kwargs)
+            return self.significant_results.select(**kwargs)
+        return self.df.select(**kwargs)
 
     def generate(self):
         groupings = []
