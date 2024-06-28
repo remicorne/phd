@@ -238,24 +238,29 @@ class Statistics(PickleDataset):
     project: str
     filename: ClassVar[str] = "statistics"
 
-    def generate(self):
-        groupings = []
-        data = (
+    def __post_init__(self):
+        self.p_value_threshold = ProjectInformation(self.project).p_value_threshold
+        self.data = (
             HPLC(self.project)
             .extend(TreatmentInformation(self.project))
             .extend(Outliers(self.project))
         )
+        super().__post_init__()
+
+    def generate(self):
+        groupings = []
         for experiment in ExperimentInformation(self.project):
-            for (compound, region), data in data.select(
-                treatment=experiment.treatments
-            ).groupby(["compound", "region"]):
+            for (compound, region), data in tqdm(
+                self.data.groupby(["compound", "region"]),
+                desc=f"Preparing stats groupings for {experiment.label}",
+            ):
                 groupings.append(
                     QuantitativeStatistic(
-                        data.select(compound=compound, region=region, is_outlier=False),
+                        data.select(is_outlier=False),
                         experiment.independant_variables,
                         experiment.paired,
                         experiment.parametric,
-                        ProjectInformation(self.project).p_value_threshold,
+                        self.p_value_threshold,
                         delay_execution=True,
                         metadata={
                             "project": self.project,
@@ -266,11 +271,11 @@ class Statistics(PickleDataset):
                     )
                 )
 
-        # Process the statistical tests in parallel
         statistics = parallel_process(
             groupings,
             description=f"Calculating stats for each group",
         )
+
         results = []
         for statistic in statistics:
             for key in ["experiment", "compound", "region"]:
@@ -284,13 +289,15 @@ class Statistics(PickleDataset):
         # Unpack results and merge
         return pd.concat(results)
 
+
     def get_quantitative_stats(
         self,
-        experiment=None,
-        compound=None,
-        region=None,
-        p_value_threshold=None,
+        experiment,
+        compound,
+        region,
+        remove_outliers="eliminated",
         is_parallel=False,
+        p_value_threshold=None,
     ) -> QuantitativeStatistic:
         """
         Calculates the statistics for a grouping using the test pipeline
@@ -305,16 +312,23 @@ class Statistics(PickleDataset):
         Returns:
             pd.DataFrame: A DataFrame containing the statistical results for the specified experiment, compound, and region.
         """
-        experiment = ExperimentInformation(self.project).select(experiment=experiment)
-        p_value_threshold = (
-            p_value_threshold or ProjectInformation(self.project).p_value_threshold
+        experiment = (
+            experiment
+            if isinstance(experiment, ExperimentInformation)
+            else ExperimentInformation(self.project).select(experiment=experiment)
         )
-        data = (
-            HPLC(self.project)
-            .extend(TreatmentInformation(self.project))
-            .extend(Outliers(self.project))
-            .select(treatment=experiment.treatments)
+        p_value_threshold = self.p_value_threshold or p_value_threshold
+        data = self.data.select(
+            region=region, compound=compound, treatment=experiment.treatments
         )
+        if remove_outliers == "eliminated":
+            data = data.select(outlier_status=["normal", "kept"])
+        elif remove_outliers == "calculated":
+            data = data.select(is_outlier=False)
+        elif remove_outliers is not False:
+            raise ValueError(
+                "remove_outliers must be 'eliminated', 'calculated', or False"
+            )
         return QuantitativeStatistic(
             data.select(compound=compound, region=region),
             experiment.independant_variables,
