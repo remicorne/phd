@@ -6,7 +6,7 @@ from module.core.Outliers import Outliers
 from module.core.Metadata import (
     ProjectInformation,
     ExperimentInformation,
-    TreatmentInformation,
+    TreatmentInformation, Palette
 )
 from module.Matrix import Matrices
 from module.Network import Network
@@ -193,6 +193,7 @@ class Histogram(Figure):
     
     def handle_outlier_selection(self):
         if self.handle_outliers:
+            self.setup_plotter_parameters()
             for subselection in [subselection for _, subselection in self.data.groupby(by=["compound", "region"])] if self.is_summary else [self.data]:
                 if not subselection.select(outlier_status="suspected").empty:
                     finished = False
