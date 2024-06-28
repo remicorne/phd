@@ -48,5 +48,5 @@ MACRO_REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "ma
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
 COMPOUNDS_AND_REGIONS = {
     "region": REGIONS.list,
-    "compund": COMPOUNDS.list
+    "compound": COMPOUNDS.list
 }
