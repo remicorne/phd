@@ -29,15 +29,29 @@ from module.core.questions import input_list, yes_or_no
 
 @dataclass
 class Figure(Cacheable):
+    """
+    Base class for all figures. Handles loading, saving, and plotting of figures.
+
+    Attributes:
+        project (str): The name of the project.
+        compound (str|list, optional): The name of the compound. Defaults to None.
+        region (str|list, optional): The name of the region. Defaults to None.
+        experiment (str, optional): The name of the experiment. Defaults to None.
+        p_value_threshold (float, optional): The p-value threshold used for statistical analysis defaults to value set at project level.
+        handle_outliers (float, optional): Whether to handle outlier selection if any present. Defaults to True.
+        remove_outliers (str, optional): Whether to remove outliers. Defaults to "eliminated".
+        custom_params (dict, optional): Custom parameters for the figure. Defaults to an empty dictionary.
+        extension (ClassVar[str]): The file extension for the figure. Defaults to "png".
+    """
 
     project: str
-    compound: str = field(kw_only=True, default=None)
-    region: str = field(kw_only=True, default=None)
+    compound: str|list = field(kw_only=True, default=None)
+    region: str|list = field(kw_only=True, default=None)
     experiment: str = field(kw_only=True, default=None)
     p_value_threshold: float = field(kw_only=True, default=None)
     handle_outliers: float = field(kw_only=True, default=True)
-    remove_outliers: float = field(kw_only=True, default=True)
-    custom_params: float = field(kw_only=True, default_factory=dict)
+    remove_outliers: str = field(kw_only=True, default="eliminated")
+    custom_params: dict = field(kw_only=True, default_factory=dict)
     extension: ClassVar[str] = "png"
 
     def __post_init__(self):
@@ -51,7 +65,15 @@ class Figure(Cacheable):
         self.define_filename()
         super().__post_init__()
         
+            
+
+    def define_filename(self):
+        self.filename = f"{self.compound} in {self.region if self.region else 'all regions'}"
+        
+        
     def handle_parameter_logic(self):
+        if self.remove_outliers not in ["eliminated", "calculated", False]:
+            raise ValueError("remove_outliers must be 'eliminated', 'calculated', or False")
         if self.experiment:
             self.experiment_information = ExperimentInformation(self.project).select(experiment=self.experiment)
             self.treatments = self.experiment_information.treatments
@@ -72,15 +94,8 @@ class Figure(Cacheable):
         if isinstance(self.compound, list) and isinstance(self.region, list):
             raise ValueError(
                 "Cannot do summary for multiple compounds and regions at the same time"
-            )                
-        elif self.region is None or isinstance(self.region, list):
-            self.summary_type = "compound"
-            self.to_plot = "region"
-        elif self.compound is None or isinstance(self.compound, list):
-            self.summary_type = "region"
-            self.to_plot = "compound"
-        self.is_summary = hasattr(self, "summary_type")
-        
+            )
+            
     def get_data(self):
         data = HPLC(self.project).extend(TreatmentInformation(self.project)).extend(Outliers(self.project))
         data = data.select(treatment=self.treatments)
@@ -91,20 +106,17 @@ class Figure(Cacheable):
         return data.select(nan=False)
 
     def generate(self):
-        self.setup_plotter_parameters()
-        if self.remove_outliers:
-            if self.handle_outliers and not self.data.select(outlier_status="suspected").empty:
-                self.handle_outlier_selection()
-                self.data = self.get_data()
+        if self.remove_outliers == "eliminated":
+            self.handle_outlier_selection()
+            self.data = self.get_data()
             self.data = self.data.select(outlier_status=["normal", "kept"])
-        if self.data.empty:
-            raise ValueError("No data to plot")
-        self.plot()
+        elif self.remove_outliers == "calculated":
+            self.data = self.data.select(is_outlier=False)
+        
+        
     def handle_outlier_selection(self):
         raise NotImplementedError("Figure must handle outlier selection")
-    def define_filename(self):
-        raise NotImplementedError("Figure must handle defining filename")
-
+    
     def setup_plotter_parameters(self):
         raise NotImplementedError("Figure must handle setting up plotter parameters")
 
@@ -135,13 +147,26 @@ class Figure(Cacheable):
 
 @dataclass
 class Histogram(Figure):
+    
+    
+    """
+    Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
+    If multiple compounds or regions are specified, a summary histogram is generated.
+    """
+    __doc__ += Figure.__doc__
 
-    show_outliers: bool = field(default=False)
     figure_type: ClassVar[str] = "histogram"
-
-    def define_filename(self):
-        self.filename = f"{self.compound} in {self.region if self.region else 'all regions'}"
-
+    
+    def handle_parameter_logic(self):
+        super().handle_parameter_logic()             
+        if self.region is None or isinstance(self.region, list):
+            self.summary_type = "compound"
+            self.to_plot = "region"
+        elif self.compound is None or isinstance(self.compound, list):
+            self.summary_type = "region"
+            self.to_plot = "compound"
+        self.is_summary = hasattr(self, "summary_type")
+        
     def setup_plotter_parameters(self):
         self.hue = self.swarm_hue = "treatment"
         self.palette = self.experiment_information.palette if self.experiment else self.treatment_information.palette
@@ -162,13 +187,15 @@ class Histogram(Figure):
             self.title = ""
 
     def generate(self):
-        super().generate()                        
+        super().generate()
+        self.setup_plotter_parameters()
+        self.plot()
         if self.experiment:
             self.label_summary_stats() if self.is_summary else self.label_histogram_stats()
     
     def handle_outlier_selection(self):
         if self.handle_outliers:
-            for subselection in [subselection for _, subselection in self.data.groupby(by=self.to_plot)] if self.is_summary else [self.data]:
+            for subselection in [subselection for _, subselection in self.data.groupby(by=["compound", "region"])] if self.is_summary else [self.data]:
                 if not subselection.select(outlier_status="suspected").empty:
                     finished = False
                     while not finished:
@@ -331,8 +358,32 @@ class Histogram(Figure):
         self.custom_params = kwargs
         self.initialize()
 
+@dataclass
+class Table(Figure):
+    
+    
+    def generate(self):
+        super().generate()
+        grouped = self.data.groupby(['region', 'compound', 'treatment']).agg(
+        mean_value=('value', 'mean'),
+        sem_value=('value', lambda x: np.std(x, ddof=1) / np.sqrt(len(x)))
+        ).reset_index()
 
+        # Combine mean and SEM into a single string
+        grouped['mean ± SEM'] = grouped.apply(
+            lambda row: f"{row['mean_value']:.2f} ± {row['sem_value']:.2f}", axis=1
+        )
 
+        # Pivot the DataFrame
+        pivot_df = grouped.pivot_table(
+            index='region',
+            columns=['compound', 'treatment'],
+            values='mean ± SEM',
+            aggfunc='first'
+        )
+
+        # Sort the multiindex columns
+        return pivot_df.sort_index(axis=1)
 # @dataclass()
 # class MatricesFigure(Figure):
 
