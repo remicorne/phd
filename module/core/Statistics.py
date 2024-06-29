@@ -15,7 +15,7 @@ import scipy
 import pingouin as pg
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.core.utils import parallel_process
-import itertools
+from IPython.display import HTML
 from module.core.utils import isiterable
 
 
@@ -54,14 +54,17 @@ class QuantitativeStatistic:
     p_value_threshold: float
     group_column: str = field(default="treatment", kw_only=True)
     delay_execution: bool = field(default=False, kw_only=True)
-    metadata: str | int | dict = field(default=None, kw_only=True)
+    metadata: dict = field(default_factory=dict, kw_only=True)
 
     def __post_init__(self):
         if self.delay_execution:
             self.delay_execution = False
         else:
-            self.filtered_data = self.data.select(nan=False)
-            self.has_enough_data = not self.filtered_data.empty and all(
+            self.filtered_data = self.data.select(value="notna")
+            # check all treatments present and enough data
+            self.has_enough_data = set(
+                self.filtered_data[self.group_column].unique()
+            ) == set(self.treatments) and all(
                 [
                     group_data.value.count() >= 5
                     for _, group_data in self.filtered_data.groupby(self.group_column)
@@ -75,8 +78,7 @@ class QuantitativeStatistic:
                     self.is_parametric,
                 )
                 self.post_hoc_test = self.pipeline[-1]
-                self.filtered_data = self.data.select(nan=False)
-                # all([]) == True if the iterable is empty
+                self.filtered_data = self.data.select(value="notna")
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
                 self.significant_pairs = (
                     self.results.select(test=self.post_hoc_test).p_value
@@ -95,9 +97,11 @@ class QuantitativeStatistic:
                         }
                     ]
                 )
+            for key, val in self.metadata.items():
+                self.results[key] = val
             self.is_significant = self.results.is_significant.all()
 
-    #for parallel
+    # for parallel
     def __call__(self):
         self.__post_init__()
         return self
@@ -109,9 +113,10 @@ class QuantitativeStatistic:
             if not hasattr(self, test_method_name):
                 raise ValueError(f"Unknown test: {test}")
             test_method = self.__getattribute__(test_method_name)
+            test_result = test_method()
             results.append(
                 {
-                    **test_method(),
+                    **test_result,
                     "test": test,
                     "p_value_threshold": self.p_value_threshold,
                 }
@@ -258,7 +263,9 @@ class Statistics(PickleDataset):
         groupings = []
         for experiment in ExperimentInformation(self.project):
             for (compound, region), data in tqdm(
-                self.data.select(treatment=experiment.treatments).groupby(["compound", "region"]),
+                self.data.select(treatment=experiment.treatments).groupby(
+                    ["compound", "region"]
+                ),
                 desc=f"Preparing stats groupings for {experiment.label}",
             ):
                 groupings.append(
@@ -271,7 +278,6 @@ class Statistics(PickleDataset):
                         self.p_value_threshold,
                         delay_execution=True,
                         metadata={
-                            "project": self.project,
                             "experiment": experiment.label,
                             "compound": compound,
                             "region": region,
@@ -286,12 +292,8 @@ class Statistics(PickleDataset):
 
         results = []
         for statistic in statistics:
-            for key in ["experiment", "compound", "region"]:
-                statistic.results[key] = statistic.metadata[
-                    key
-                ]  # add grouping info to results
             statistic.results.result = statistic.results.result.apply(
-                lambda val: val._repr_html_() if isinstance(val, pd.DataFrame) else val
+                lambda val: HTML(val._repr_html_()) if isinstance(val, pd.DataFrame) else val
             )
             results.append(statistic.results)
         # Unpack results and merge

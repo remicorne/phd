@@ -6,7 +6,7 @@ from module.core.Outliers import Outliers
 from module.core.Metadata import (
     ProjectInformation,
     ExperimentInformation,
-    TreatmentInformation, Palette
+    TreatmentInformation,
 )
 from module.Matrix import Matrices
 from module.Network import Network
@@ -45,8 +45,8 @@ class Figure(Cacheable):
     """
 
     project: str
-    compound: str|list = field(kw_only=True, default=None)
-    region: str|list = field(kw_only=True, default=None)
+    compound: str | list = field(kw_only=True, default=None)
+    region: str | list = field(kw_only=True, default=None)
     experiment: str = field(kw_only=True, default=None)
     p_value_threshold: float = field(kw_only=True, default=None)
     handle_outliers: float = field(kw_only=True, default=True)
@@ -59,51 +59,65 @@ class Figure(Cacheable):
         self.handle_parameter_logic()
         self.data = self.get_data()
         self.p_value_threshold = (
-                self.p_value_threshold
-                or ProjectInformation(self.project).p_value_threshold
-            )
+            self.p_value_threshold or ProjectInformation(self.project).p_value_threshold
+        )
         self.define_filename()
         super().__post_init__()
-        
-            
 
     def define_filename(self):
-        self.filename = f"{self.compound} in {self.region if self.region else 'all regions'}"
-        
-        
+        self.filename = (
+            f"{self.compound} in {self.region if self.region else 'all regions'}"
+        )
+
     def handle_parameter_logic(self):
         if self.remove_outliers not in ["eliminated", "calculated", False]:
-            raise ValueError("remove_outliers must be 'eliminated', 'calculated', or False")
+            raise ValueError(
+                "remove_outliers must be 'eliminated', 'calculated', or False"
+            )
         if self.experiment:
-            self.experiment_information = ExperimentInformation(self.project).select(experiment=self.experiment)
+            self.experiment_information = ExperimentInformation(self.project).select(
+                experiment=self.experiment
+            )
             self.treatments = self.experiment_information.treatments
         else:
             self.treatments = self.treatment_information.df.treatment.to_list()
-            
+
         if not (self.compound or self.region):
             raise ValueError(
                 "Must specify either compound or region to generate histogram"
             )
-        self.region = self.region[0] if isinstance(self.region, list) and len(self.region) == 1 else self.region
-        self.compound = self.compound[0] if isinstance(self.compound, list) and len(self.compound) == 1 else self.compound
+        self.region = (
+            self.region[0]
+            if isinstance(self.region, list) and len(self.region) == 1
+            else self.region
+        )
+        self.compound = (
+            self.compound[0]
+            if isinstance(self.compound, list) and len(self.compound) == 1
+            else self.compound
+        )
         for param in ["compound", "region"]:
             value = getattr(self, param)
             if isinstance(param, list) and len(param) == 1:
                 setattr(self, param, value[0])
-        
+
         if isinstance(self.compound, list) and isinstance(self.region, list):
             raise ValueError(
                 "Cannot do summary for multiple compounds and regions at the same time"
             )
-            
+
     def get_data(self):
-        data = HPLC(self.project).extend(TreatmentInformation(self.project)).extend(Outliers(self.project))
+        data = (
+            HPLC(self.project)
+            .extend(TreatmentInformation(self.project))
+            .extend(Outliers(self.project))
+        )
         data = data.select(treatment=self.treatments)
         if self.compound:
             data = data.select(compound=self.compound)
         if self.region:
             data = data.select(region=self.region)
-        return data.select(nan=False)
+        return data.select(value="notna")
 
     def generate(self):
         if self.remove_outliers == "eliminated":
@@ -112,11 +126,10 @@ class Figure(Cacheable):
             self.data = self.data.select(outlier_status=["normal", "kept"])
         elif self.remove_outliers == "calculated":
             self.data = self.data.select(is_outlier=False)
-        
-        
+
     def handle_outlier_selection(self):
         raise NotImplementedError("Figure must handle outlier selection")
-    
+
     def setup_plotter_parameters(self):
         raise NotImplementedError("Figure must handle setting up plotter parameters")
 
@@ -124,15 +137,11 @@ class Figure(Cacheable):
         raise NotImplementedError("Figure must handle plotting")
 
     def save(self):
-        def target():
-            self.fig.savefig(self.filepath)
-            print(f"SAVED {self.filepath}")
-            filepath_no_extension, _ = os.path.splitext(self.filepath)
-            self.fig.savefig(f"{filepath_no_extension}.svg")
-            print(f"SAVED {filepath_no_extension}.svg")
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(target)
+        self.fig.savefig(self.filepath)
+        print(f"SAVED {self.filepath}")
+        filepath_no_extension, _ = os.path.splitext(self.filepath)
+        self.fig.savefig(f"{filepath_no_extension}.svg")
+        print(f"SAVED {filepath_no_extension}.svg")
 
     def load(self):
         display(Image(filename=f"{self.filepath}"))
@@ -147,18 +156,17 @@ class Figure(Cacheable):
 
 @dataclass
 class Histogram(Figure):
-    
-    
     """
     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
+
     __doc__ += Figure.__doc__
 
     figure_type: ClassVar[str] = "histogram"
-    
+
     def handle_parameter_logic(self):
-        super().handle_parameter_logic()             
+        super().handle_parameter_logic()
         if self.region is None or isinstance(self.region, list):
             self.summary_type = "compound"
             self.to_plot = "region"
@@ -166,17 +174,23 @@ class Histogram(Figure):
             self.summary_type = "region"
             self.to_plot = "compound"
         self.is_summary = hasattr(self, "summary_type")
-        
+
     def setup_plotter_parameters(self):
         self.hue = self.swarm_hue = "treatment"
-        self.palette = self.experiment_information.palette if self.experiment else self.treatment_information.palette
+        self.palette = (
+            self.experiment_information.palette
+            if self.experiment
+            else self.treatment_information.palette
+        )
         self.hue_order = self.treatments
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
         )
         self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
-            self.ylabel = f"{self.__getattribute__(self.summary_type)} {self.ylabel} +/-98CI"
+            self.ylabel = (
+                f"{self.__getattribute__(self.summary_type)} {self.ylabel} +/-98CI"
+            )
             self.order = [
                 item
                 for item in COMPOUNDS_AND_REGIONS[self.to_plot]
@@ -189,37 +203,108 @@ class Histogram(Figure):
         self.setup_plotter_parameters()
         self.plot()
         if self.experiment:
-            self.label_summary_stats() if self.is_summary else self.label_histogram_stats()
-    
+            (
+                self.label_summary_stats()
+                if self.is_summary
+                else self.label_histogram_stats()
+            )
+
     def handle_outlier_selection(self):
         if self.handle_outliers:
             self.setup_plotter_parameters()
-            for subselection in [subselection for _, subselection in self.data.groupby(by=["compound", "region"])] if self.is_summary else [self.data]:
+            for subselection in (
+                [
+                    subselection
+                    for _, subselection in self.data.groupby(by=["compound", "region"])
+                ]
+                if self.is_summary
+                else [self.data]
+            ):
                 if not subselection.select(outlier_status="suspected").empty:
                     finished = False
                     while not finished:
-                        title = subselection.compound.unique()[0] + ' in ' + subselection.region.unique()[0]
-                        base_swarm_palette = {"normal": "green", "eliminated": "red", "kept": "blue"}
-                        extra_colors = ["red", "orange", "yellow", "pink", "purple", "blue"]
-                        subselection["updated_outlier_status"] = subselection.apply(lambda row: row.outlier_status if row.outlier_status != "suspected" else f"suspected (mouse_id={row.mouse_id})", axis=1)
-                        swarm_palette = {**base_swarm_palette, **{hue: extra_colors.pop(0) for hue in subselection.updated_outlier_status.unique() if "suspected" in hue}}
-                        self.plot_histogram(custom_params={"data": subselection, "title": title, "swarm_hue": "updated_outlier_status", "swarm_palette": swarm_palette, "legend": True, "size": 10})
+                        title = (
+                            subselection.compound.unique()[0]
+                            + " in "
+                            + subselection.region.unique()[0]
+                        )
+                        base_swarm_palette = {
+                            "normal": "green",
+                            "eliminated": "red",
+                            "kept": "blue",
+                        }
+                        extra_colors = [
+                            "red",
+                            "orange",
+                            "yellow",
+                            "pink",
+                            "purple",
+                            "blue",
+                        ]
+                        subselection["updated_outlier_status"] = subselection.apply(
+                            lambda row: (
+                                row.outlier_status
+                                if row.outlier_status != "suspected"
+                                else f"suspected (mouse_id={row.mouse_id})"
+                            ),
+                            axis=1,
+                        )
+                        swarm_palette = {
+                            **base_swarm_palette,
+                            **{
+                                hue: extra_colors.pop(0)
+                                for hue in subselection.updated_outlier_status.unique()
+                                if "suspected" in hue
+                            },
+                        }
+                        self.plot_histogram(
+                            custom_params={
+                                "data": subselection,
+                                "title": title,
+                                "swarm_hue": "updated_outlier_status",
+                                "swarm_palette": swarm_palette,
+                                "legend": True,
+                                "size": 10,
+                            }
+                        )
                         plt.show()
-                        eliminated = input_list(f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'")
+                        eliminated = input_list(
+                            f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'"
+                        )
+
                         def label_eliminated(row):
                             if row.is_outlier:
-                                return "eliminated" if str(row.mouse_id) in eliminated else "kept"
+                                return (
+                                    "eliminated"
+                                    if str(row.mouse_id) in eliminated
+                                    else "kept"
+                                )
                             return row.outlier_status
-                        subselection["updated_outlier_status"] = subselection.apply(label_eliminated, axis=1)
-                        self.plot_histogram(custom_params={"data": subselection, "title": title, "swarm_hue": "updated_outlier_status", "swarm_palette": base_swarm_palette, "legend": True, "size": 10})                    
+
+                        subselection["updated_outlier_status"] = subselection.apply(
+                            label_eliminated, axis=1
+                        )
+                        self.plot_histogram(
+                            custom_params={
+                                "data": subselection,
+                                "title": title,
+                                "swarm_hue": "updated_outlier_status",
+                                "swarm_palette": base_swarm_palette,
+                                "legend": True,
+                                "size": 10,
+                            }
+                        )
                         plt.show()
                         finished = yes_or_no("Confirm selection?")
                     Outliers(self.project).update(subselection)
 
-
     def plot(self, custom_params=dict()):
         custom_params = {**self.custom_params, **custom_params}
-        custom_params["palette"] = {**self.palette, **self.custom_params.get("palette", {}), **custom_params.get("palette", {})}
+        custom_params["palette"] = {
+            **self.palette,
+            **self.custom_params.get("palette", {}),
+            **custom_params.get("palette", {}),
+        }
         if self.is_summary:
             self.plot_summary(custom_params)
         else:
@@ -247,7 +332,9 @@ class Histogram(Figure):
             y="value",
             hue=custom_params.get("swarm_hue", self.swarm_hue),
             size=custom_params.get("size", 5),
-            palette=custom_params.get("swarm_palette", custom_params.get("palette", self.palette)),
+            palette=custom_params.get(
+                "swarm_palette", custom_params.get("palette", self.palette)
+            ),
             legend=custom_params.get("legend", False),
             order=custom_params.get("hue_order", self.hue_order),
             edgecolor=custom_params.get("edgecolor", "k"),
@@ -257,10 +344,17 @@ class Histogram(Figure):
         )
 
         ax.tick_params(labelsize=custom_params.get("labelsize", 24))
-        ax.set_ylabel(custom_params.get("ylabel", self.ylabel), fontsize=custom_params.get("ylabel_fontsize", 24))
-        ax.set_xlabel(" ", fontsize=custom_params.get("xlabel_fontsize", 20))  # treatments
+        ax.set_ylabel(
+            custom_params.get("ylabel", self.ylabel),
+            fontsize=custom_params.get("ylabel_fontsize", 24),
+        )
+        ax.set_xlabel(
+            " ", fontsize=custom_params.get("xlabel_fontsize", 20)
+        )  # treatments
         ax.set_title(
-            custom_params.get("title", self.title), y=custom_params.get("y", 1.04), fontsize=custom_params.get("fontsize", 34)
+            custom_params.get("title", self.title),
+            y=custom_params.get("y", 1.04),
+            fontsize=custom_params.get("fontsize", 34),
         )  # '+/- 68%CI'
         sns.despine(left=False)
 
@@ -287,48 +381,54 @@ class Histogram(Figure):
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
         self.ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
+        self.ax.spines["top"].set_visible(False)
+        self.ax.spines["right"].set_visible(False)
         plt.tight_layout()
 
     def label_histogram_stats(self):
         if not hasattr(self, "statistics"):
             self._statistics = QuantitativeStatistic(
-                    self.data,
-                    self.experiment_information.independant_variables,
-                    self.experiment_information.treatments,
-                    self.experiment_information.paired,
-                    self.experiment_information.parametric,
-                    self.p_value_threshold,
-                )
+                self.data,
+                self.experiment_information.independant_variables,
+                self.experiment_information.treatments,
+                self.experiment_information.paired,
+                self.experiment_information.parametric,
+                self.p_value_threshold,
+            )
+            self.statistics = self._statistics.results
         if self._statistics.is_significant:
             pairs, p_values = self._statistics.significant_pairs
             annotator = Annotator(
-                self.ax, pairs, data=self.data, x="treatment", y="value", order=self.hue_order
+                self.ax,
+                pairs,
+                data=self.data,
+                x="treatment",
+                y="value",
+                order=self.hue_order,
             )
             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
             annotator.set_pvalues_and_annotate(p_values)
-            self.statistics = self._statistics.results 
-            
 
     def label_summary_stats(self):
         if not hasattr(self, "statistics"):
             self._statistics = parallel_process(
-                    [
-                        QuantitativeStatistic(
-                            self.data.select(**{self.to_plot: x}),
-                            self.experiment_information.independant_variables,
-                            self.experiment_information.treatments,
-                            self.experiment_information.paired,
-                            self.experiment_information.parametric,
-                            self.p_value_threshold,
-                            delay_execution=True,
-                            metadata=x,
-                        )
-                        for x in self.order
-                    ]
-                )
-            self.statistics = SelectableDataFrame(pd.concat([s.results for s in self._statistics])) 
+                [
+                    QuantitativeStatistic(
+                        self.data.select(**{self.to_plot: x}),
+                        self.experiment_information.independant_variables,
+                        self.experiment_information.treatments,
+                        self.experiment_information.paired,
+                        self.experiment_information.parametric,
+                        self.p_value_threshold,
+                        delay_execution=True,
+                        metadata={self.to_plot: x},
+                    )
+                    for x in self.order
+                ]
+            )
+            self.statistics = SelectableDataFrame(
+                pd.concat([s.results for s in self._statistics])
+            )
         for statistics in self._statistics:
             if statistics.is_significant:
                 significant_vs_control = set(
@@ -346,7 +446,7 @@ class Histogram(Figure):
                     )
                     for hue in significant_vs_control:
                         x_index = self.order.index(
-                            statistics.metadata
+                            statistics.metadata[self.to_plot]
                         )  # Statistics metadata stores grouping info
                         hue_index = self.hue_order.index(hue)
                         bar = self.ax.patches[hue_index * len(self.order) + x_index]
@@ -358,48 +458,50 @@ class Histogram(Figure):
                             va="bottom",
                             fontsize=14,
                         )
-                
+
     def set(self, **kwargs):
         # kwargs["palette"] = {**self.palette, **kwargs.get("palette", {})}
         self.custom_params = kwargs
         self.initialize()
-        
-    @property
-    def statistics(self):
-        return SelectableDataFrame(pd.concat([s.results for s in self._statistics]) if self.is_summary else self._statistics.results) 
-    
+
 
 @dataclass
 class Table(Figure):
-    
+
     def setup_plotter_parameters(self):
         pass
-    
+
     def plot(self):
         pass
-    
+
     def generate(self):
         super().generate()
-        grouped = self.data.groupby(['region', 'compound', 'treatment']).agg(
-        mean_value=('value', 'mean'),
-        sem_value=('value', lambda x: np.std(x, ddof=1) / np.sqrt(len(x)))
-        ).reset_index()
+        grouped = (
+            self.data.groupby(["region", "compound", "treatment"])
+            .agg(
+                mean_value=("value", "mean"),
+                sem_value=("value", lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+            )
+            .reset_index()
+        )
 
         # Combine mean and SEM into a single string
-        grouped['mean ± SEM'] = grouped.apply(
+        grouped["mean ± SEM"] = grouped.apply(
             lambda row: f"{row['mean_value']:.2f} ± {row['sem_value']:.2f}", axis=1
         )
 
         # Pivot the DataFrame
         pivot_df = grouped.pivot_table(
-            index='region',
-            columns=['compound', 'treatment'],
-            values='mean ± SEM',
-            aggfunc='first'
+            index="region",
+            columns=["compound", "treatment"],
+            values="mean ± SEM",
+            aggfunc="first",
         )
 
         # Sort the multiindex columns
         return pivot_df.sort_index(axis=1)
+
+
 # @dataclass()
 # class MatricesFigure(Figure):
 

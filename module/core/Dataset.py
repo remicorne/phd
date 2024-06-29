@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -11,19 +12,19 @@ ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index != None  # Select all
-    nan = mask_conditions.pop("nan", None)
     absent_columns = [col for col in mask_conditions if col not in df]
     if absent_columns:
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
-    if nan is not None:
-        selected &= df.value.isna() if nan else df.value.notna()
     for column, value in mask_conditions.items():  # Refine selection
         if isiterable(value):
             sub_selection = df[column].isin(value)
         else:
-            sub_selection = df[column] == value
+            if value in [None, "notna"]:
+                sub_selection = df[column].isna() if value is None else df[column].notna()
+            else:
+                sub_selection = df[column] == value
         selected &= sub_selection
     return selected
 
@@ -51,6 +52,7 @@ class SelectableDataFrame(pd.DataFrame):
         """
         sub_selection = sub_select(self, selector)
         return sub_selection
+    
     def extend(self, df) -> "SelectableDataFrame":
         if isinstance(df, Dataset):
             df = df.df

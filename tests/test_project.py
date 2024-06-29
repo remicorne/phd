@@ -44,8 +44,8 @@ class TestProject(unittest.TestCase):
         assert len(project.statistics.significant_results) == 6
         assert len(project.statistics.select(fully_significant=True)) == 6
         assert len(project.statistics.insufficent_data) == 5
-        Histogram("TCB2", experiment='dose response', compound="5HIAA/5HT", region="OF", from_scratch=True, handle_outliers=False)
-        Histogram('TCB2', experiment='dose response', compound="5HIAA/5HT", from_scratch=True, handle_outliers=False)
+        assert Histogram("TCB2", experiment='dose response', compound="5HIAA/5HT", region="OF", from_scratch=True, handle_outliers=False).statistics.is_significant.to_list() == [True, True]
+        assert Histogram('TCB2', experiment='dose response', compound="5HIAA/5HT", from_scratch=True, handle_outliers=False).statistics.is_significant.all()
         print('PROJECT INITIALIZATION TEST PASSED')
 
     def tearDown(self):
