@@ -431,6 +431,11 @@ class Histogram(Figure):
             )
         for statistics in self._statistics:
             if statistics.is_significant:
+                #Font Scaling # HARDCODE JJB TODO - also add significance pairs!
+                base_font_size = 24  
+                scaling_factor = 0.2
+                dynamic_font_size = max(base_font_size - (scaling_factor * len(self.order)), 6)
+
                 significant_vs_control = set(
                     flatten(
                         [
@@ -452,11 +457,11 @@ class Histogram(Figure):
                         bar = self.ax.patches[hue_index * len(self.order) + x_index]
                         self.ax.text(
                             bar.get_x() + bar.get_width() / 2,
-                            bar.get_height() + 0.06,
+                            (bar.get_height()*1.3),
                             "*",
                             ha="center",
                             va="bottom",
-                            fontsize=14,
+                            fontsize=dynamic_font_size,
                         )
 
     def set(self, **kwargs):
