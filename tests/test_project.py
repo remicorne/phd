@@ -1,4 +1,4 @@
-from module.core.Statistics import Statistics
+from module.core.Statistics import Statistics, QuantitativeStatistic
 import unittest
 from module.core.Project import Project, ROOT
 from module.core.Figure import Histogram
@@ -36,9 +36,9 @@ class TestProject(unittest.TestCase):
         assert project.data.columns.to_list() == ['mouse_id', 'group_id', 'value', 'compound', 'region', 'treatment', 'color', 'independant_variables', 'label', 'is_outlier', 'outlier_status']
         assert len(project.data) == 1152
         assert len(project.data.select(is_outlier=True).select(treatment=["vehicles", "MDL"])) == 18
-        stats = Statistics(self.project_name).get_quantitative_stats(experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.05)
+        stats = QuantitativeStatistic.calculate(project=self.project_name, experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.05)
         assert stats.results.is_significant.to_list() == [True, True, True]
-        stats = Statistics(self.project_name).get_quantitative_stats(experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.01)
+        stats = QuantitativeStatistic.calculate(project=self.project_name, experiment='agonist antagonist', compound='DA/5HT', region='OF', p_value_threshold=0.01)
         assert stats.results.is_significant.to_list() == [False, True, False]
         assert len(project.statistics.select(is_significant = True)) == 9
         assert len(project.statistics.significant_results) == 6
