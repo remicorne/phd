@@ -17,6 +17,7 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.core.utils import parallel_process
 from IPython.display import HTML
 from module.core.utils import isiterable
+from itertools import product
 
 
 def get_quantitative_statistics_pipeline(
@@ -101,6 +102,117 @@ class QuantitativeStatistic:
                 self.results[key] = val
             self.is_significant = self.results.is_significant.all()
 
+    @classmethod
+    def calculate(
+        cls,
+        project: str,
+        experiment: str = None,
+        compound: str = None,
+        region: str = None,
+        p_value_threshold: float = None,
+        remove_outliers="calculated",
+    ):
+        """
+        Calculate statistical results for a given experiment, compound, and region.
+
+        Args:
+            project (str): The name of the project.
+            experiment (str|list): The name of the experiment.
+            compound (str|list): The name of the compound.
+            region (str|list): The name of the region.
+            p_value_threshold (float, optional): The p-value threshold used for statistical analysis. Defaults to None.
+            remove_outliers (str, optional): Whether to remove outliers. Must be 'eliminated', 'calculated', or False. Defaults to "calculated".
+
+        Returns:
+            cls: An instance of the Statistics class with the calculated statistical results in .results.
+
+        Raises:
+            ValueError: If remove_outliers is not 'eliminated', 'calculated', or False.
+        """
+
+        data = (
+            HPLC(project)
+            .extend(TreatmentInformation(project))
+            .extend(Outliers(project))
+        )
+
+        if compound:
+            compound = (
+                compound
+                if isiterable(compound)
+                else compound.replace(" ", "").split(",")
+            )
+        else:
+            compound = data.compound.unique()
+
+        if region:
+            region = (
+                region if isiterable(region) else region.replace(" ", "").split(",")
+            )
+        else:
+            region = data.region.unique()
+
+        if experiment:
+            experiment = (
+                experiment
+                if isiterable(experiment)
+                else experiment.replace(", ", "").split(",")
+            )
+            experiment = [
+                ExperimentInformation(project).select(experiment=experiment)
+                for experiment in experiment
+            ]
+        else:
+            experiment = [experiment for experiment in ExperimentInformation(project)]
+
+        p_value_threshold = (
+            p_value_threshold or ProjectInformation(project).p_value_threshold
+        )
+
+        if remove_outliers == "eliminated":
+            data = data.select(outlier_status=["normal", "kept"])
+        elif remove_outliers == "calculated":
+            data = data.select(is_outlier=False)
+        elif remove_outliers is not False:
+            raise ValueError(
+                "remove_outliers must be 'eliminated', 'calculated', or False"
+            )
+
+        statistics = parallel_process(
+            [
+                cls(
+                    data=data.select(
+                        region=region,
+                        compound=compound,
+                        treatment=experiment.treatments,
+                    ),
+                    independant_variables=experiment.independant_variables,
+                    treatments=experiment.treatments,
+                    is_paired=experiment.paired,
+                    is_parametric=experiment.parametric,
+                    p_value_threshold=p_value_threshold,
+                    delay_execution=True,
+                    metadata={
+                        "project": project,
+                        "experiment": experiment.label,
+                        "compound": compound,
+                        "region": region,
+                    },
+                )
+                for region, compound, experiment in product(
+                    region, compound, experiment
+                )
+            ]
+        )
+
+        results = []
+        for statistic in statistics:
+            result = statistic.results
+            result["fully_significant"] = statistic.is_significant
+            results.append(result)
+
+        return SelectableDataFrame(pd.concat(results))
+
     # for parallel
     def __call__(self):
         self.__post_init__()
@@ -121,6 +233,7 @@ class QuantitativeStatistic:
                     "p_value_threshold": self.p_value_threshold,
                 }
             )
+            self.__setattr__(test, test_result["result"])
         return results
 
     def get_tukey(self):
@@ -293,66 +406,13 @@ class Statistics(PickleDataset):
         results = []
         for statistic in statistics:
             statistic.results.result = statistic.results.result.apply(
-                lambda val: HTML(val._repr_html_()) if isinstance(val, pd.DataFrame) else val
+                lambda val: (
+                    HTML(val._repr_html_()) if isinstance(val, pd.DataFrame) else val
+                )
             )
             results.append(statistic.results)
         # Unpack results and merge
         return pd.concat(results)
-
-    def get_quantitative_stats(
-        self,
-        experiment,
-        compound,
-        region,
-        remove_outliers="eliminated",
-        is_parallel=False,
-        p_value_threshold=None,
-    ) -> QuantitativeStatistic:
-        """
-        Calculates the statistics for a grouping using the test pipeline
-        Saves the results to the fulll statistical df
-        Returns the quantitative statistical results for a specific experiment, compound, and region.
-
-        Args:
-            experiment (str): The name of the experiment.
-            compound (str): The name of the compound.
-            region (str): The name of the region.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the statistical results for the specified experiment, compound, and region.
-        """
-        experiment = (
-            experiment
-            if isinstance(experiment, ExperimentInformation)
-            else ExperimentInformation(self.project).select(experiment=experiment)
-        )
-        p_value_threshold = p_value_threshold or self.p_value_threshold
-        data = self.data.select(
-            region=region, compound=compound, treatment=experiment.treatments
-        )
-        if remove_outliers == "eliminated":
-            data = data.select(outlier_status=["normal", "kept"])
-        elif remove_outliers == "calculated":
-            data = data.select(is_outlier=False)
-        elif remove_outliers is not False:
-            raise ValueError(
-                "remove_outliers must be 'eliminated', 'calculated', or False"
-            )
-        return QuantitativeStatistic(
-            data.select(compound=compound, region=region),
-            experiment.independant_variables,
-            experiment.treatments,
-            experiment.paired,
-            experiment.parametric,
-            p_value_threshold,
-            delay_execution=is_parallel,
-            metadata={
-                "project": self.project,
-                "experiment": experiment.label,
-                "compound": compound,
-                "region": region,
-            },
-        )
 
     @property
     def significant_results(self):
