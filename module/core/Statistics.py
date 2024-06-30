@@ -137,20 +137,20 @@ class QuantitativeStatistic:
         )
 
         if compound:
-            compound = (
+            compounds = (
                 compound
                 if isiterable(compound)
                 else compound.replace(" ", "").split(",")
             )
         else:
-            compound = data.compound.unique()
+            compounds = data.compound.unique()
 
         if region:
-            region = (
+            regions = (
                 region if isiterable(region) else region.replace(" ", "").split(",")
             )
         else:
-            region = data.region.unique()
+            regions = data.region.unique()
 
         if experiment:
             experiment = (
@@ -158,12 +158,12 @@ class QuantitativeStatistic:
                 if isiterable(experiment)
                 else experiment.replace(", ", "").split(",")
             )
-            experiment = [
+            experiments = [
                 ExperimentInformation(project).select(experiment=experiment)
                 for experiment in experiment
             ]
         else:
-            experiment = [experiment for experiment in ExperimentInformation(project)]
+            experiments = [experiment for experiment in ExperimentInformation(project)]
 
         p_value_threshold = (
             p_value_threshold or ProjectInformation(project).p_value_threshold
@@ -178,32 +178,41 @@ class QuantitativeStatistic:
                 "remove_outliers must be 'eliminated', 'calculated', or False"
             )
 
-        statistics = parallel_process(
-            [
-                cls(
-                    data=data.select(
-                        region=region,
-                        compound=compound,
-                        treatment=experiment.treatments,
-                    ),
-                    independant_variables=experiment.independant_variables,
-                    treatments=experiment.treatments,
-                    is_paired=experiment.paired,
-                    is_parametric=experiment.parametric,
-                    p_value_threshold=p_value_threshold,
-                    delay_execution=True,
-                    metadata={
-                        "project": project,
-                        "experiment": experiment.label,
-                        "compound": compound,
-                        "region": region,
-                    },
-                )
-                for region, compound, experiment in product(
-                    region, compound, experiment
-                )
-            ]
+        data = data.select(
+            region=regions,
+            compound=compounds,
         )
+
+        groupings = []
+
+        for experiment in experiments:
+            groupings.extend(
+                [
+                    cls(
+                        data=group_data,
+                        independant_variables=experiment.independant_variables,
+                        treatments=experiment.treatments,
+                        is_paired=experiment.paired,
+                        is_parametric=experiment.parametric,
+                        p_value_threshold=p_value_threshold,
+                        delay_execution=True,
+                        metadata={
+                            "project": project,
+                            "experiment": experiment.label,
+                            "compound": compound,
+                            "region": region,
+                        },
+                    )
+                    for (region, compound), group_data in tqdm(
+                        data.select(treatment=experiment.treatments).groupby(
+                            ["region", "compound"]
+                        ),
+                        desc=f"Preparing statistical groupings for {experiment.label}",
+                    )
+                ]
+            )
+
+        statistics = parallel_process(groupings, description="Calculating statistics")
 
         results = []
         for statistic in statistics:
@@ -373,7 +382,9 @@ class Statistics(PickleDataset):
         return self.df.select(**kwargs)
 
     def generate(self):
-        return QuantitativeStatistic.calculate(self.project).select(fully_significant=True)
+        return QuantitativeStatistic.calculate(self.project).select(
+            fully_significant=True
+        )
 
     @property
     def significant_results(self):
