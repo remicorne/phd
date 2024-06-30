@@ -49,7 +49,6 @@ class Figure(Cacheable):
     region: str | list = field(kw_only=True, default=None)
     experiment: str = field(kw_only=True, default=None)
     p_value_threshold: float = field(kw_only=True, default=None)
-    handle_outliers: float = field(kw_only=True, default=True)
     remove_outliers: str = field(kw_only=True, default="eliminated")
     custom_params: dict = field(kw_only=True, default_factory=dict)
     extension: ClassVar[str] = "png"
@@ -163,6 +162,7 @@ class Histogram(Figure):
 
     __doc__ += Figure.__doc__
 
+    plot_swarm : bool = field(default=True)
     figure_type: ClassVar[str] = "histogram"
 
     def handle_parameter_logic(self):
@@ -210,93 +210,94 @@ class Histogram(Figure):
             )
 
     def handle_outlier_selection(self):
-        if self.handle_outliers:
-            self.setup_plotter_parameters()
-            for subselection in (
-                [
-                    subselection
-                    for _, subselection in self.data.groupby(by=["compound", "region"])
-                ]
-                if self.is_summary
-                else [self.data]
-            ):
-                if not subselection.select(outlier_status="suspected").empty:
-                    finished = False
-                    while not finished:
-                        title = (
-                            subselection.compound.unique()[0]
-                            + " in "
-                            + subselection.region.unique()[0]
-                        )
-                        base_swarm_palette = {
-                            "normal": "green",
-                            "eliminated": "red",
-                            "kept": "blue",
+        self.setup_plotter_parameters()
+        for subselection in (
+            [
+                subselection
+                for _, subselection in self.data.groupby(by=["compound", "region"])
+            ]
+            if self.is_summary
+            else [self.data]
+        ):
+            if not subselection.select(outlier_status="suspected").empty:
+                finished = False
+                while not finished:
+                    title = (
+                        subselection.compound.unique()[0]
+                        + " in "
+                        + subselection.region.unique()[0]
+                    )
+                    base_swarm_palette = {
+                        "normal": "green",
+                        "eliminated": "red",
+                        "kept": "blue",
+                    }
+                    extra_colors = [
+                        "red",
+                        "orange",
+                        "yellow",
+                        "pink",
+                        "purple",
+                        "blue",
+                    ]
+                    subselection["updated_outlier_status"] = subselection.apply(
+                        lambda row: (
+                            row.outlier_status
+                            if row.outlier_status != "suspected"
+                            else f"suspected (mouse_id={row.mouse_id})"
+                        ),
+                        axis=1,
+                    )
+                    swarm_palette = {
+                        **base_swarm_palette,
+                        **{
+                            hue: extra_colors.pop(0)
+                            for hue in subselection.updated_outlier_status.unique()
+                            if "suspected" in hue
+                        },
+                    }
+                    self.plot_histogram(
+                        custom_params={
+                            "data": subselection,
+                            "title": title,
+                            "swarm_hue": "updated_outlier_status",
+                            "swarm_palette": swarm_palette,
+                            "legend": True,
+                            "size": 10,
+                            "plot_swarm": True,
                         }
-                        extra_colors = [
-                            "red",
-                            "orange",
-                            "yellow",
-                            "pink",
-                            "purple",
-                            "blue",
-                        ]
-                        subselection["updated_outlier_status"] = subselection.apply(
-                            lambda row: (
-                                row.outlier_status
-                                if row.outlier_status != "suspected"
-                                else f"suspected (mouse_id={row.mouse_id})"
-                            ),
-                            axis=1,
-                        )
-                        swarm_palette = {
-                            **base_swarm_palette,
-                            **{
-                                hue: extra_colors.pop(0)
-                                for hue in subselection.updated_outlier_status.unique()
-                                if "suspected" in hue
-                            },
+                    )
+                    plt.show()
+                    eliminated = input_list(
+                        f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'"
+                    )
+
+                    def label_eliminated(row):
+                        if row.is_outlier:
+                            return (
+                                "eliminated"
+                                if str(row.mouse_id) in eliminated
+                                else "kept"
+                            )
+                        return row.outlier_status
+
+                    subselection["updated_outlier_status"] = subselection.apply(
+                        label_eliminated, axis=1
+                    )
+                    self.plot_histogram(
+                        custom_params={
+                            "data": subselection,
+                            "title": title,
+                            "swarm_hue": "updated_outlier_status",
+                            "swarm_palette": base_swarm_palette,
+                            "legend": True,
+                            "size": 10,
+                            "plot_swarm": True,
                         }
-                        self.plot_histogram(
-                            custom_params={
-                                "data": subselection,
-                                "title": title,
-                                "swarm_hue": "updated_outlier_status",
-                                "swarm_palette": swarm_palette,
-                                "legend": True,
-                                "size": 10,
-                            }
-                        )
-                        plt.show()
-                        eliminated = input_list(
-                            f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'"
-                        )
-
-                        def label_eliminated(row):
-                            if row.is_outlier:
-                                return (
-                                    "eliminated"
-                                    if str(row.mouse_id) in eliminated
-                                    else "kept"
-                                )
-                            return row.outlier_status
-
-                        subselection["updated_outlier_status"] = subselection.apply(
-                            label_eliminated, axis=1
-                        )
-                        self.plot_histogram(
-                            custom_params={
-                                "data": subselection,
-                                "title": title,
-                                "swarm_hue": "updated_outlier_status",
-                                "swarm_palette": base_swarm_palette,
-                                "legend": True,
-                                "size": 10,
-                            }
-                        )
-                        plt.show()
-                        finished = yes_or_no("Confirm selection?")
-                    Outliers(self.project).update(subselection)
+                    )
+                    plt.show()
+                    finished = yes_or_no("Confirm selection?")
+                Outliers(self.project).update(subselection)
 
     def plot(self, custom_params=dict()):
         custom_params = {**self.custom_params, **custom_params}
@@ -326,22 +327,23 @@ class Histogram(Figure):
             order=custom_params.get("hue_order", self.hue_order),
             dodge=custom_params.get("dodge", False),
         )
-        ax = sns.swarmplot(
-            data=custom_params.get("data", self.data),
-            x="treatment",
-            y="value",
-            hue=custom_params.get("swarm_hue", self.swarm_hue),
-            size=custom_params.get("size", 5),
-            palette=custom_params.get(
-                "swarm_palette", custom_params.get("palette", self.palette)
-            ),
-            legend=custom_params.get("legend", False),
-            order=custom_params.get("hue_order", self.hue_order),
-            edgecolor=custom_params.get("edgecolor", "k"),
-            linewidth=custom_params.get("linewidth", 1),
-            linestyle=custom_params.get("linestyle", "-"),
-            dodge=custom_params.get("dodge", False),
-        )
+        if custom_params.get("plot_swarm", self.plot_swarm):
+            ax = sns.swarmplot(
+                data=custom_params.get("data", self.data),
+                x="treatment",
+                y="value",
+                hue=custom_params.get("swarm_hue", self.swarm_hue),
+                size=custom_params.get("size", 5),
+                palette=custom_params.get(
+                    "swarm_palette", custom_params.get("palette", self.palette)
+                ),
+                legend=custom_params.get("legend", False),
+                order=custom_params.get("hue_order", self.hue_order),
+                edgecolor=custom_params.get("edgecolor", "k"),
+                linewidth=custom_params.get("linewidth", 1),
+                linestyle=custom_params.get("linestyle", "-"),
+                dodge=custom_params.get("dodge", False),
+            )
 
         ax.tick_params(labelsize=custom_params.get("labelsize", 24))
         ax.set_ylabel(
