@@ -373,46 +373,7 @@ class Statistics(PickleDataset):
         return self.df.select(**kwargs)
 
     def generate(self):
-        groupings = []
-        for experiment in ExperimentInformation(self.project):
-            for (compound, region), data in tqdm(
-                self.data.select(treatment=experiment.treatments).groupby(
-                    ["compound", "region"]
-                ),
-                desc=f"Preparing stats groupings for {experiment.label}",
-            ):
-                groupings.append(
-                    QuantitativeStatistic(
-                        data.select(is_outlier=False),
-                        experiment.independant_variables,
-                        experiment.treatments,
-                        experiment.paired,
-                        experiment.parametric,
-                        self.p_value_threshold,
-                        delay_execution=True,
-                        metadata={
-                            "experiment": experiment.label,
-                            "compound": compound,
-                            "region": region,
-                        },
-                    )
-                )
-
-        statistics = parallel_process(
-            groupings,
-            description=f"Calculating stats for each group",
-        )
-
-        results = []
-        for statistic in statistics:
-            statistic.results.result = statistic.results.result.apply(
-                lambda val: (
-                    HTML(val._repr_html_()) if isinstance(val, pd.DataFrame) else val
-                )
-            )
-            results.append(statistic.results)
-        # Unpack results and merge
-        return pd.concat(results)
+        return QuantitativeStatistic.calculate(self.project).select(fully_significant=True)
 
     @property
     def significant_results(self):
@@ -450,4 +411,3 @@ class Statistics(PickleDataset):
         return self.df[
             (self.df.test == "validation" & self.df.result == "Not enough data")
         ]
-

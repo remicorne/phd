@@ -2,7 +2,6 @@ from tqdm.contrib.concurrent import process_map
 import itertools
 from collections.abc import Iterable
 
-
 def isiterable(value):
     return isinstance(value, Iterable) and not isinstance(value, str)
 
