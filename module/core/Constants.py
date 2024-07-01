@@ -44,7 +44,7 @@ class ConstantRegistry(JSONMapping):
 REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))
 COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compounds"))
 COMPOUND_CLASSES = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compound_classes"))
-MACRO_REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "macro_regions"))
+REGION_CLASSES = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "region_classes"))
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
 COMPOUNDS_AND_REGIONS = {
     "region": REGIONS.list,
