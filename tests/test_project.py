@@ -84,14 +84,13 @@ class TestProject(unittest.TestCase):
             compound="5HIAA/5HT",
             region="OF",
             from_scratch=True,
-            handle_outliers=False,
         ).statistics.is_significant.to_list() == [True, True]
         assert Histogram(
             "TCB2",
             experiment="dose response",
             compound="5HIAA/5HT",
             from_scratch=True,
-            handle_outliers=False,
+            remove_outliers="calculated",
         ).statistics.is_significant.all()
         print("PROJECT INITIALIZATION TEST PASSED")
 
