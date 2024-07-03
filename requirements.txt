@@ -13,6 +13,6 @@ statsmodels
 openpyxl
 pydantic
 tqdm
-ipykernal
+ipykernel
 # allensdk
 networkx
