@@ -12,6 +12,7 @@ git+https://github.com/remicorne/statannotations
 statsmodels
 openpyxl
 pydantic
+pytest
 tqdm
 ipykernel
 # allensdk
