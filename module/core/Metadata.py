@@ -102,10 +102,12 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
     _template: ClassVar[dict] = {
         "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
         "color": ["white", "pink", "orange", "red"],
+        "significance": ["*", "", "$", ""],
     }
     _template_types: ClassVar[dict] = {
         "treatment": {"type": str},
         "color": {"type": str},
+        "significance": {"type": str},
     }
 
     @property

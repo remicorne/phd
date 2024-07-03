@@ -7,6 +7,7 @@ from module.core.Metadata import (
     ProjectInformation,
     ExperimentInformation,
     TreatmentInformation,
+    Palette,
 )
 from module.Matrix import Matrices
 from module.Network import Network
@@ -162,7 +163,7 @@ class Histogram(Figure):
 
     __doc__ += Figure.__doc__
 
-    plot_swarm : bool = field(default=True)
+    plot_swarm: bool = field(default=True)
     figure_type: ClassVar[str] = "histogram"
 
     def handle_parameter_logic(self):
@@ -182,6 +183,9 @@ class Histogram(Figure):
             if self.experiment
             else self.treatment_information.palette
         )
+        self.significance_palette = {
+            row.treatment: row.significance for row in Palette(self.project)
+        }
         self.hue_order = self.treatments
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
@@ -361,7 +365,8 @@ class Histogram(Figure):
         sns.despine(left=False)
 
     def plot_summary(self, custom_params):
-        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+        fig_width = custom_params.get("fig_width", 1.48 + 2 * len(self.order))
+        self.fig, self.ax = plt.subplots(figsize=(fig_width, 10))
         self.ax = sns.barplot(
             x=self.to_plot,
             y="value",
@@ -376,10 +381,12 @@ class Histogram(Figure):
             order=custom_params.get("order", self.order),  # self.order,
             hue_order=custom_params.get("hue_order", self.hue_order),
             errwidth=custom_params.get("errwidth", 1),
+            dodge=custom_params.get("dodge", True),
+            width=custom_params.get("bar_width", 0.8)
         )
         self.ax.tick_params(labelsize=16)
-        self.ax.set_ylabel(self.ylabel, fontsize=24)
-        self.ax.yaxis.set_label_coords(-0.035, 0.5)
+        self.ax.set_ylabel(self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100))
+        self.ax.yaxis.set_label_coords(custom_params.get("ylabel_x",  -0.459 / fig_width), 0.5)
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
         self.ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
@@ -433,38 +440,34 @@ class Histogram(Figure):
             )
         for statistics in self._statistics:
             if statistics.is_significant:
-                #Font Scaling # HARDCODE JJB TODO - also add significance pairs!
-                base_font_size = 24  
+                # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
+                base_font_size = 24
                 scaling_factor = 0.2
-                dynamic_font_size = max(base_font_size - (scaling_factor * len(self.order)), 6)
-
-                significant_vs_control = set(
-                    flatten(
-                        [
-                            pair
-                            for pair in statistics.significant_pairs[0]
-                            if self.experiment_information.control_treatment in pair
-                        ]
-                    )
+                dynamic_font_size = max(
+                    base_font_size - (scaling_factor * len(self.order)), 6
                 )
-                if significant_vs_control:
-                    significant_vs_control.remove(
-                        self.experiment_information.control_treatment
-                    )
-                    for hue in significant_vs_control:
-                        x_index = self.order.index(
-                            statistics.metadata[self.to_plot]
-                        )  # Statistics metadata stores grouping info
-                        hue_index = self.hue_order.index(hue)
-                        bar = self.ax.patches[hue_index * len(self.order) + x_index]
-                        self.ax.text(
-                            bar.get_x() + bar.get_width() / 2,
-                            (bar.get_height()*1.3),
-                            "*",
-                            ha="center",
-                            va="bottom",
-                            fontsize=dynamic_font_size,
-                        )
+                for pair in statistics.significant_pairs[0]:
+                    for i, (treatment, symbol) in enumerate(
+                        self.significance_palette.items()
+                    ):
+                        if treatment in pair:
+                            hue = pair[
+                                pair.index(treatment) - 1
+                            ]  # work because only two elements 0 -> -1, 1 -> 0
+                            x_index = self.order.index(
+                                statistics.metadata[self.to_plot]
+                            )  # Statistics metadata stores grouping info
+                            hue_index = self.hue_order.index(hue)
+                            bar = self.ax.patches[hue_index * len(self.order) + x_index]
+                            self.ax.text(
+                                bar.get_x() + bar.get_width() / 2,
+                                (bar.get_height() * (1.3 + i / 5)),
+                                symbol,
+                                ha="center",
+                                va="bottom",
+                                fontsize=dynamic_font_size,
+                            )
+                            break
 
     def set(self, **kwargs):
         # kwargs["palette"] = {**self.palette, **kwargs.get("palette", {})}
