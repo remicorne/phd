@@ -1,4 +1,4 @@
-from .Dataset import Dataset
+from .Dataset import ExcelDataset, PickleDataset
 from .Project import Project
 from .HPLC import HPLC
 from .Outliers import Outliers
