@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 from module.core.Cacheable import Cacheable
 import pandas as pd
-from module.core.utils import isiterable
+from module.core.utils import is_array_like
 
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
@@ -18,7 +18,7 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
     for column, value in mask_conditions.items():  # Refine selection
-        if isiterable(value):
+        if is_array_like(value):
             sub_selection = df[column].isin(value)
         else:
             if value in [None, "notna"]:

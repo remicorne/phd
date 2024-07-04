@@ -3,7 +3,7 @@ import itertools
 from collections.abc import Iterable
 
 
-def isiterable(value):
+def is_array_like(value):
     return isinstance(value, Iterable) and not isinstance(value, str)
 
 

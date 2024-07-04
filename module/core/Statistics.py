@@ -16,7 +16,7 @@ import pingouin as pg
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.core.utils import parallel_process
 from IPython.display import HTML
-from module.core.utils import isiterable
+from module.core.utils import is_array_like
 from itertools import product
 
 
@@ -139,7 +139,7 @@ class QuantitativeStatistic:
         if compound:
             compounds = (
                 compound
-                if isiterable(compound)
+                if is_array_like(compound)
                 else compound.replace(" ", "").split(",")
             )
         else:
@@ -147,7 +147,7 @@ class QuantitativeStatistic:
 
         if region:
             regions = (
-                region if isiterable(region) else region.replace(" ", "").split(",")
+                region if is_array_like(region) else region.replace(" ", "").split(",")
             )
         else:
             regions = data.region.unique()
@@ -155,7 +155,7 @@ class QuantitativeStatistic:
         if experiment:
             experiment = (
                 experiment
-                if isiterable(experiment)
+                if is_array_like(experiment)
                 else experiment.replace(", ", "").split(",")
             )
             experiments = [
@@ -377,9 +377,19 @@ class Statistics(PickleDataset):
         super().__post_init__()
 
     def select(self, **kwargs):
-        if kwargs.pop("fully_significant", False):
-            return self.significant_results.select(**kwargs)
-        return self.df.select(**kwargs)
+        searched_pair = kwargs.pop("significant_pair", None)
+        data = self.df.select(**kwargs)
+        if searched_pair:
+            return data[
+                data.p_value.apply(
+                    lambda p_value: (
+                        set(searched_pair) in [set(significant_pair) for significant_pair in p_value[0]]
+                        if is_array_like(p_value)
+                        else False
+                    )
+                )
+            ]
+        return data
 
     def generate(self):
         return QuantitativeStatistic.calculate(self.project).select(
