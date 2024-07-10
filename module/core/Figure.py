@@ -384,8 +384,8 @@ class Histogram(Figure):
             dodge=custom_params.get("dodge", True),
             width=custom_params.get("bar_width", 0.8)
         )
-        self.ax.tick_params(labelsize=16)
-        self.ax.set_ylabel(self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100))
+        self.ax.tick_params(labelsize=36)
+        self.ax.set_ylabel(self.ylabel, fontsize=38, labelpad=custom_params.get("labelpad", 100))
         self.ax.yaxis.set_label_coords(custom_params.get("ylabel_x",  -0.459 / fig_width), 0.5)
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
@@ -441,8 +441,8 @@ class Histogram(Figure):
         for statistics in self._statistics:
             if statistics.is_significant:
                 # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
-                base_font_size = 24
-                scaling_factor = 0.2
+                base_font_size = 36
+                scaling_factor = 0.48
                 dynamic_font_size = max(
                     base_font_size - (scaling_factor * len(self.order)), 6
                 )
@@ -465,7 +465,7 @@ class Histogram(Figure):
                                 symbol,
                                 ha="center",
                                 va="bottom",
-                                fontsize=dynamic_font_size,
+                                fontsize=40, #dynamic_font_size
                             )
                             break
 
