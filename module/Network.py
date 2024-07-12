@@ -288,5 +288,5 @@ class Network:
 
         # Set title for the graph
         ax.set_frame_on(False)
-        ax.set_title(self.get_title(), fontsize=28, pad=-10, y=1)
+        ax.set_title(self.get_title, fontsize=28, pad=-10, y=1)
         self.matrix.is_square
