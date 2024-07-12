@@ -78,10 +78,10 @@ class Network:
         neg_edges = 0
 
         for u, v, data in self.G.edges(data=True):
-            weight = data.get('weight', 1)  # Default weight to 1 if not specified
-            if weight > 0:
+            color = data.get('color')  
+            if color == 'red':
                 pos_edges += 1
-            elif weight < 0:
+            elif color == 'blue':
                 neg_edges += 1
 
         return total_edges, pos_edges, neg_edges
@@ -119,33 +119,20 @@ class Network:
     def local_efficiency(self):
         """
         Returns:
-            avg_local_eff_unweighted (float):  average unweighted local efficiency for i nodes.
-            avg_local_eff_weighted (float):  average weighted local efficiency for i nodes.
+            avg_local_effency (float):  average unweighted local efficiency for i nodes.
         """
         local_eff_unweighted = 0
-        local_eff_weighted = 0
         total_nodes = len(self.G.nodes())
 
         for node in self.G.nodes():
-            # Determine neighbors for directed and undirected graphs
             if self.is_directed:
                 neighbors = list(set(nx.predecessors(self.G, node)) | set(nx.successors(self.G, node)))
             else:
                 neighbors = list(nx.neighbors(self.G, node))
-
             if len(neighbors) > 1:
                 subgraph = self.G.subgraph(neighbors)
-                # Calculate unweighted local efficiency
-                local_eff_unweighted += nx.global_efficiency(subgraph)
-
-                # Calculate weighted local efficiency
-                # Ensure weights are considered in the subgraph efficiency calculation
-                local_eff_weighted += nx.global_efficiency(subgraph, weight='weight')
-
-        # Calculate average efficiencies
-        avg_local_eff_unweighted = local_eff_unweighted / total_nodes if total_nodes > 0 else 0
-        avg_local_eff_weighted = local_eff_weighted / total_nodes if total_nodes > 0 else 0
-        return avg_local_eff_unweighted, avg_local_eff_weighted
+                local_eff_unweighted += nx.local_efficiency(subgraph)
+        return local_eff_unweighted / total_nodes if total_nodes > 0 else 0
     
     @property 
     def global_efficiency(self):
@@ -162,10 +149,10 @@ class Network:
         # Weighted Global Efficiency
         # Inverting weights for efficiency calculation as smaller weights imply stronger connections
         G_copy = self.G.copy()
-        inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
-        nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
-        avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
-
+        for u, v, data in G_copy.edges(data=True):
+            if 'weight' in data:
+                data['weight'] = 1 / data['weight']  # Invert weight
+        avg_global_eff_weighted = nx.global_efficiency(G_copy)
 
         return avg_global_eff_unweighted, avg_global_eff_weighted
     
@@ -173,30 +160,61 @@ class Network:
     def clustering_coefficient(self):
         """
         Calculates the average unweighted and weighted clustering coefficients for the graph.
-
         Returns:
             avg_clust_coeff_unweighted (float): The average unweighted clustering coefficient of the graph.
             avg_clust_coeff_weighted (float): The average weighted clustering coefficient of the graph.
         """
+        if len(self.G) < 3:
+            return 0.0, 0.0
+        
         if self.is_directed:
             # For directed graphs, use nx.clustering with 'directed' and 'weight' parameters
-            clust_coeff_unweighted = nx.clustering(self.G, weight=None)  # Unweighted
-            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+            clust_coeff_unweighted = self.calculate_average_directed_clustering_coefficient()
+            clust_coeff_weighted = self.calculate_average_directed_clustering_coefficient(weight='weight')
         else:
             # For undirected graphs, use nx.clustering without 'directed' parameter
-            clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted
-            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+            clust_coeff_unweighted = nx.average_clustering(self.G)  # Unweighted
+            clust_coeff_weighted = nx.average_clustering(self.G, weight='weight')  # Weighted
 
-        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
-        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted)
-
-        return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
+        return clust_coeff_unweighted, clust_coeff_weighted
+    
+    def calculate_average_directed_clustering_coefficient (self, weight = None):
+        """
+        Calculates the average unweighted and weighted clustering coefficients for directed graphs.
+        Returns:
+            avg_clust_coeff_unweighted (float): The average unweighted clustering coefficient of directed graph.
+            avg_clust_coeff_weighted (float): The average weighted clustering coefficient of directed graph.
+    """
+        total_coeff = 0.0
+        for node in self.G:
+            neighbors = list(self.G.neighbors(node))
+            if len(neighbors) < 2:
+                continue
+            
+            # Calculate triangles involving node 'i' considering edge weights
+            triangles = 0
+            for neighbor1 in neighbors:
+                for neighbor2 in neighbors:
+                    if neighbor1 != neighbor2 and self.G.has_edge(neighbor1, neighbor2):
+                        if weight is not None:
+                            triangles += self.G[neighbor1][neighbor2].get(weight, 1)
+                        else:
+                            triangles += 1
+            
+            # Calculate clustering coefficient for the node
+            total_possible = len(neighbors) * (len(neighbors) - 1)
+            node_clustering_coefficient = triangles / total_possible if total_possible > 0 else 0
+            total_coeff += node_clustering_coefficient
+        
+        # Average over all nodes
+        avg_clustering_coefficient = total_coeff / len(self.G)
+        
+        return avg_clustering_coefficient
     
     @property
     def characteristic_path_length(self):
         """
         Calculates the average unweighted and weighted characteristic path length of the graph.
-
         Returns:
             avg_path_length_unweighted (float): The average unweighted characteristic path length of the graph.
             avg_path_length_weighted (float): The average weighted characteristic path length of the graph.
@@ -221,9 +239,12 @@ class Network:
         title = self.matrix.get_title()
         return title.replace('-', '->') if self.is_directed else title
     
-    @property
-    def network_id(self):
-        group = self.matrix.grouping
+    # @property
+    # def network_id(self):
+    #     group = self.matrix.grouping
+    # network id should have the treatment - vairables - columns
+    #  columns should be then filtered for shortening in compound+classses or regions_classes (bassed on between)
+    #DEVELOPE AFTER MERGED WITH Matrix.py ON remi_new_architecture (above vairable names from there)
 
     def plot_ax(self, ax):
         """
