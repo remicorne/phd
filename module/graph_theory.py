@@ -191,8 +191,9 @@ def plotDegreeDistribution(network, ax):
         bin_center = patch.get_x() + patch.get_width() / 2
         labels = [n for n, d in node_labels_with_degrees if d == i]
         if labels:
-            ax.text(bin_center, patch.get_height(), ', '.join(labels), ha='center', va='bottom', fontsize=10, rotation=90)
-
+            ax.text(bin_center, 0.06* patch.get_height(), ', '.join(labels), 
+                    ha='center', va='bottom', fontsize=28, rotation=90)
+            
     ax.set_title(network.get_title, fontsize=28, pad=20, y=1)  # Use the get_title property from Network class
     ax.set_xlabel("Degree", fontsize=22)
     ax.set_ylabel("Frequency (n nodes)", fontsize=22)
