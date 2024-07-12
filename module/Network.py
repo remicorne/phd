@@ -47,9 +47,6 @@ class Network:
                 self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
 
-            ##### Draw the graph
-        # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working
-
         angles = np.linspace(
             0, 2 * np.pi, len(self.matrix.corr_masked.columns), endpoint=False
         )
@@ -64,12 +61,37 @@ class Network:
         Checks if the network is directed, based on whether the matrix is square. Directed graph are use for double correlations i.e. 'GLU-DA'. 
         """
         return self.matrix.is_square
+    
+    @property  
+    def edge_count(self):
+        """
+        Returns the total number of edges, positive edges, and negative edges in the graph.
+
+        Returns:
+            total_edges (int): The total number of edges in the graph.
+            pos_edges (int): The number of edges with positive weights.
+            neg_edges (int): The number of edges with negative weights.
+        """
+        total_edges = self.G.number_of_edges()
+
+        pos_edges = 0
+        neg_edges = 0
+
+        for u, v, data in self.G.edges(data=True):
+            weight = data.get('weight', 1)  # Default weight to 1 if not specified
+            if weight > 0:
+                pos_edges += 1
+            elif weight < 0:
+                neg_edges += 1
+
+        return total_edges, pos_edges, neg_edges
 
     @property
     def node_degree(self):
         """
         Returns:
           max_degree(int): the maximum degree of the nodes in the graph.
+          average_degree(int): average node degree of graph.
         """
         # Calculate degrees for all nodes and find the maximum and mean
         degrees = dict(self.G.degree())
@@ -193,10 +215,15 @@ class Network:
 
         return avg_path_length_unweighted, avg_path_length_weighted
     
+    @property
     def get_title(self):
         """Generates a formatted title for the network graph."""
         title = self.matrix.get_title()
         return title.replace('-', '->') if self.is_directed else title
+    
+    @property
+    def network_id(self):
+        group = self.matrix.grouping
 
     def plot_ax(self, ax):
         """
@@ -230,7 +257,7 @@ class Network:
         # Add labels to nodes
         node_labels = {
             node: node for node in self.G.nodes()
-        }  # Label nodes with their names
+        } 
         nx.draw_networkx_labels(
             self.G, self.pos, labels=node_labels, font_size=18, ax=ax
         )    
