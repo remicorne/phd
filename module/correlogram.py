@@ -109,7 +109,8 @@ def correlogram(
     n_minimum=5,
     columns=None,
     from_scratch=None,
-    corr_method="pearson",  # HARD CODE FIXME    
+    corr_method="pearson",  # defult pearson
+    remove_outliers=False,  # defult pearson
     # hierarchical_clustering=None,
 ):
     """
@@ -138,15 +139,25 @@ def correlogram(
         from_scratch=from_scratch,
     )
     # hierarchical_clustering=None #need to firgue out correlogram plotting and how it will intergrate
-
     compound_and_ratios_df = getCompoundAndRatiosDf(filename)
+    if remove_outliers:
+        from module.core import Outliers
+        compound_and_ratios_df = Outliers("TCB2").extend(compound_and_ratios_df)
+        if remove_outliers == "calculated":
+            compound_and_ratios_df = compound_and_ratios_df.select(is_outlier=False)
+        elif remove_outliers == "eliminated":
+            compound_and_ratios_df = compound_and_ratios_df.select(outlier_status=["normal", "kept"])
+        else:
+            raise ValueError(f"Invalid value for 'remove_outliers'")
+        
     matrices = Matrices(
         data=compound_and_ratios_df,
         group_by = 'treatment',
         between =correlogram_type, 
         variables = to_correlate.split('-'),
         accross="compound" if correlogram_type == "region" else "region",
-        sub_selector ={"experiment":experiment},
+        sub_selector = {"experiment":experiment} if experiment else {},
+        # sub_selector ={"experiment":experiment},
         columns=columns,  # ordered to plot
         method=corr_method,  # 'pearson' 'spearman' 'kendall'
         pvalue_threshold=p_value_threshold,
