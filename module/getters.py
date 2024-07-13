@@ -20,7 +20,7 @@ from module.constants import CACHE_DIR, INPUT_DIR, COLUMN_ORDER
 from module.metadata import applyTreatmentMapping
 import pandas as pd
 import numpy as np
-from module.core.Questions import Questions
+from module.Questions import Questions
 
 ######### GETTERS THAT DEAL WITH THE RAW DATA #########
 ## TODO Seperate and finalize aggregate stats functions
