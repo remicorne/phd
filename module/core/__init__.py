@@ -1,3 +1,4 @@
+from .FileSystem import FileSystem
 from .Dataset import ExcelDataset, PickleDataset
 from .Project import Project
 from .HPLC import HPLC
@@ -9,7 +10,9 @@ from .Constants import COMPOUNDS, COMPOUND_CLASSES, REGIONS, REGION_CLASSES, CIR
 
 
 __all__ = [
-    "Dataset",
+    "FileSystem",
+    "ExcelDataset",
+    "PickleDataset",
     "Project",
     "HPLC",
     "Outliers",

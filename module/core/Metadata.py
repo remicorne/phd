@@ -15,6 +15,11 @@ class _ProjectSettings(ExcelDataset):
     project: str = field(default=None)
     _template: ClassVar[dict] = None
     _template_types: ClassVar[dict] = None
+    
+    def __post_init__(self):
+        super().__post_init__()
+        for key in self._template:
+            self.__setattr__(key, self.df[key])
 
     def generate(self):
         return pd.DataFrame(self._template)
@@ -61,6 +66,16 @@ class _ProjectSettings(ExcelDataset):
             else:
                 df[col_name] = df[col_name].apply(col_info["type"])
         return df
+    
+    
+    
+    def __contains__(self, label):
+        return label in self.df.label        
+
+
+    def __getitem__(self, label) -> pd.Series:
+        return self.df.select(**{"label": label})
+    
 
 
 @dataclass(repr=False)
@@ -91,10 +106,11 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
         data["treatment"] = data.label
         return data
     
-    # def _repr_html_(self) -> str:
-            
-
-
+    @property
+    def treatments(self):
+        return list(self.df.label)
+    
+    
 @dataclass(repr=False)
 class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
@@ -113,6 +129,14 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
     @property
     def dict(self):
         return {t.treatment: t.color for t in self}
+    
+    
+    def __contains__(self, value):
+        return value in self.df.treatment
+    
+    def __getitem__(self, treatment) -> pd.Series:
+        return self.df.select(**{"treatment": treatment})
+    
 
 
 @dataclass(repr=False)
@@ -148,7 +172,11 @@ class ExperimentInformation(_ProjectSettings):
             experiment["palette"] = {t: palette.dict[t] for t in experiment.treatments}
             full_experiment_info.append(experiment)
         return SelectableDataFrame(full_experiment_info)
-
+    
+    
+    @property
+    def experiments(self):
+        return list(self.df.label)
 
 def is_valid_file(file_path):
     if not os.path.isfile(file_path):
@@ -166,7 +194,7 @@ class ProjectInformation(_ProjectSettings):
 
     filename: ClassVar[str] = "project_information"
     _template: ClassVar[dict] = {
-        "label": ["TEST"],
+        "label": ["TCB2"],
         "outlier_test": ["grubbs"],
         "p_value_threshold": [0.05],
         "raw_data_filename": ["raw_data.csv"],
@@ -178,11 +206,6 @@ class ProjectInformation(_ProjectSettings):
         "raw_data_filename": {"type": str},
     }
     
-    def __post_init__(self):
-        super().__post_init__()
-        for key in self._template:
-            self.__setattr__(key, self.df.loc[0, key])
-            
     def generate(self):
         from module.core.Outliers import OUTLIER_TESTS
         data = super().generate()
@@ -204,6 +227,10 @@ class ProjectInformation(_ProjectSettings):
 
         return file_path
 
+    @property
+    def df(self):
+        data = super().df
+        return data.iloc[0] if len(data) == 1 else data
 
     def _repr_html_(self) -> str:
         return f"""

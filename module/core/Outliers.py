@@ -51,9 +51,8 @@ class Outliers(PickleDataset):
         return pd.concat(results)
     
     def update(self, updates):
-        columns = self.df.columns.to_list() + ["updated_outlier_status"] # Eliminate redundant columns to avoid mergs pb
-        data = self.extend(updates[columns])
-        data.outlier_status = data.updated_outlier_status.combine_first(data.outlier_status)
-        data.drop(columns="updated_outlier_status", inplace=True)
-        self.save(data)
+        data = self.df.set_index(['compound', 'region', 'mouse_id', 'group_id'])
+        updates = updates.set_index(['compound', 'region', 'mouse_id', 'group_id'])
+        data.update(updates[["outlier_status"]])
+        self.save(data.reset_index())
         

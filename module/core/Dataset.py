@@ -12,16 +12,19 @@ ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index != None  # Select all
-    absent_columns = [col for col in mask_conditions if col not in df]
+    absent_columns = set(mask_conditions) - set(df.columns)
     if absent_columns:
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
     for column, value in mask_conditions.items():  # Refine selection
-        if is_array_like(value):
+        if value is None:
+            print(f"Skipping {column}, .select() ignores None for practical purposes, use 'nan' (str) instead.")
+            continue
+        elif is_array_like(value):
             sub_selection = df[column].isin(value)
         else:
-            if value in [None, "notna"]:
+            if value in ["nan", "notna"]:
                 sub_selection = df[column].isna() if value is None else df[column].notna()
             else:
                 sub_selection = df[column] == value

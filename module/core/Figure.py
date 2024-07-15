@@ -26,10 +26,10 @@ from module.core.HPLC import HPLC
 from statannotations.Annotator import Annotator
 from module.core.Statistics import Statistics
 from module.core.questions import input_list, yes_or_no
-
+from module.core.DataSelection import DataSelection
 
 @dataclass
-class Figure(Cacheable):
+class Figure(Cacheable, DataSelection):
     """
     Base class for all figures. Handles loading, saving, and plotting of figures.
 
@@ -50,86 +50,19 @@ class Figure(Cacheable):
     region: str | list = field(kw_only=True, default=None)
     experiment: str = field(kw_only=True, default=None)
     p_value_threshold: float = field(kw_only=True, default=None)
-    remove_outliers: str = field(kw_only=True, default="eliminated")
+    remove_outliers: str = field(kw_only=True, default="calculated")
     custom_params: dict = field(kw_only=True, default_factory=dict)
     extension: ClassVar[str] = "png"
 
     def __post_init__(self):
-        self.treatment_information = TreatmentInformation(self.project)
-        self.handle_parameter_logic()
-        self.data = self.get_data()
-        self.p_value_threshold = (
-            self.p_value_threshold or ProjectInformation(self.project).p_value_threshold
-        )
         self.define_filename()
-        super().__post_init__()
+        DataSelection.__post_init__(self)
+        Cacheable.__post_init__(self)
 
     def define_filename(self):
         self.filename = (
             f"{self.compound} in {self.region if self.region else 'all regions'}"
         )
-
-    def handle_parameter_logic(self):
-        if self.remove_outliers not in ["eliminated", "calculated", False]:
-            raise ValueError(
-                "remove_outliers must be 'eliminated', 'calculated', or False"
-            )
-        if self.experiment:
-            self.experiment_information = ExperimentInformation(self.project).select(
-                experiment=self.experiment
-            )
-            self.treatments = self.experiment_information.treatments
-        else:
-            self.treatments = self.treatment_information.df.treatment.to_list()
-
-        if not (self.compound or self.region):
-            raise ValueError(
-                "Must specify either compound or region to generate histogram"
-            )
-        self.region = (
-            self.region[0]
-            if isinstance(self.region, list) and len(self.region) == 1
-            else self.region
-        )
-        self.compound = (
-            self.compound[0]
-            if isinstance(self.compound, list) and len(self.compound) == 1
-            else self.compound
-        )
-        for param in ["compound", "region"]:
-            value = getattr(self, param)
-            if isinstance(param, list) and len(param) == 1:
-                setattr(self, param, value[0])
-
-        if isinstance(self.compound, list) and isinstance(self.region, list):
-            raise ValueError(
-                "Cannot do summary for multiple compounds and regions at the same time"
-            )
-
-    def get_data(self):
-        data = (
-            HPLC(self.project)
-            .extend(TreatmentInformation(self.project))
-            .extend(Outliers(self.project))
-        )
-        data = data.select(treatment=self.treatments)
-        if self.compound:
-            data = data.select(compound=self.compound)
-        if self.region:
-            data = data.select(region=self.region)
-        return data.select(value="notna")
-
-    def generate(self):
-        if self.remove_outliers == "eliminated":
-            self.handle_outlier_selection()
-            self.data = self.get_data()
-            self.data = self.data.select(outlier_status=["normal", "kept"])
-        elif self.remove_outliers == "calculated":
-            self.data = self.data.select(is_outlier=False)
-
-    def handle_outlier_selection(self):
-        raise NotImplementedError("Figure must handle outlier selection")
-
     def setup_plotter_parameters(self):
         raise NotImplementedError("Figure must handle setting up plotter parameters")
 
@@ -166,15 +99,15 @@ class Histogram(Figure):
     plot_swarm: bool = field(default=True)
     figure_type: ClassVar[str] = "histogram"
 
-    def handle_parameter_logic(self):
-        super().handle_parameter_logic()
-        if self.region is None or isinstance(self.region, list):
+    def __post_init__(self):
+        if isinstance(self.compound, str):
             self.summary_type = "compound"
             self.to_plot = "region"
-        elif self.compound is None or isinstance(self.compound, list):
+        elif isinstance(self.compound, str):
             self.summary_type = "region"
             self.to_plot = "compound"
         self.is_summary = hasattr(self, "summary_type")
+        super().__post_init__()
 
     def setup_plotter_parameters(self):
         self.hue = self.swarm_hue = "treatment"
@@ -203,7 +136,6 @@ class Histogram(Figure):
             self.title = ""
 
     def generate(self):
-        super().generate()
         self.setup_plotter_parameters()
         self.plot()
         if self.experiment:
@@ -212,96 +144,6 @@ class Histogram(Figure):
                 if self.is_summary
                 else self.label_histogram_stats()
             )
-
-    def handle_outlier_selection(self):
-        self.setup_plotter_parameters()
-        for subselection in (
-            [
-                subselection
-                for _, subselection in self.data.groupby(by=["compound", "region"])
-            ]
-            if self.is_summary
-            else [self.data]
-        ):
-            if not subselection.select(outlier_status="suspected").empty:
-                finished = False
-                while not finished:
-                    title = (
-                        subselection.compound.unique()[0]
-                        + " in "
-                        + subselection.region.unique()[0]
-                    )
-                    base_swarm_palette = {
-                        "normal": "green",
-                        "eliminated": "red",
-                        "kept": "blue",
-                    }
-                    extra_colors = [
-                        "red",
-                        "orange",
-                        "yellow",
-                        "pink",
-                        "purple",
-                        "blue",
-                    ]
-                    subselection["updated_outlier_status"] = subselection.apply(
-                        lambda row: (
-                            row.outlier_status
-                            if row.outlier_status != "suspected"
-                            else f"suspected (mouse_id={row.mouse_id})"
-                        ),
-                        axis=1,
-                    )
-                    swarm_palette = {
-                        **base_swarm_palette,
-                        **{
-                            hue: extra_colors.pop(0)
-                            for hue in subselection.updated_outlier_status.unique()
-                            if "suspected" in hue
-                        },
-                    }
-                    self.plot_histogram(
-                        custom_params={
-                            "data": subselection,
-                            "title": title,
-                            "swarm_hue": "updated_outlier_status",
-                            "swarm_palette": swarm_palette,
-                            "legend": True,
-                            "size": 10,
-                            "plot_swarm": True,
-                        }
-                    )
-                    plt.show()
-                    eliminated = input_list(
-                        f"Select outliers for {title} ({len(subselection.select(is_outlier=True))}): input mouse_ids to eliminated or write 'none'"
-                    )
-
-                    def label_eliminated(row):
-                        if row.is_outlier:
-                            return (
-                                "eliminated"
-                                if str(row.mouse_id) in eliminated
-                                else "kept"
-                            )
-                        return row.outlier_status
-
-                    subselection["updated_outlier_status"] = subselection.apply(
-                        label_eliminated, axis=1
-                    )
-                    self.plot_histogram(
-                        custom_params={
-                            "data": subselection,
-                            "title": title,
-                            "swarm_hue": "updated_outlier_status",
-                            "swarm_palette": base_swarm_palette,
-                            "legend": True,
-                            "size": 10,
-                            "plot_swarm": True,
-                        }
-                    )
-                    plt.show()
-                    finished = yes_or_no("Confirm selection?")
-                Outliers(self.project).update(subselection)
 
     def plot(self, custom_params=dict()):
         custom_params = {**self.custom_params, **custom_params}
