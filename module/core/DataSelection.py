@@ -126,6 +126,8 @@ class DataSelection:
             if getattr(self, name) is not None:
                 processed_parameter = self.process_parameter(name, options)
                 setattr(self, name, processed_parameter)
+            if is_array_like(getattr(self, name)) and len(getattr(self, name)) == 1:
+                setattr(self, name, getattr(self, name)[0])
         
         self.data = self.data.select(compound=self.compound, region=self.region)
         
@@ -155,7 +157,7 @@ class DataSelection:
         unknown_params = set(parameter_to_list) - set(options)
         if unknown_params:
             raise ValueError(f"Invalid parameter(s) for {name}: {unknown_params}")
-        return parameter_to_list if len(parameter_to_list) > 1 else parameter_to_list[0]
+        return parameter_to_list
 
     def process_outliers(self):
         for (treatment, compound, region), data in self.data.groupby(

@@ -55,14 +55,14 @@ class Figure(Cacheable, DataSelection):
     extension: ClassVar[str] = "png"
 
     def __post_init__(self):
+        DataSelection.__post_init__(self)
         if isinstance(self.compound, str):
-            self.figure_type = "compound"
+            self.compound_or_region = "compound"
             self.to_plot = "region"
-        elif isinstance(self.compound, str):
-            self.figure_type = "region"
+        elif isinstance(self.region, str):
+            self.compound_or_region = "region"
             self.to_plot = "compound"
         self.define_filename()
-        DataSelection.__post_init__(self)
         Cacheable.__post_init__(self)
 
     def define_filename(self):
@@ -118,7 +118,7 @@ class Histogram(Figure):
         self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
             self.ylabel = (
-                f"{self.__getattribute__(self.figure_type)} {self.ylabel} +/-98CI"
+                f"{self.compound_or_region} {self.ylabel} +/-98CI"
             )
             self.order = [
                 item
