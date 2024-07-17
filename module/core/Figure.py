@@ -55,6 +55,12 @@ class Figure(Cacheable, DataSelection):
     extension: ClassVar[str] = "png"
 
     def __post_init__(self):
+        if isinstance(self.compound, str):
+            self.figure_type = "compound"
+            self.to_plot = "region"
+        elif isinstance(self.compound, str):
+            self.figure_type = "region"
+            self.to_plot = "compound"
         self.define_filename()
         DataSelection.__post_init__(self)
         Cacheable.__post_init__(self)
@@ -63,12 +69,7 @@ class Figure(Cacheable, DataSelection):
         self.filename = (
             f"{self.compound} in {self.region if self.region else 'all regions'}"
         )
-    def setup_plotter_parameters(self):
-        raise NotImplementedError("Figure must handle setting up plotter parameters")
-
-    def plot(self):
-        raise NotImplementedError("Figure must handle plotting")
-
+        
     def save(self):
         self.fig.savefig(self.filepath)
         print(f"SAVED {self.filepath}")
@@ -99,17 +100,8 @@ class Histogram(Figure):
     plot_swarm: bool = field(default=True)
     figure_type: ClassVar[str] = "histogram"
 
-    def __post_init__(self):
-        if isinstance(self.compound, str):
-            self.summary_type = "compound"
-            self.to_plot = "region"
-        elif isinstance(self.compound, str):
-            self.summary_type = "region"
-            self.to_plot = "compound"
-        self.is_summary = hasattr(self, "summary_type")
-        super().__post_init__()
-
     def setup_plotter_parameters(self):
+        self.is_summary = isinstance(self.compound, list) or isinstance(self.region, list)
         self.hue = self.swarm_hue = "treatment"
         self.palette = (
             self.experiment_information.palette
@@ -126,7 +118,7 @@ class Histogram(Figure):
         self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
             self.ylabel = (
-                f"{self.__getattribute__(self.summary_type)} {self.ylabel} +/-98CI"
+                f"{self.__getattribute__(self.figure_type)} {self.ylabel} +/-98CI"
             )
             self.order = [
                 item
@@ -315,6 +307,9 @@ class Histogram(Figure):
         # kwargs["palette"] = {**self.palette, **kwargs.get("palette", {})}
         self.custom_params = kwargs
         self.initialize()
+        
+        
+
 
 
 @dataclass
@@ -352,134 +347,3 @@ class Table(Figure):
 
         # Sort the multiindex columns
         return pivot_df.sort_index(axis=1)
-
-
-# @dataclass()
-# class MatricesFigure(Figure):
-
-#     experiment: str
-#     type: str
-#     to_correlate: str
-#     columns: list[str] = None
-#     n_minimum: int = 5
-#     method: str = "pearson"
-#     pvalue_threshold: float = 0.05
-
-#     def __post_init__(self):
-#         if self.type not in ["region", "compound"]:
-#             raise ValueError("Type must be compound or region")
-#         self.experiment = Experiment(self.experiment, self.project)
-#         self.variables = self.to_correlate.split(("-"))
-#         self.accross = "compound" if self.type == "region" else "region"
-#         self.data = self.get_data()
-#         super().__post_init__()
-
-#     def get_data(self):
-#         sub_selector = {}
-#         sub_selector[self.type] = self.variables
-#         if self.columns:
-#             sub_selector[self.accross] = self.columns
-#         return self.experiment_information.df.select(sub_selector)
-
-#     def generate(self):
-#         self.matrices = self.get_matrices()
-#         self.fig, self.axs = self.generate_figure()
-#         self.plot_figure()
-
-#     def get_matrices(self):
-#         return Matrices(
-#             data=self.get_data(),
-#             group_by="experiment",
-#             between=self.type,
-#             variables=self.variables,
-#             accross=self.accross,
-#             columns=self.columns,
-#             method=self.method,
-#             pvalue_threshold=self.pvalue_threshold,
-#             n_minimum=self.n_minimum,
-#         ).matrices
-
-#     def generate_figure(self):
-#         """
-#         Generic function to create subplots of correct dimentions
-#         input: experimental data listed by treatment, plotter function that takes single treatment data
-#         ~optional_experimental_info may be passed such that the plotter_cb may scal axis the same for instance
-#         output: plotted and saved figure at experimental level
-#         """
-#         # determin number of treatments to corrispond to number of subplots
-#         num_treatments = len(self.matrices)
-#         num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns
-#         num_rows = (
-#             num_treatments + num_cols - 1
-#         ) // num_cols  # Compute the number of rows
-
-#         # define the base size and a scaling factor for the figure size
-#         base_size = 11
-#         scale_factor = 1
-
-#         # create subplots
-#         fig, axs = plt.subplots(
-#             num_rows,
-#             num_cols,
-#             figsize=(
-#                 num_cols * base_size * scale_factor,
-#                 num_rows * base_size * scale_factor,
-#             ),
-#             constrained_layout=True,
-#         )
-#         # fig.tight_layout(pad=2)
-#         # fig.subplots_adjust(hspace=0.4, wspace=0.4)
-#         return fig, axs.flatten()
-
-#     def plot_ax(self):
-#         pass
-
-#     def plot_figure(self):
-#         [self.plot_ax(matrix, ax) for matrix, ax in zip(self.matrices, self.axs)]
-
-#     def identifier(self):
-#         return f"{self.group_by}_{self.between}_{self.variables}_{self.accross}"
-
-
-# class Correlogram(MatricesFigure):
-
-#     def plot_ax(self, matrix, ax):
-#         """
-#         Correlogram plotter for single correlation matrix ~ to be fed to plotExperiment()
-#         input: a single element from matricies i.e. for one treatment
-#         output:  ax with graph plotted
-#         """
-
-#         ax.set_title(
-#             matrix.get_title(), fontsize=28, pad=20, y=1
-#         )  # Adjust the y position of the title manually for square correlogram
-
-#         sns.heatmap(
-#             matrix.corr_masked,
-#             vmin=-1,
-#             vmax=1,
-#             square=True,
-#             annot=True,
-#             cmap="coolwarm",
-#             annot_kws={"size": 8},
-#             ax=ax,
-#             cbar_kws={"shrink": 0.7},  # adj color bar size
-#         )
-#         ax.set_xticklabels(
-#             ax.get_xticklabels()
-#         )  # rotation=45, horizontalalignment='right',
-
-#         ax.set_ylabel(matrix.var1, fontsize=28)
-#         ax.set_xlabel(matrix.var2, fontsize=28)
-
-
-# class NetworkFigure(MatricesFigure):
-
-#     def plot_ax(self, matrix, ax):
-#         """
-#         Correlogram plotter for single correlation matrix ~ to be fed to plotExperiment()
-#         input: a single element from matricies i.e. for one treatment
-#         output:  ax with graph plotted
-#         """
-
-#         Network(matrix).plot_ax(ax)
