@@ -32,7 +32,7 @@ from module.Matrix import Matrices
 from scipy import stats
 
 # TODO: Handle columns and more generality
-
+# @figure_cache("single_corr")
 def plot_correlation(filename, compounds, regions, treatment='vehicles'):
     # Ensure compounds and regions are lists
     compounds = [compounds] if isinstance(compounds, str) else compounds
@@ -76,6 +76,7 @@ def plot_correlation(filename, compounds, regions, treatment='vehicles'):
 
     plt.tight_layout()
     plt.show()
+    return fig
 
 
 def getAndPlotMultipleCorrelograms(

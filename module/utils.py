@@ -215,6 +215,7 @@ def select_params(stat_function):
 IDENTIFIERS = {
     "histogram": 'f"{experiment}_for_{compound}_in_{region}"',
     "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to_correlate, columns)}"',
+    "single_corr": 'f"{treatment}_{compounds}_{regions}"',
     "head_twitch_histogram": 'f"head_twitch_histogram_{experiment}_for_{vairable}"',
     "percentage_vehicles": 'f"percentage_vehicles_{experiment}_for_{compound}_in_{regions}"',
     "quantitative_summary": 'f"quantitative_summary_{experiment}_for_{to_plot}_in_{columns}"',
