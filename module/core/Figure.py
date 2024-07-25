@@ -433,6 +433,7 @@ class Correlogram(MatricesFigure):
         ax.set_xlabel(matrix.var2, fontsize=28)
 
 import networkx as nx
+from scipy.stats import norm
 
 @dataclass
 class Network(MatricesFigure):
@@ -446,6 +447,15 @@ class Network(MatricesFigure):
         super().setup_plotter_parameters()
         self.networks = parallel_process([Network(matrix) for matrix in self.matrices], description="Creating networks")
     
+    
+    def generate(self):
+        super().generate()
+        fig, axs = self.generate_figure()
+        for i in range(len(self.axs)):
+            ax = axs[i]
+            network = self.networks[i]
+            self.plot_degrees(ax, network)        
+        
     def plot_ax(self, i):
 
         ax = self.axs[i]
@@ -487,6 +497,41 @@ class Network(MatricesFigure):
         # Set title for the graph
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
+
+
+    def plot_degrees(self, ax, network):
+        '''
+        Plots histogram of node degrees from graph with a standard distribution over it.
+        input:
+            network object
+            ax to plot
+        returns:
+            ax to plot
+        '''
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+        G = network.G  # Access the graph from the Network object
+        degree_sequence = [d for n, d in G.degree()]
+        mean_degree = np.mean(degree_sequence)  
+        std_degree = np.std(degree_sequence)
+
+        # Use the max_node_degree property from the Network class
+        max_degree, mean_degree = network.node_degree
+
+        x = np.linspace(0, max_degree, 100)
+        y = norm.pdf(x, mean_degree, std_degree)
+        ax.plot(x, y, 'r-', lw=2, label=f'Standard Distribution std={std_degree:.2f}')
+        
+        ax.hist(degree_sequence, bins=np.arange(max_degree+1), edgecolor='black', alpha=0.8)
+        ax.set_title(title, fontsize=28, pad=20, y=1)  # Use the get_title method from Network class
+        ax.set_xlabel("Degree", fontsize=22)
+        ax.set_ylabel("Frequency (n nodes)", fontsize=22)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.legend(fontsize = 20)
+        ax.tick_params(axis='x', labelsize=20)  # Adjust x-axis tick label size
+        ax.tick_params(axis='y', labelsize=20) 
+
+        return ax
 
 
 @dataclass
