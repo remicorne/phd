@@ -138,7 +138,7 @@ class DataSelection:
                 group_id=self.experiment_information.groups
             )
         
-        self.treatments = list(set(self.treatment_information.label).intersection(self.data.treatment.unique()))
+        self.treatments = [label for label in self.treatment_information.label if label in self.data.treatment.unique()]
                     
         if self.remove_outliers == "eliminated":
             self.process_outliers()
