@@ -511,7 +511,9 @@ class Network(MatricesFigure):
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         G = network.G  # Access the graph from the Network object
         degree_sequence = [d for n, d in G.degree()]
-        mean_degree = np.mean(degree_sequence)  
+        node_labels_with_degrees = [(n, d) for n, d in G.degree()]
+
+        mean_degree = np.mean(degree_sequence)
         std_degree = np.std(degree_sequence)
 
         # Use the max_node_degree property from the Network class
@@ -521,13 +523,23 @@ class Network(MatricesFigure):
         y = norm.pdf(x, mean_degree, std_degree)
         ax.plot(x, y, 'r-', lw=2, label=f'Standard Distribution std={std_degree:.2f}')
         
-        ax.hist(degree_sequence, bins=np.arange(max_degree+1), edgecolor='black', alpha=0.8)
-        ax.set_title(title, fontsize=28, pad=20, y=1)  # Use the get_title method from Network class
+        # Create the histogram
+        counts, bins, patches = ax.hist(degree_sequence, bins=np.arange(max_degree + 2), edgecolor='black', alpha=0.8)
+
+        # Annotate each bar with the corresponding node labels
+        for i, patch in enumerate(patches):
+            bin_center = patch.get_x() + patch.get_width() / 2
+            labels = [n for n, d in node_labels_with_degrees if d == i]
+            if labels:
+                ax.text(bin_center, 0.06* patch.get_height(), ', '.join(labels), 
+                        ha='center', va='bottom', fontsize=28, rotation=90)
+                
+        ax.set_title(title, fontsize=28, pad=20, y=1)  # Use the get_title property from Network class
         ax.set_xlabel("Degree", fontsize=22)
         ax.set_ylabel("Frequency (n nodes)", fontsize=22)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.legend(fontsize = 20)
+        ax.legend(fontsize=20)
         ax.tick_params(axis='x', labelsize=20)  # Adjust x-axis tick label size
         ax.tick_params(axis='y', labelsize=20) 
 
