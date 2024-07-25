@@ -9,7 +9,7 @@ from module.core.Metadata import (
     TreatmentInformation,
     Palette,
 )
-from module.Matrix import Matrices
+from module.Matrix import Matrix
 from module.Network import Network
 from module.core.Constants import COMPOUNDS_AND_REGIONS
 from matplotlib import pyplot as plt
@@ -45,25 +45,26 @@ class Figure(Cacheable, DataSelection):
         extension (ClassVar[str]): The file extension for the figure. Defaults to "png".
     """
 
-    project: str
-    compound: str | list = field(kw_only=True, default=None)
-    region: str | list = field(kw_only=True, default=None)
-    experiment: str = field(kw_only=True, default=None)
-    p_value_threshold: float = field(kw_only=True, default=None)
-    remove_outliers: str = field(kw_only=True, default="calculated")
     custom_params: dict = field(kw_only=True, default_factory=dict)
     extension: ClassVar[str] = "png"
 
     def __post_init__(self):
         DataSelection.__post_init__(self)
-        if isinstance(self.compound, str):
-            self.compound_or_region = "compound"
-            self.to_plot = "region"
-        elif isinstance(self.region, str):
-            self.compound_or_region = "region"
-            self.to_plot = "compound"
+        self.setup()
         self.define_filename()
         Cacheable.__post_init__(self)
+        
+    def setup(self):
+        self.compound_or_region = "compound" if self.is_compound() else "region"
+        self.to_plot = "region" if self.is_compound() else "compound"
+        self.order = [
+                item
+                for item in COMPOUNDS_AND_REGIONS[self.to_plot]
+                if item in self.data[self.to_plot].unique()
+            ]
+        
+    def is_compound(self):
+        return isinstance(self.compound, str)
 
     def define_filename(self):
         self.filename = (
@@ -101,7 +102,7 @@ class Histogram(Figure):
     figure_type: ClassVar[str] = "histogram"
 
     def setup_plotter_parameters(self):
-        self.is_summary = isinstance(self.compound, list) or isinstance(self.region, list)
+        self.is_summary = isinstance(self.compound, list) or isinstance(self.region, list) or self.compound is None or self.region is None
         self.hue = self.swarm_hue = "treatment"
         self.palette = (
             self.experiment_information.palette
@@ -120,11 +121,6 @@ class Histogram(Figure):
             self.ylabel = (
                 f"{self.compound_or_region} {self.ylabel} +/-98CI"
             )
-            self.order = [
-                item
-                for item in COMPOUNDS_AND_REGIONS[self.to_plot]
-                if item in self.data[self.to_plot].unique()
-            ]
             self.title = ""
 
     def generate(self):
@@ -218,8 +214,8 @@ class Histogram(Figure):
             dodge=custom_params.get("dodge", True),
             width=custom_params.get("bar_width", 0.8)
         )
-        self.ax.tick_params(labelsize=36)
-        self.ax.set_ylabel(self.ylabel, fontsize=38, labelpad=custom_params.get("labelpad", 100))
+        self.ax.tick_params(labelsize=16)
+        self.ax.set_ylabel(self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100))
         self.ax.yaxis.set_label_coords(custom_params.get("ylabel_x",  -0.459 / fig_width), 0.5)
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
@@ -275,8 +271,8 @@ class Histogram(Figure):
         for statistics in self._statistics:
             if statistics.is_significant:
                 # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
-                base_font_size = 36
-                scaling_factor = 0.48
+                base_font_size = 24
+                scaling_factor = 0.2
                 dynamic_font_size = max(
                     base_font_size - (scaling_factor * len(self.order)), 6
                 )
@@ -299,7 +295,7 @@ class Histogram(Figure):
                                 symbol,
                                 ha="center",
                                 va="bottom",
-                                fontsize=40, #dynamic_font_size
+                                fontsize=dynamic_font_size
                             )
                             break
 
@@ -307,9 +303,190 @@ class Histogram(Figure):
         # kwargs["palette"] = {**self.palette, **kwargs.get("palette", {})}
         self.custom_params = kwargs
         self.initialize()
-        
-        
 
+@dataclass
+class MatricesFigure(Figure):
+    
+    columns: list[str] = field(default=None)
+    n_minimum: float = field(default=5)
+    method: float = field(default='pearson')
+    
+    def __post_init__(self):
+        if self.compound and '-' in self.compound:
+            self.compound = self.compound.split('-')
+        if self.region and '-' in self.region:
+            self.region = self.region.split('-')
+        super().__post_init__()
+    
+    def setup(self):
+        super().setup()
+        c_or_r = getattr(self, self.compound_or_region)
+        self.var1 = c_or_r[0] if isinstance(c_or_r, list) else c_or_r
+        self.var2 = c_or_r[-1] if isinstance(c_or_r, list) else c_or_r
+        self.is_square = self.var1 != self.var2
+        
+    def is_compound(self):
+        return isinstance(self.compound, str) or len
+    def setup_plotter_parameters(self):
+        self.build_matrices()
+        self.homogenize_matrices()
+        
+    def build_matrices(self):
+        cases = [
+            Matrix(
+                self.data.select(treatment=treatment),
+                treatment,
+                self.compound_or_region,
+                self.var1,
+                self.var2,
+                self.to_plot,
+                self.order,
+                self.n_minimum,
+                self.method,
+                self.p_value_threshold,
+            
+            ) for treatment in self.treatments
+        ]  # Setup multiprocessing pool
+        self.matrices = parallel_process(cases, description="Creating matrices")
+
+    def homogenize_matrices(self):
+        conserved_rows = set.intersection(
+            *(set(matrix.corr_masked.index) for matrix in self.matrices)
+        )
+        conserved_cols = set.intersection(
+            *(set(matrix.corr_masked.columns) for matrix in self.matrices)
+        )
+
+        for matrix in self.matrices:
+            rows_to_drop = [
+                row for row in matrix.corr_masked.index if row not in conserved_rows
+            ]
+            cols_to_drop = [
+                col for col in matrix.corr_masked.columns if col not in conserved_cols
+            ]
+            matrix.corr_masked = matrix.corr_masked.drop(index=rows_to_drop, columns=cols_to_drop)
+
+    def generate(self):
+        self.setup_plotter_parameters()
+        self.fig, self.axs = self.generate_figure()
+        for i in range(len(self.axs)):
+            self.plot_ax(i)
+        
+                
+    def generate_figure(self):
+        # determin number of treatments to corrispond to number of subplots
+        num_treatments = len(self.matrices)
+        num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns
+        num_rows = (num_treatments + num_cols - 1) // num_cols  # Compute the number of rows
+
+        # define the base size and a scaling factor for the figure size
+        base_size = 11
+        scale_factor = 1
+
+        # create subplots
+        fig, axs = plt.subplots(
+            num_rows,
+            num_cols,
+            figsize=(
+                num_cols * base_size * scale_factor,
+                num_rows * base_size * scale_factor,
+            ),
+            constrained_layout=True,
+        )
+        # fig.tight_layout(pad=2)
+        # fig.subplots_adjust(hspace=0.4, wspace=0.4)
+        return fig, axs.flatten()
+    
+    def plot_ax(self, i):
+        raise NotImplementedError("Must be implemented in subclass")
+    
+ 
+@dataclass
+class Correlogram(MatricesFigure):
+
+    def plot_ax(self, i):
+        
+        ax = self.axs[i]
+        matrix = self.matrices[i]
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
+        
+        ax.set_title(
+            title, fontsize=28, pad=20, y=1
+        )  # Adjust the y position of the title manually for square correlogram
+
+        sns.heatmap(
+            matrix.corr_masked,
+            vmin=-1,
+            vmax=1,
+            square=True,
+            annot=True,
+            cmap="coolwarm",
+            annot_kws={"size": 8},
+            ax=ax,
+            cbar_kws={"shrink": 0.7},  # adj color bar size
+        )
+        ax.set_xticklabels(
+            ax.get_xticklabels()
+        )  # rotation=45, horizontalalignment='right',
+
+        ax.set_ylabel(matrix.var1, fontsize=28)
+        ax.set_xlabel(matrix.var2, fontsize=28)
+
+import networkx as nx
+
+@dataclass
+class Network(MatricesFigure):
+    
+    def define_filename(self):
+        super().define_filename()
+        self.filename = self.filename.replace('-', '->')
+    
+    def setup_plotter_parameters(self):
+        from module.core.Matrix import Network
+        super().setup_plotter_parameters()
+        self.networks = parallel_process([Network(matrix) for matrix in self.matrices], description="Creating networks")
+    
+    def plot_ax(self, i):
+
+        ax = self.axs[i]
+        network = self.networks[i]
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+        nx.draw_networkx_nodes(
+            network.G,
+            network.pos,
+            node_size=1100,
+            alpha=0.95,
+            node_color="white",
+            edgecolors="black",
+            ax=ax,
+        )
+        nx.draw_networkx_edges(
+            network.G,
+            network.pos,
+            width=list(nx.get_edge_attributes(network.G, "weight").values()),
+            edge_color=list(nx.get_edge_attributes(network.G, "color").values()),
+            ax=ax,
+            node_size=1100,
+            **(
+                {"arrowstyle": "->", "arrowsize": 20}
+                if network.is_directed
+                else {}
+            ),
+        )
+        # Add labels to nodes
+        node_labels = {
+            node: node for node in network.G.nodes()
+        }  # Label nodes with their names
+        nx.draw_networkx_labels(
+            network.G, network.pos, labels=node_labels, font_size=18, ax=ax
+        )    
+        # nx.draw_networkx_edge_labels(
+        #     network.G, network.pos, edge_labels=network.edge_labels, font_size=18, ax=ax
+        # )
+
+        # Set title for the graph
+        ax.set_frame_on(False)
+        ax.set_title(title, fontsize=28, pad=-10, y=1)
 
 
 @dataclass

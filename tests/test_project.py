@@ -79,14 +79,14 @@ class TestProject(unittest.TestCase):
         assert len(project.statistics.significant_results) == 6
 
         assert Histogram(
-            "TCB2",
+            project="TCB2",
             experiment="dose response",
             compound="5HIAA/5HT",
             region="OF",
             from_scratch=True,
         ).statistics.is_significant.to_list() == [True, True]
         assert Histogram(
-            "TCB2",
+            project="TCB2",
             experiment="dose response",
             compound="5HIAA/5HT",
             from_scratch=True,
