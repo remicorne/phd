@@ -28,6 +28,7 @@ from module.core.Statistics import Statistics
 from module.core.questions import input_list, yes_or_no
 from module.core.DataSelection import DataSelection
 
+
 @dataclass
 class Figure(Cacheable, DataSelection):
     """
@@ -53,16 +54,16 @@ class Figure(Cacheable, DataSelection):
         self.setup()
         self.define_filename()
         Cacheable.__post_init__(self)
-        
+
     def setup(self):
         self.compound_or_region = "compound" if self.is_compound() else "region"
         self.to_plot = "region" if self.is_compound() else "compound"
         self.order = [
-                item
-                for item in COMPOUNDS_AND_REGIONS[self.to_plot]
-                if item in self.data[self.to_plot].unique()
-            ]
-        
+            item
+            for item in COMPOUNDS_AND_REGIONS[self.to_plot]
+            if item in self.data[self.to_plot].unique()
+        ]
+
     def is_compound(self):
         return isinstance(self.compound, str)
 
@@ -70,7 +71,7 @@ class Figure(Cacheable, DataSelection):
         self.filename = (
             f"{self.compound} in {self.region if self.region else 'all regions'}"
         )
-        
+
     def save(self):
         self.fig.savefig(self.filepath)
         print(f"SAVED {self.filepath}")
@@ -102,7 +103,12 @@ class Histogram(Figure):
     figure_type: ClassVar[str] = "histogram"
 
     def setup_plotter_parameters(self):
-        self.is_summary = isinstance(self.compound, list) or isinstance(self.region, list) or self.compound is None or self.region is None
+        self.is_summary = (
+            isinstance(self.compound, list)
+            or isinstance(self.region, list)
+            or self.compound is None
+            or self.region is None
+        )
         self.hue = self.swarm_hue = "treatment"
         self.palette = (
             self.experiment_information.palette
@@ -118,9 +124,7 @@ class Histogram(Figure):
         )
         self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
-            self.ylabel = (
-                f"{self.compound_or_region} {self.ylabel} +/-98CI"
-            )
+            self.ylabel = f"{self.compound_or_region} {self.ylabel} +/-98CI"
             self.title = ""
 
     def generate(self):
@@ -212,11 +216,15 @@ class Histogram(Figure):
             hue_order=custom_params.get("hue_order", self.hue_order),
             errwidth=custom_params.get("errwidth", 1),
             dodge=custom_params.get("dodge", True),
-            width=custom_params.get("bar_width", 0.8)
+            width=custom_params.get("bar_width", 0.8),
         )
         self.ax.tick_params(labelsize=16)
-        self.ax.set_ylabel(self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100))
-        self.ax.yaxis.set_label_coords(custom_params.get("ylabel_x",  -0.459 / fig_width), 0.5)
+        self.ax.set_ylabel(
+            self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100)
+        )
+        self.ax.yaxis.set_label_coords(
+            custom_params.get("ylabel_x", -0.459 / fig_width), 0.5
+        )
         self.ax.set_xlabel(" ", fontsize=20)  # remove x title
         self.ax.set_title(self.title, y=1.04, fontsize=34)
         self.ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
@@ -295,7 +303,7 @@ class Histogram(Figure):
                                 symbol,
                                 ha="center",
                                 va="bottom",
-                                fontsize=dynamic_font_size
+                                fontsize=dynamic_font_size,
                             )
                             break
 
@@ -304,33 +312,35 @@ class Histogram(Figure):
         self.custom_params = kwargs
         self.initialize()
 
+
 @dataclass
 class MatricesFigure(Figure):
-    
+
     columns: list[str] = field(default=None)
     n_minimum: float = field(default=5)
-    method: float = field(default='pearson')
-    
+    method: float = field(default="pearson")
+
     def __post_init__(self):
-        if self.compound and '-' in self.compound:
-            self.compound = self.compound.split('-')
-        if self.region and '-' in self.region:
-            self.region = self.region.split('-')
+        if self.compound and "-" in self.compound:
+            self.compound = self.compound.split("-")
+        if self.region and "-" in self.region:
+            self.region = self.region.split("-")
         super().__post_init__()
-    
+
     def setup(self):
         super().setup()
         c_or_r = getattr(self, self.compound_or_region)
         self.var1 = c_or_r[0] if isinstance(c_or_r, list) else c_or_r
         self.var2 = c_or_r[-1] if isinstance(c_or_r, list) else c_or_r
         self.is_square = self.var1 != self.var2
-        
+
     def is_compound(self):
         return isinstance(self.compound, str) or len
+
     def setup_plotter_parameters(self):
         self.build_matrices()
         self.homogenize_matrices()
-        
+
     def build_matrices(self):
         cases = [
             Matrix(
@@ -344,8 +354,8 @@ class MatricesFigure(Figure):
                 self.n_minimum,
                 self.method,
                 self.p_value_threshold,
-            
-            ) for treatment in self.treatments
+            )
+            for treatment in self.treatments
         ]  # Setup multiprocessing pool
         self.matrices = parallel_process(cases, description="Creating matrices")
 
@@ -364,20 +374,23 @@ class MatricesFigure(Figure):
             cols_to_drop = [
                 col for col in matrix.corr_masked.columns if col not in conserved_cols
             ]
-            matrix.corr_masked = matrix.corr_masked.drop(index=rows_to_drop, columns=cols_to_drop)
+            matrix.corr_masked = matrix.corr_masked.drop(
+                index=rows_to_drop, columns=cols_to_drop
+            )
 
     def generate(self):
         self.setup_plotter_parameters()
         self.fig, self.axs = self.generate_figure()
         for i in range(len(self.axs)):
             self.plot_ax(i)
-        
-                
+
     def generate_figure(self):
         # determin number of treatments to corrispond to number of subplots
         num_treatments = len(self.matrices)
         num_cols = min(int(np.sqrt(num_treatments)), 2)  # max of 2 columns
-        num_rows = (num_treatments + num_cols - 1) // num_cols  # Compute the number of rows
+        num_rows = (
+            num_treatments + num_cols - 1
+        ) // num_cols  # Compute the number of rows
 
         # define the base size and a scaling factor for the figure size
         base_size = 11
@@ -396,20 +409,20 @@ class MatricesFigure(Figure):
         # fig.tight_layout(pad=2)
         # fig.subplots_adjust(hspace=0.4, wspace=0.4)
         return fig, axs.flatten()
-    
+
     def plot_ax(self, i):
         raise NotImplementedError("Must be implemented in subclass")
-    
- 
+
+
 @dataclass
 class Correlogram(MatricesFigure):
 
     def plot_ax(self, i):
-        
+
         ax = self.axs[i]
         matrix = self.matrices[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
-        
+
         ax.set_title(
             title, fontsize=28, pad=20, y=1
         )  # Adjust the y position of the title manually for square correlogram
@@ -432,30 +445,35 @@ class Correlogram(MatricesFigure):
         ax.set_ylabel(matrix.var1, fontsize=28)
         ax.set_xlabel(matrix.var2, fontsize=28)
 
+
 import networkx as nx
 from scipy.stats import norm
 
+
 @dataclass
 class Network(MatricesFigure):
-    
+
     def define_filename(self):
         super().define_filename()
-        self.filename = self.filename.replace('-', '->')
-    
+        self.filename = self.filename.replace("-", "->")
+
     def setup_plotter_parameters(self):
         from module.core.Matrix import Network
+
         super().setup_plotter_parameters()
-        self.networks = parallel_process([Network(matrix) for matrix in self.matrices], description="Creating networks")
-    
-    
+        self.networks = parallel_process(
+            [Network(matrix) for matrix in self.matrices],
+            description="Creating networks",
+        )
+
     def generate(self):
         super().generate()
         fig, axs = self.generate_figure()
         for i in range(len(self.axs)):
             ax = axs[i]
             network = self.networks[i]
-            self.plot_degrees(ax, network)        
-        
+            self.plot_degrees(ax, network)
+
     def plot_ax(self, i):
 
         ax = self.axs[i]
@@ -477,11 +495,7 @@ class Network(MatricesFigure):
             edge_color=list(nx.get_edge_attributes(network.G, "color").values()),
             ax=ax,
             node_size=1100,
-            **(
-                {"arrowstyle": "->", "arrowsize": 20}
-                if network.is_directed
-                else {}
-            ),
+            **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
         )
         # Add labels to nodes
         node_labels = {
@@ -489,7 +503,7 @@ class Network(MatricesFigure):
         }  # Label nodes with their names
         nx.draw_networkx_labels(
             network.G, network.pos, labels=node_labels, font_size=18, ax=ax
-        )    
+        )
         # nx.draw_networkx_edge_labels(
         #     network.G, network.pos, edge_labels=network.edge_labels, font_size=18, ax=ax
         # )
@@ -498,16 +512,15 @@ class Network(MatricesFigure):
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
 
-
     def plot_degrees(self, ax, network):
-        '''
+        """
         Plots histogram of node degrees from graph with a standard distribution over it.
         input:
             network object
             ax to plot
         returns:
             ax to plot
-        '''
+        """
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         G = network.G  # Access the graph from the Network object
         degree_sequence = [d for n, d in G.degree()]
@@ -521,33 +534,54 @@ class Network(MatricesFigure):
 
         x = np.linspace(0, max_degree, 100)
         y = norm.pdf(x, mean_degree, std_degree)
-        ax.plot(x, y, 'r-', lw=2, label=f'Standard Distribution std={std_degree:.2f}')
-        
+        ax.plot(x, y, "r-", lw=2, label=f"Standard Distribution std={std_degree:.2f}")
+
         # Create the histogram
-        counts, bins, patches = ax.hist(degree_sequence, bins=np.arange(max_degree + 2), edgecolor='black', alpha=0.8)
+        counts, bins, patches = ax.hist(
+            degree_sequence,
+            bins=np.arange(max_degree + 2),
+            edgecolor="black",
+            alpha=0.8,
+        )
 
         # Annotate each bar with the corresponding node labels
         for i, patch in enumerate(patches):
             bin_center = patch.get_x() + patch.get_width() / 2
             labels = [n for n, d in node_labels_with_degrees if d == i]
             if labels:
-                ax.text(bin_center, 0.06* patch.get_height(), ', '.join(labels), 
-                        ha='center', va='bottom', fontsize=28, rotation=90)
-                
-        ax.set_title(title, fontsize=28, pad=20, y=1)  # Use the get_title property from Network class
+                ax.text(
+                    bin_center,
+                    0.06 * patch.get_height(),
+                    ", ".join(labels),
+                    ha="center",
+                    va="bottom",
+                    fontsize=28,
+                    rotation=90,
+                )
+
+        ax.set_title(
+            title, fontsize=28, pad=20, y=1
+        )  # Use the get_title property from Network class
         ax.set_xlabel("Degree", fontsize=22)
         ax.set_ylabel("Frequency (n nodes)", fontsize=22)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
         ax.legend(fontsize=20)
-        ax.tick_params(axis='x', labelsize=20)  # Adjust x-axis tick label size
-        ax.tick_params(axis='y', labelsize=20) 
+        ax.tick_params(axis="x", labelsize=20)  # Adjust x-axis tick label size
+        ax.tick_params(axis="y", labelsize=20)
 
         return ax
 
 
 @dataclass
 class Table(ExcelDataset, Figure):
+
+    def setup(self):
+        self.order = [
+            item
+            for item in COMPOUNDS_AND_REGIONS["region"]
+            if item in self.data["region"].unique()
+        ]
 
     def generate(self):
         grouped = (
@@ -574,4 +608,3 @@ class Table(ExcelDataset, Figure):
 
         # Sort the multiindex columns
         return pivot_df.sort_index(axis=1).loc[self.order, :]
-
