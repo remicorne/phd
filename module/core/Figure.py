@@ -588,7 +588,7 @@ class Table(ExcelDataset, Figure):
             self.data.groupby(["region", "compound", "treatment"])
             .agg(
                 mean_value=("value", "mean"),
-                sem_value=("value", lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+                sem_value=("value", lambda x: np.std(x, ddof=1)),
             )
             .reset_index()
         )
@@ -607,4 +607,4 @@ class Table(ExcelDataset, Figure):
         )
 
         # Sort the multiindex columns
-        return pivot_df.sort_index(axis=1).loc[self.order, :]
+        return pivot_df.sort_index(axis=1).loc[self.order, self.compound]
