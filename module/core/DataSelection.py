@@ -95,6 +95,7 @@ class DataSelection:
 
     project: str | list = field(kw_only=True)
     experiment: str = field(kw_only=True, default=None)
+    treatment: str = field(kw_only=True, default=None)
     compound: str | list = field(kw_only=True, default=None)
     region: str | list = field(kw_only=True, default=None)
     remove_outliers: str | bool = field(kw_only=True, default=None)
@@ -117,11 +118,12 @@ class DataSelection:
         )
 
         self.experiment_options = self.experiment_information.experiments
+        self.treatment_options = self.treatment_information.label.unique()
         self.compound_options = self.data.compound.unique()
         self.region_options = self.data.region.unique()
         self.remove_outliers_options = ["calculated", "eliminated", False]
         
-        for name in ["experiment", "compound", "region"]:
+        for name in ["experiment", "treatment", "compound", "region"]:
             options = getattr(self, name + "_options")
             if getattr(self, name) is not None:
                 processed_parameter = self.process_parameter(name, options)
@@ -138,7 +140,10 @@ class DataSelection:
                 group_id=self.experiment_information.groups
             )
         
-        self.treatments = [label for label in self.treatment_information.label if label in self.data.treatment.unique()]
+        if self.treatment:
+            self.data = self.data.select(treatment=self.treatment)
+        
+        self.treatments = self.treatment or [label for label in self.treatment_information.label if label in self.data.treatment.unique()]
                     
         if self.remove_outliers == "eliminated":
             self.process_outliers()
