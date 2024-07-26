@@ -114,7 +114,7 @@ class PickleDataset(Dataset):
 
     extension: ClassVar[str] = "pkl"
 
-    def save(self, data):
+    def save(self, data: pd.DataFrame):
         data.to_pickle(self.filepath)
 
     def load(self):
@@ -126,8 +126,8 @@ class ExcelDataset(Dataset):
 
     extension: ClassVar[str] = "xlsx"
 
-    def save(self, data):
-        data.to_excel(self.filepath, index=False)
+    def save(self, data: pd.DataFrame):
+        data.to_excel(self.filepath)
 
     def load(self):
         return pd.read_excel(self.filepath)

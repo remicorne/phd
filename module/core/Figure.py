@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from module.core.Cacheable import Cacheable
-from module.core.Dataset import SelectableDataFrame
+from module.core.Dataset import SelectableDataFrame, ExcelDataset
 from module.core.Statistics import Statistics, QuantitativeStatistic
 from module.core.Outliers import Outliers
 from module.core.Metadata import (
@@ -547,16 +547,9 @@ class Network(MatricesFigure):
 
 
 @dataclass
-class Table(Figure):
-
-    def setup_plotter_parameters(self):
-        pass
-
-    def plot(self):
-        pass
+class Table(ExcelDataset, Figure):
 
     def generate(self):
-        super().generate()
         grouped = (
             self.data.groupby(["region", "compound", "treatment"])
             .agg(
@@ -580,4 +573,5 @@ class Table(Figure):
         )
 
         # Sort the multiindex columns
-        return pivot_df.sort_index(axis=1)
+        return pivot_df.sort_index(axis=1).loc[self.order, :]
+
