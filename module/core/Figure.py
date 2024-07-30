@@ -10,7 +10,7 @@ from module.core.Metadata import (
     Palette,
 )
 from module.core.Matrix import Matrix
-from module.Network import Network
+# from module.Network import Network
 from module.core.Constants import COMPOUNDS_AND_REGIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
