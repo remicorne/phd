@@ -432,15 +432,18 @@ class Correlogram(MatricesFigure):
             vmin=-1,
             vmax=1,
             square=True,
-            annot=True,
+            # annot=True, #R value annotations
             cmap="coolwarm",
             annot_kws={"size": 8},
             ax=ax,
             cbar_kws={"shrink": 0.7},  # adj color bar size
         )
         ax.set_xticklabels(
-            ax.get_xticklabels()
-        )  # rotation=45, horizontalalignment='right',
+            ax.get_xticklabels(), rotation=45, ha='center', fontsize = 12,
+        )  
+        ax.set_yticklabels(
+            ax.get_yticklabels(), rotation=45, va='center', fontsize = 12,
+        ) 
 
         ax.set_ylabel(matrix.var1, fontsize=28)
         ax.set_xlabel(matrix.var2, fontsize=28)
