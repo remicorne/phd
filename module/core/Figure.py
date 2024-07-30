@@ -9,7 +9,7 @@ from module.core.Metadata import (
     TreatmentInformation,
     Palette,
 )
-from module.Matrix import Matrix
+from module.core.Matrix import Matrix
 from module.Network import Network
 from module.core.Constants import COMPOUNDS_AND_REGIONS
 from matplotlib import pyplot as plt
