@@ -47,7 +47,7 @@ class Matrix:
         variables (str):         'var1-var2' to correlate from type 'between'. If only one: self correlation.
         accross (str): The column that will constitute the rows/cols of the matrix.
         columns (list[str]): Columns to include in the analysis. If None, all columns are included.
-        n_minimum (int): Minumum occurnces of overlapping var1 and var2. Default = 5.
+        n_minimum (int): Minumum occurnces of overlapping var1 and var2 to be correlated. Default = 5.
         method (str): Correlation method ('pearson', 'spearman', 'kendall'). Default = "pearson".
         pvalue_threshold (float): Threshold for significance in correlation. Defult = 0.05
 
@@ -160,7 +160,7 @@ class Matrix:
             pd.DataFrame: A DataFrame containing the requested correlation matrix.
         """
         method = correlate(self.method, result_type)
-        return self.pivot.corr(method=method, min_periods=self.n_minimum + 1).loc[
+        return self.pivot.corr(method=method, min_periods=self.n_minimum).loc[
             tuple([self.var1, self.var2])
         ]
 
