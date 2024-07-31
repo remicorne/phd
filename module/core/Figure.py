@@ -335,7 +335,7 @@ class MatricesFigure(Figure):
         self.is_square = self.var1 != self.var2
 
     def is_compound(self):
-        return isinstance(self.compound, str) or len
+        return isinstance(self.compound, str)
 
     def setup_plotter_parameters(self):
         self.build_matrices()
@@ -577,6 +577,49 @@ class Network(MatricesFigure):
 
         return ax
 
+
+from scipy import stats
+
+@dataclass
+class Correlation(MatricesFigure):
+    
+    figure_type: str = "correlation"
+    
+    
+    def define_filename(self):
+        self.filename = f"{self.compound} in {self.region}"
+    
+    def generate(self):
+        compound = self.compound if isinstance(self.compound, list) else [self.compound]
+        region = self.region if isinstance(self.region, list) else [self.region]
+        
+        x_data = self.data.select(compound=compound[0], region=region[0])
+        y_data = self.data.select(compound=compound[-1], region=region[-1])
+        common_mouse_ids = list(set(x_data.mouse_id).intersection(set(y_data.mouse_id)))
+        x_data = x_data.set_index('mouse_id').loc[common_mouse_ids].value.values
+        y_data = y_data.set_index('mouse_id').loc[common_mouse_ids].value.values
+        
+        x_label = f"{compound[0]} in {region[0]} (ng/mg)"
+        y_label = f"{compound[-1]} in {region[-1]} (ng/mg)"
+        pearson_r, p_value = stats.pearsonr(x_data, y_data)
+        color = 'red' if pearson_r > 0 else 'blue'
+
+        # Create the plot
+        self.fig, ax = plt.subplots()
+        sns.scatterplot(x=x_data, y=y_data, ax=ax, marker='o', s=30, color='black')
+        sns.regplot(x=x_data, y=y_data, ci=95, ax=ax, scatter=False, line_kws={"color": color})
+
+        ax.set_xlabel(x_label, fontsize=22)
+        ax.set_ylabel(y_label, fontsize=22)
+        ax.spines[['right', 'top']].set_visible(False)
+        ax.set_title(self.treatment)
+
+        # Add correlation values as text
+        labels = f'Pearson R: {pearson_r:.2f}\np-value: {p_value:.4f}'
+        ax.text(0.05, 0.9, labels, transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='white', boxstyle='round'))
+
+        plt.tight_layout()
+        plt.show()
 
 @dataclass
 class Table(ExcelDataset, Figure):
