@@ -97,7 +97,19 @@ class Matrix:
             self.correlate()
             self.find_missing_overlap()
             self.process_triangle_correlogram()
+            self.get_title
 
+    def get_title(self):
+        """
+        Generates a title for the correlogram based on the matrix configuration.
+
+        Returns:
+            str: A title string.
+        """
+        if self.is_square:
+            return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
+        return f"{self.var1} in {self.grouping}"  
+    
     def filter_missing_values(self):
         """
         Filters out variables with occurrences less than n_minimum and updates missing_values list.
@@ -347,6 +359,11 @@ class Network:
             # self.global_efficiency = self.calculate_global_efficiency()
             # self.characteristic_path_length = self.calculate_characteristic_path_length()
 
+    def get_title(self):
+        """Generates a formatted title for the network graph."""
+        title = self.matrix.get_title()
+        return title.replace('-', '->') if self.is_directed else title
+    
     def edge_count(self):
         """
         Returns the total number of edges, positive edges, and negative edges in the graph.

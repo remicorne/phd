@@ -583,6 +583,15 @@ class Network(MatricesFigure):
         ax.tick_params(axis="x", labelsize=20)  # Adjust x-axis tick label size
         ax.tick_params(axis="y", labelsize=20)
 
+        # HACKY PRINT 
+        title = network.get_title()
+        print(title)
+        print(
+            f"edges = {network.total_edges}, pos = {network.pos_edges}, neg = {network.neg_edges}", 
+            f"density = {network.density}, max degree = {network.max_degree}, average degree = {network.average_degree}", 
+            f"unweighted clustering co = {network.avg_clust_coeff_unweighted}"
+        )
+
         return ax
 
 
