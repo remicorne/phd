@@ -100,7 +100,7 @@ class Histogram(Figure):
     __doc__ += Figure.__doc__
 
     plot_swarm: bool = field(default=True)
-    figure_type: ClassVar[str] = "histogram"
+    figure_type: str = "histogram"
 
     def setup_plotter_parameters(self):
         self.is_summary = (
@@ -417,6 +417,7 @@ class MatricesFigure(Figure):
 @dataclass
 class Correlogram(MatricesFigure):
 
+    figure_type: str = "correlogram"
     def plot_ax(self, i):
 
         ax = self.axs[i]
@@ -456,6 +457,7 @@ from scipy.stats import norm
 @dataclass
 class Network(MatricesFigure):
 
+    figure_type: str = "network"
     def define_filename(self):
         super().define_filename()
         self.filename = self.filename.replace("-", "->")
@@ -578,6 +580,8 @@ class Network(MatricesFigure):
 
 @dataclass
 class Table(ExcelDataset, Figure):
+
+    figure_type: str = field(default="table", init=False)
 
     def setup(self):
         self.order = [
