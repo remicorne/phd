@@ -330,10 +330,6 @@ class Network:
                     
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
-        
-                ##### Draw the graph
-            # pos = nx.spring_layout(G, seed=42)  # using a seed for consistency need allensdk working
-
             angles = np.linspace(
                 0, 2 * np.pi, len(self.matrix.corr_masked.columns), endpoint=False
             )
@@ -341,15 +337,37 @@ class Network:
                 col: (np.cos(angles[i]), np.sin(angles[i]))
                 for i, col in enumerate(self.matrix.corr_masked.columns)
             }
+
+            self.total_edges, self.pos_edges, self.neg_edges = self.edge_count()
+            self.density = self.calculate_graph_density()
             self.max_degree, self.average_degree = self.calculate_node_degree()
-            self.node_degree = self.calculate_node_degree()
-            self.graph_density = self.calculate_graph_density()
+            self.avg_clust_coeff_unweighted, self.avg_clust_coeff_weighted = self.calculate_clustering_coefficient()
+
             # self.local_efficiency = self.calculate_local_efficiency()
             # self.global_efficiency = self.calculate_global_efficiency()
-            # self.clustering_coefficient = self.calculate_clustering_coefficient()
             # self.characteristic_path_length = self.calculate_characteristic_path_length()
 
+    def edge_count(self):
+        """
+        Returns the total number of edges, positive edges, and negative edges in the graph.
 
+        Returns:
+            total_edges (int): The total number of edges in the graph.
+            pos_edges (int): The number of edges with positive weights.
+            neg_edges (int): The number of edges with negative weights.
+        """
+        total_edges = self.G.number_of_edges()
+        pos_edges = 0
+        neg_edges = 0
+
+        for u, v, data in self.G.edges(data=True):
+            color = data.get('color')  
+            if color == 'red':
+                pos_edges += 1
+            elif color == 'blue':
+                neg_edges += 1
+        return total_edges, pos_edges, neg_edges
+    
     def calculate_node_degree(self):
         """
         Returns:
@@ -374,64 +392,10 @@ class Network:
             max_edges = num_nodes * (num_nodes - 1)
         else:
             max_edges = num_nodes * (num_nodes - 1) / 2
-
         return num_edges / max_edges if max_edges > 0 else 0
     
 
-    def calculate_local_efficiency(self):
-        """
-        Returns:
-            avg_local_eff_unweighted (float):  average unweighted local efficiency for i nodes.
-            avg_local_eff_weighted (float):  average weighted local efficiency for i nodes.
-        """
-        local_eff_unweighted = 0
-        local_eff_weighted = 0
-        total_nodes = len(self.G.nodes())
-
-        for node in self.G.nodes():
-            # Determine neighbors for directed and undirected graphs
-            if self.is_directed:
-                neighbors = list(set(nx.predecessors(self.G, node)) | set(nx.successors(self.G, node)))
-            else:
-                neighbors = list(nx.neighbors(self.G, node))
-
-            if len(neighbors) > 1:
-                subgraph = self.G.subgraph(neighbors)
-                # Calculate unweighted local efficiency
-                local_eff_unweighted += nx.global_efficiency(subgraph)
-
-                # Calculate weighted local efficiency
-                # Ensure weights are considered in the subgraph efficiency calculation
-                local_eff_weighted += nx.global_efficiency(subgraph, weight='weight')
-
-        # Calculate average efficiencies
-        avg_local_eff_unweighted = local_eff_unweighted / total_nodes if total_nodes > 0 else 0
-        avg_local_eff_weighted = local_eff_weighted / total_nodes if total_nodes > 0 else 0
-        return avg_local_eff_unweighted, avg_local_eff_weighted
     
- 
-    def calculate_global_efficiency(self):
-        """
-        Calculates the average unweighted and weighted global efficiency of the graph.
-
-        Returns:
-            avg_global_eff_unweighted (float): The average unweighted global efficiency of the graph.
-            avg_global_eff_weighted (float): The average weighted global efficiency of the graph.
-        """
-        # Unweighted Global Efficiency
-        avg_global_eff_unweighted = nx.global_efficiency(self.G)
-
-        # Weighted Global Efficiency
-        # Inverting weights for efficiency calculation as smaller weights imply stronger connections
-        G_copy = self.G.copy()
-        inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
-        nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
-        avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
-
-
-        return avg_global_eff_unweighted, avg_global_eff_weighted
-    
-  
     def calculate_clustering_coefficient(self):
         """
         Calculates the average unweighted and weighted clustering coefficients for the graph.
@@ -454,26 +418,79 @@ class Network:
 
         return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
     
+    # def calculate_local_efficiency(self):
+    #     """
+    #     Returns:
+    #         avg_local_eff_unweighted (float):  average unweighted local efficiency for i nodes.
+    #         avg_local_eff_weighted (float):  average weighted local efficiency for i nodes.
+    #     """
+    #     local_eff_unweighted = 0
+    #     local_eff_weighted = 0
+    #     total_nodes = len(self.G.nodes())
 
-    def calculate_characteristic_path_length(self):
-        """
-        Calculates the average unweighted and weighted characteristic path length of the graph.
+    #     for node in self.G.nodes():
+    #         # Determine neighbors for directed and undirected graphs
+    #         if self.is_directed:
+    #             neighbors = list(set(nx.predecessors(self.G, node)) | set(nx.successors(self.G, node)))
+    #         else:
+    #             neighbors = list(nx.neighbors(self.G, node))
 
-        Returns:
-            avg_path_length_unweighted (float): The average unweighted characteristic path length of the graph.
-            avg_path_length_weighted (float): The average weighted characteristic path length of the graph.
-        """
-        if nx.is_connected(self.G):
-            avg_path_length_unweighted = nx.average_shortest_path_length(self.G)
+    #         if len(neighbors) > 1:
+    #             subgraph = self.G.subgraph(neighbors)
+    #             # Calculate unweighted local efficiency
+    #             local_eff_unweighted += nx.global_efficiency(subgraph)
+
+    #             # Calculate weighted local efficiency
+    #             # Ensure weights are considered in the subgraph efficiency calculation
+    #             local_eff_weighted += nx.global_efficiency(subgraph, weight='weight')
+
+    #     # Calculate average efficiencies
+    #     avg_local_eff_unweighted = local_eff_unweighted / total_nodes if total_nodes > 0 else 0
+    #     avg_local_eff_weighted = local_eff_weighted / total_nodes if total_nodes > 0 else 0
+    #     return avg_local_eff_unweighted, avg_local_eff_weighted
+
+    # def calculate_global_efficiency(self):
+    #     """
+    #     Calculates the average unweighted and weighted global efficiency of the graph.
+
+    #     Returns:
+    #         avg_global_eff_unweighted (float): The average unweighted global efficiency of the graph.
+    #         avg_global_eff_weighted (float): The average weighted global efficiency of the graph.
+    #     """
+    #     # Unweighted Global Efficiency
+    #     avg_global_eff_unweighted = nx.global_efficiency(self.G)
+
+    #     # Weighted Global Efficiency
+    #     # Inverting weights for efficiency calculation as smaller weights imply stronger connections
+    #     G_copy = self.G.copy()
+    #     inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
+    #     nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
+    #     avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
+
+
+    #     return avg_global_eff_unweighted, avg_global_eff_weighted
+
+    
+
+    # def calculate_characteristic_path_length(self):
+    #     """
+    #     Calculates the average unweighted and weighted characteristic path length of the graph.
+
+    #     Returns:
+    #         avg_path_length_unweighted (float): The average unweighted characteristic path length of the graph.
+    #         avg_path_length_weighted (float): The average weighted characteristic path length of the graph.
+    #     """
+    #     if nx.is_connected(self.G):
+    #         avg_path_length_unweighted = nx.average_shortest_path_length(self.G)
             
-            # Inverting weights for path length calculation as smaller weights imply stronger connections
-            G_copy = self.G.copy()
-            inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
-            nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
-            avg_path_length_weighted = nx.average_shortest_path_length(G_copy, weight='inverted_weight')
-        else:
-            avg_path_length_unweighted = None
-            avg_path_length_weighted = None
+    #         # Inverting weights for path length calculation as smaller weights imply stronger connections
+    #         G_copy = self.G.copy()
+    #         inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
+    #         nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
+    #         avg_path_length_weighted = nx.average_shortest_path_length(G_copy, weight='inverted_weight')
+    #     else:
+    #         avg_path_length_unweighted = None
+    #         avg_path_length_weighted = None
 
-        return avg_path_length_unweighted, avg_path_length_weighted
+    #     return avg_path_length_unweighted, avg_path_length_weighted
     

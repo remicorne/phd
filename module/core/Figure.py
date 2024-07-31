@@ -519,7 +519,7 @@ class Network(MatricesFigure):
 
     def plot_degrees(self, ax, network):
         """
-        Plots histogram of node degrees from graph with a standard distribution over it.
+        Plots histogram of node degrees from network with a standard distribution overlay
         input:
             network object
             ax to plot
@@ -528,6 +528,7 @@ class Network(MatricesFigure):
         """
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         G = network.G  # Access the graph from the Network object
+        all_nodes = list(G.nodes())
         degree_sequence = [d for n, d in G.degree()]
         node_labels_with_degrees = [(n, d) for n, d in G.degree()]
 
@@ -535,7 +536,8 @@ class Network(MatricesFigure):
         std_degree = np.std(degree_sequence)
 
         # Use the max_node_degree property from the Network class
-        max_degree, mean_degree = network.node_degree
+        max_degree= network.max_degree
+        mean_degree = network.average_degree
 
         x = np.linspace(0, max_degree, 100)
         y = norm.pdf(x, mean_degree, std_degree)
@@ -544,10 +546,16 @@ class Network(MatricesFigure):
         # Create the histogram
         counts, bins, patches = ax.hist(
             degree_sequence,
-            bins=np.arange(max_degree + 2),
+            bins=np.arange(max_degree + 2) - 0.5,
             edgecolor="black",
             alpha=0.8,
         )
+        # Check if the sum of counts matches the number of nodes
+        total_nodes = len(all_nodes)
+        total_counted = sum(counts)
+        if total_nodes != total_counted:
+            raise ValueError(f"Total nodes ({total_nodes}) does not match total counted ({total_counted})")
+
 
         # Annotate each bar with the corresponding node labels
         for i, patch in enumerate(patches):
