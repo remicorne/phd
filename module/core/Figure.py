@@ -632,7 +632,7 @@ class Correlation(MatricesFigure):
         ax.set_title(self.treatment)
 
         # Add correlation values as text
-        labels = f'Pearson R: {pearson_r:.2f}\np-value: {p_value:.4f}'
+        labels = f'Pearson R: {pearson_r:.2f}\np-value: {p_value:.1e}' if p_value < 0.0001 else f'{p_value:.4f}'
         ax.text(0.05, 0.9, labels, transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='white', boxstyle='round'))
 
         plt.tight_layout()
