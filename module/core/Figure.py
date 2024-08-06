@@ -663,7 +663,7 @@ class Table(ExcelDataset, Figure):
 
         # Combine mean and SEM into a single string
         grouped["mean ± SEM"] = grouped.apply(
-            lambda row: f"{row['mean_value']:.2f} ± {row['sem_value']:.2f}", axis=1
+            lambda row: f"{row['mean_value']:.3f} ± {row['sem_value']:.3f}", axis=1
         )
 
         # Pivot the DataFrame
