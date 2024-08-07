@@ -335,7 +335,7 @@ class MatricesFigure(Figure):
         self.is_square = self.var1 != self.var2
 
     def is_compound(self):
-        return isinstance(self.compound, str)
+        return super().is_compound() or len(self.compound) == 2
 
     def setup_plotter_parameters(self):
         self.build_matrices()
