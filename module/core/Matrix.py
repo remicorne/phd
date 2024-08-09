@@ -423,15 +423,15 @@ class Network:
         """
         if self.is_directed:
             # For directed graphs, use nx.clustering with 'directed' and 'weight' parameters
-            clust_coeff_unweighted = nx.clustering(self.G, weight=None)  # Unweighted
-            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+            clust_coeff_unweighted = None #nx.clustering(self.G.to_undirected(), weight=None)  # Unweighted
+            clust_coeff_weighted = None #nx.clustering(self.G.to_undirected(), weight='weight')  # Weighted
         else:
             # For undirected graphs, use nx.clustering without 'directed' parameter
             clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted
             clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
 
-        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
-        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted)
+        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted) if clust_coeff_unweighted else 0
+        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted) if clust_coeff_weighted else 0
 
         return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
     
