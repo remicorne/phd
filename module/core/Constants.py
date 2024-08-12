@@ -4,9 +4,17 @@ import os
 from dataclasses import dataclass
 import difflib
 from module.core.questions import yes_or_no, select_one
+import json
 
 @dataclass
 class ConstantRegistry(JSONMapping):
+    filepath: str
+    _data: dict = None
+
+    def __post_init__(self):
+        if not self.filepath.endswith('.json'):
+            self.filepath += '.json'
+        self._data = self.load_json(self.filepath)
 
     def generate(self):
         raise NotImplementedError('Contant registries should be handled directly in the JSON')
@@ -39,6 +47,27 @@ class ConstantRegistry(JSONMapping):
             print("EDIT REGISTRY AND RETRY")
             exit(1)
 
+    def load_json(self, filepath):
+        """Load JSON data from the specified file."""
+        with open(filepath, 'r') as file:
+            return json.load(file)
+
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def values(self):
+        return self._data.values()
+
+    def keys(self):
+        return self._data.keys()
+
+    def items(self):
+        return self._data.items()
+    
 
 # Rewrite the following code but inverting the two parameters of the function select_one
 REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))

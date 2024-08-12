@@ -23,6 +23,7 @@ import os
 from module.core.utils import parallel_process
 from statannotations.Annotator import Annotator
 from module.core.DataSelection import DataSelection
+from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
 
 @dataclass
@@ -63,10 +64,26 @@ class Figure(Cacheable, DataSelection):
     def is_compound(self):
         return isinstance(self.compound, str)
 
+            
+    def find_key_by_value(self, dictionary, value):
+        for key, val in dictionary.items():
+            if val == value:
+                return key
+        return None
+    
     def define_filename(self):
-        self.filename = (
-            f"{self.compound} in {self.region if self.region else 'all regions'}"
-        )
+        if self.is_compound() == True:
+            if self.region in REGION_CLASSES.values():
+                self.filename = (f"{self.compound} in {self.find_key_by_value(REGION_CLASSES, self.region)}")
+            else:
+                self.filename = (
+                f"{self.compound} in {self.region if self.region else 'all regions'}" )
+        if self.is_compound() == False:
+            if self.compound in COMPOUND_CLASSES.values():
+                self.filename = (f"{self.region} in {self.find_key_by_value(COMPOUND_CLASSES, self.compound)}")
+            else:
+                self.filename = (
+                f"{self.region} in {self.compound if self.compound else 'all compounds'}" )
 
     def save(self):
         self.fig.savefig(self.filepath)
