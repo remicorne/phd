@@ -1,31 +1,27 @@
 from dataclasses import dataclass, field
+
+
+import networkx as nx
+from scipy.stats import norm
+from scipy import stats
+
 from module.core.Cacheable import Cacheable
 from module.core.Dataset import SelectableDataFrame, ExcelDataset
-from module.core.Statistics import Statistics, QuantitativeStatistic
-from module.core.Outliers import Outliers
+from module.core.Statistics import QuantitativeStatistic
 from module.core.Metadata import (
-    ProjectInformation,
-    ExperimentInformation,
-    TreatmentInformation,
     Palette,
 )
 from module.core.Matrix import Matrix
-# from module.Network import Network
 from module.core.Constants import COMPOUNDS_AND_REGIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
 from typing import ClassVar
 import numpy as np
-from threading import Thread
 from IPython.display import Image, display
 import pandas as pd
 import os
-import concurrent.futures
-from module.core.utils import flatten, parallel_process
-from module.core.HPLC import HPLC
+from module.core.utils import parallel_process
 from statannotations.Annotator import Annotator
-from module.core.Statistics import Statistics
-from module.core.questions import input_list, yes_or_no
 from module.core.DataSelection import DataSelection
 
 
@@ -450,10 +446,6 @@ class Correlogram(MatricesFigure):
         ax.set_xlabel(matrix.var2, fontsize=28)
 
 
-import networkx as nx
-from scipy.stats import norm
-
-
 @dataclass
 class Network(MatricesFigure):
 
@@ -593,9 +585,6 @@ class Network(MatricesFigure):
         )
 
         return ax
-
-
-from scipy import stats
 
 @dataclass
 class Correlation(MatricesFigure):

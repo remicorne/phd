@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
+import networkx as nx
 import scipy
 import pandas as pd
 import numpy as np
 from module.core.utils import parallel_process
+
+
 
 
 def calculate_correlation(method, x, y):
@@ -284,11 +287,6 @@ class Matrices:
                 col for col in matrix.corr_masked.columns if col not in conserved_cols
             ]
             matrix.corr_masked = matrix.corr_masked.drop(index=rows_to_drop, columns=cols_to_drop)
-
-
-import numpy as np
-import networkx as nx
-from dataclasses import dataclass
 
 
 @dataclass
