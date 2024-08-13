@@ -461,6 +461,8 @@ class Correlogram(MatricesFigure):
 class Network(MatricesFigure):
 
     figure_type: str = "network"
+    node_positions: dict = None  # Optional parameter for manual node positions
+
     def define_filename(self):
         super().define_filename()
         self.filename = self.filename.replace("-", "->")
@@ -483,14 +485,16 @@ class Network(MatricesFigure):
             self.plot_degrees(ax, network)
 
     def plot_ax(self, i):
-
         ax = self.axs[i]
         network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+
+        positions = self.node_positions if self.node_positions else network.pos
+
         nx.draw_networkx_nodes(
             network.G,
-            network.pos,
-            node_size=1100,
+            positions,
+            node_size=2000,
             alpha=0.95,
             node_color="white",
             edgecolors="black",
@@ -498,11 +502,11 @@ class Network(MatricesFigure):
         )
         nx.draw_networkx_edges(
             network.G,
-            network.pos,
+            positions,
             width=list(nx.get_edge_attributes(network.G, "weight").values()),
             edge_color=list(nx.get_edge_attributes(network.G, "color").values()),
             ax=ax,
-            node_size=1100,
+            node_size=2000,
             **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
         )
         # Add labels to nodes
@@ -510,12 +514,16 @@ class Network(MatricesFigure):
             node: node for node in network.G.nodes()
         }  # Label nodes with their names
         nx.draw_networkx_labels(
-            network.G, network.pos, labels=node_labels, font_size=18, ax=ax
+            network.G, positions, labels=node_labels, font_size=22, ax=ax
         )
         # nx.draw_networkx_edge_labels(
-        #     network.G, network.pos, edge_labels=network.edge_labels, font_size=18, ax=ax
+        #     network.G, positions, edge_labels=network.edge_labels, font_size=18, ax=ax
         # )
 
+        # Set the aspect ratio to 'equal' for the plot area
+        ax.set_aspect('equal')
+        ax.margins(0.1) 
+        
         # Set title for the graph
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
