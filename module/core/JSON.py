@@ -25,7 +25,7 @@ class JSONMapping(Cacheable):
         self.save(mapping)
 
     def get(self, key, default=None):
-        return self.dict.get(key, default)
+        return self.dict.get(tuple(key) if is_array_like(key) else key, default)
 
     def values(self):
         return self.dict.values()
