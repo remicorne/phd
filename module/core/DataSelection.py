@@ -8,6 +8,7 @@ from module.core.utils import is_array_like
 import matplotlib.pyplot as plt
 import seaborn as sns
 from module.core.questions import input_list, yes_or_no
+from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
 
 
@@ -116,6 +117,8 @@ class DataSelection:
             .extend(self.treatment_information)
             .extend(Outliers(self.project))
         )
+        self.compound = COMPOUND_CLASSES.get(self.compound, self.compound)
+        self.region = REGION_CLASSES.get(self.region, self.region)
 
         self.experiment_options = self.experiment_information.experiments
         self.treatment_options = self.treatment_information.label.unique()

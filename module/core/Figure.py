@@ -64,23 +64,17 @@ class Figure(Cacheable, DataSelection):
     def is_compound(self):
         return isinstance(self.compound, str)
 
-            
-    def find_key_by_value(self, dictionary, value):
-        for key, val in dictionary.items():
-            if val == value:
-                return key
-        return None
     
     def define_filename(self):
         if self.is_compound() == True:
             if self.region in REGION_CLASSES.values():
-                self.filename = (f"{self.compound} in {self.find_key_by_value(REGION_CLASSES, self.region)}")
+                self.filename = (f"{self.compound} in {REGION_CLASSES.reversed.get(tuple(self.region), self.region)}")
             else:
                 self.filename = (
                 f"{self.compound} in {self.region if self.region else 'all regions'}" )
-        if self.is_compound() == False:
+        else:
             if self.compound in COMPOUND_CLASSES.values():
-                self.filename = (f"{self.region} in {self.find_key_by_value(COMPOUND_CLASSES, self.compound)}")
+                self.filename = (f"{self.region} in {COMPOUND_CLASSES.reversed.get(tuple(self.compound), self.compound)}")
             else:
                 self.filename = (
                 f"{self.region} in {self.compound if self.compound else 'all compounds'}" )
