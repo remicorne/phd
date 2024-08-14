@@ -7,10 +7,14 @@ from module.core.utils import is_array_like
 
 @dataclass
 class JSONMapping(Cacheable):
+    """Base class for JSON mappings.
+    Abstract and currentty only used for constants.
+    Used to manipulate JSON file as runtime dictionnaries while maintaing possibility to manually edit and have changes be reflected at runtime.
+    """
 
     extension: ClassVar[str] = "json"
 
-    def load(self):
+    def load(self) -> dict:
         with open(self.filepath) as outfile:
             mapping = json.load(outfile)
         return mapping
@@ -27,13 +31,13 @@ class JSONMapping(Cacheable):
     def get(self, key, default=None):
         return self.dict.get(tuple(key) if is_array_like(key) else key, default)
 
-    def values(self):
+    def values(self) -> list:
         return self.dict.values()
 
-    def keys(self):
+    def keys(self) -> list:
         return self.dict.keys()
 
-    def items(self):
+    def items(self) -> list:
         return self.dict.items()
 
     def __contains__(self, key):
@@ -58,7 +62,7 @@ class JSONMapping(Cacheable):
         }
 
     @property
-    def dict(self):
+    def dict(self) -> dict:
         return self.load()
 
     @property

@@ -147,6 +147,7 @@ class HPLC(PickleDataset):
     @property
     def regions(self):
         return self.df.region.unique()
+    
     @property
     def compounds_and_regions(self):
         return { "compounds": self.df.compound.unique(), "regions": self.df.region.unique() }

@@ -3,7 +3,6 @@ import numpy as np
 import os
 from module.core.Dataset import ExcelDataset, SelectableDataFrame
 from module.core.questions import select_one
-from module.core.JSON import JSONMapping
 from dataclasses import dataclass, field
 from typing import ClassVar
 from distutils.util import strtobool
@@ -11,20 +10,36 @@ from distutils.util import strtobool
 
 @dataclass(repr=False)
 class _ProjectSettings(ExcelDataset):
+    """Base class for project settings.
+    Handles loading, saving, and editing of project settings (excel files)
+
+    Returns:
+        ExcelDataset: Dataset with project settings
+    """
 
     project: str = field(default=None)
     _template: ClassVar[dict] = None
     _template_types: ClassVar[dict] = None
     
     def __post_init__(self):
+        """
+        Load data from template and set columns as attributes
+        """
         super().__post_init__()
         for key in self._template:
             self.__setattr__(key, self.df[key])
 
     def generate(self):
+        """
+        Generate template dataframe
+
+        """
         return pd.DataFrame(self._template)
 
     def make_user_edit_excel(self):
+        """
+        Open excel file in edit mode to make user edit the config
+        """
         self.open()
         question = "Press any key and ENTER when done editing file"
         user_finished = False
@@ -41,10 +56,23 @@ class _ProjectSettings(ExcelDataset):
                 user_finished = False
 
     def initialize(self):
+        """
+        Same as chacheable initialize but also makes user edit as setting are user editable
+        """
         super().initialize()
         self.make_user_edit_excel()
 
     def load(self):
+        """
+        Load data from template and handles type conversions for merges with raw data.
+        This process makes sure the template is both human and programatic friendly.
+
+        Raises:
+            ValueError: If a cell is not of the correct type (ie user input unusable data)
+
+        Returns:
+            SelectableDataFrame: Contains the project settings
+        """
         # vehicle.independant_var == nan, problem for "var in independant_var" (nan not iterable)
         data = super().load().replace(np.nan, "")
         try:
@@ -243,3 +271,20 @@ class ProjectInformation(_ProjectSettings):
             </ul>
         """
 
+
+@dataclass(repr=False)
+class DatasetInformation(_ProjectSettings):
+
+    filename: ClassVar[str] = "dataset_information"
+    _template: ClassVar[dict] = {
+        "label": ["hplc", "tissue_weight"],
+        "grouping_variables": ["treatment, compound, region", "treatment, region"],
+        "independant_variables": ["TCB2, MDL", ""],
+        "raw_data_filename": ["raw_data.csv"],
+    }
+    _template_types: ClassVar[dict] = {
+        "label": {"type": str},
+        "outlier_test": {"type": str},
+        "p_value_threshold": {"type": float},
+        "raw_data_filename": {"type": str},
+    }

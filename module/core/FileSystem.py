@@ -2,6 +2,12 @@ import os
 
 
 class FileSystem:
+    """
+    Static class that handles the filesystem architecture.
+    Automatically creates folders if they don't exist.
+    Automatically extracts the project, experiment and figure_type from the path.
+
+    """
 
     ROOT = os.getcwd()
     PROJECTS = f"{ROOT}/PROJECTS"

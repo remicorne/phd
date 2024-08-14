@@ -1,7 +1,7 @@
-from module.core.Statistics import Statistics, QuantitativeStatistic
+from module.core.Statistics import QuantitativeStatistic
 import unittest
 from module.core.Project import Project, ROOT
-from module.core.Figure import Histogram
+from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table
 import os, shutil
 
 
@@ -92,6 +92,84 @@ class TestProject(unittest.TestCase):
             from_scratch=True,
             remove_outliers="calculated",
         ).statistics.is_significant.all()
+        legit_regions = [
+            "OF",
+            "PL",
+            "aCC",
+            "M1",
+            "SJ",
+            "S1L",
+            "S1R",
+            "AC",
+            "V1",
+            "A",
+            "dH",
+            "vH",
+            "NAc",
+            "VM",
+            "DM",
+            "VL",
+            "DL",
+            "MD",
+            "VPL",
+            "VPR",
+            "DLG",
+            "HY",
+            "SC",
+            "SN",
+            "VTA",
+            "DR",
+            "MR",
+            "CB",
+        ]
+        Correlogram(
+            project="TCB2",
+            compound="5HT-DA",
+            region=legit_regions,
+            from_scratch=True,
+            remove_outliers="calculated",
+        )
+        Correlation(
+            project="TCB2",
+            experiment="agonist antagonist",
+            treatment="vehicles",
+            compound="DA",
+            region=["VPL", "SN"],
+            from_scratch=True,
+            remove_outliers="calculated",
+        )
+        node_positions = {
+            "OF": (5.9, 2.4),
+            "PL": (5.6, 3.5),
+            "aCC": (7.1, 4),
+            "M1": (6.2, 3.8),
+            "SJ": (7.5, 3.8),
+            "S1L": (8.5, 3.8),
+            "S1R": (8.2, 4.1),
+            "AC": (9.9, 4.2),
+            "V1": (10.9, 4),
+            "MD": (10.3, 1.45),
+            "VPR": (9.1, 1.45),
+            "VPL": (9.4, 1.15),
+            "DLG": (9.7, 1.9),
+        }
+
+        Network(
+            project="TCB2",
+            node_positions=node_positions,
+            compound="5HT",
+            region="thalamocortical_interaction",
+            from_scratch=True,
+            remove_outliers="calculated",
+        )
+        Table(
+            project="TCB2",
+            compound=["5HT", "5HIAA", "DA", "DOPAC", "HVA", "3MT", "NA"],
+            treatment="vehicles",
+            region=legit_regions,
+            from_scratch=True,
+            remove_outliers="calculated",
+        )
         print("PROJECT INITIALIZATION TEST PASSED")
 
     def tearDown(self):

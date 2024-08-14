@@ -4,10 +4,28 @@ from collections.abc import Iterable
 
 
 def is_array_like(value):
+    """Detect wheher a value is a non-string iterable
+
+    Args:
+        value (Any): Value to evaluate
+
+    Returns:
+        bool: True if value is a non-string iterable
+    """
     return isinstance(value, Iterable) and not isinstance(value, str)
 
 
 def call_case(case):
+    """
+    Calls the given case and returns its result.
+    Used by parallel_process for complex calculation where passing case to a function is complex.
+
+    Args:
+        case (Callable): A callable object to be executed.
+
+    Returns:
+        Any: The result of the executed case.
+    """
     return case()
 
 
@@ -25,5 +43,5 @@ def parallel_process(cases, executor=call_case, description="Processing"):
     return results
 
 
-def flatten(two_d_list):
-    return list(itertools.chain.from_iterable(two_d_list))
+def flatten(two_dimension_list):
+    return list(itertools.chain.from_iterable(two_dimension_list))

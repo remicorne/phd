@@ -48,15 +48,27 @@ class SelectableDataFrame(pd.DataFrame):
         Filter the DataFrame based on a selector.
 
         Args:
-            selector (dict): A dictionary of column conditions to filter by.
+            selector (dict): A dictionary of column conditions to filter by. 
+            'nan' and 'notna' are supported using strings. 
+            None is ignored for dict unpacking purposes and because it is not a valid value.
 
         Returns:
-            CustomDataFrame: Filtered DataFrame that also includes the select method.
+            SelectableDataFrame: Filtered DataFrame that also includes the select method.
+            Series: if selection conditions result in a single row
         """
         sub_selection = sub_select(self, selector)
         return sub_selection
     
-    def extend(self, df) -> "SelectableDataFrame":
+    def extend(self, df: "Dataset|SelectableDataFrame|pd.DataFrame") -> "SelectableDataFrame":
+        """
+        Extend the DataFrame with another DataFrame. Automatically selects common columns.
+
+        Args:
+            df (_type_): the df to left join to self
+
+        Returns:
+            SelectableDataFrame:  Resulting DataFrame of left join
+        """
         if isinstance(df, Dataset):
             df = df.df
         common_columns = self.columns.intersection(df.columns).to_list()
@@ -64,13 +76,14 @@ class SelectableDataFrame(pd.DataFrame):
 
 @dataclass
 class Dataset(Cacheable):
+    """
+    Base class for datasets ie dataframes stored in Excel or Pickle files.
+    Similar to JSONmapping interface for json/dict.
+    Actual dataframe is accessed through the df property and read directly from the file.
 
-    _loader: ClassVar = None
-    _saver: ClassVar = None
-
-    def initialize(self):
-        super().initialize()
-        print(f"CREATED AND CACHED {self.filepath}")
+    Returns:
+        Dataset: Wrapper for dataframes
+    """
 
     def select(self, **selector) -> SelectableDataFrame:
         return self.df.select(**selector)
@@ -84,6 +97,15 @@ class Dataset(Cacheable):
         return SelectableDataFrame(self.load())
 
     def extend(self, other) -> SelectableDataFrame:
+        """
+        Extend the DataFrame with another DataFrame. Automatically selects common columns.
+
+        Args:
+            df (_type_): the df to left join to self
+
+        Returns:
+            SelectableDataFrame:  Resulting DataFrame of left join
+        """
         return self.df.extend(other)
 
     def __contains__(self, column):
@@ -111,6 +133,10 @@ class Dataset(Cacheable):
 
 @dataclass
 class PickleDataset(Dataset):
+    """
+    Dataset wrapper for pickle files
+
+    """
 
     extension: ClassVar[str] = "pkl"
 
@@ -123,6 +149,10 @@ class PickleDataset(Dataset):
 
 @dataclass
 class ExcelDataset(Dataset):
+    """
+    Dataset wrapper for excel files
+
+    """
 
     extension: ClassVar[str] = "xlsx"
 

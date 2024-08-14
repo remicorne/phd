@@ -46,6 +46,19 @@ def get_quantitative_statistics_pipeline(
 
 @dataclass
 class QuantitativeStatistic:
+    """
+    Handles statistical analysis for quantitative data.
+    Needs all the required data to perform the statistical analysis as 
+    well as parameters that define the statistics to be performed.
+    TODO: This class is a messy and needs a lot of refactoring + finding a smarter way to do it.
+
+    Raises:
+        ValueError: _description_
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
 
     data: pd.DataFrame
     independant_variables: list[str]
@@ -114,6 +127,7 @@ class QuantitativeStatistic:
     ):
         """
         Calculate statistical results for a given experiment, compound, and region.
+        If one ore some of the parameters are None or lists, calculate the results for all possible combinations.
 
         Args:
             project (str): The name of the project.
@@ -124,7 +138,7 @@ class QuantitativeStatistic:
             remove_outliers (str, optional): Whether to remove outliers. Must be 'eliminated', 'calculated', or False. Defaults to "calculated".
 
         Returns:
-            cls: An instance of the Statistics class with the calculated statistical results in .results.
+            SelectableDataFrame: Containing the statistical results.
 
         Raises:
             ValueError: If remove_outliers is not 'eliminated', 'calculated', or False.
