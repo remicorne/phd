@@ -48,7 +48,7 @@ def get_quantitative_statistics_pipeline(
 class QuantitativeStatistic:
     """
     Handles statistical analysis for quantitative data.
-    Needs all the required data to perform the statistical analysis as 
+    Needs all the required data to perform the statistical analysis as
     well as parameters that define the statistics to be performed.
     TODO: This class is a messy and needs a lot of refactoring + finding a smarter way to do it.
 
@@ -361,43 +361,28 @@ class QuantitativeStatistic:
 @dataclass(repr=False)
 class Statistics(PickleDataset):
     """
-    Manages the statistical analysis for a set of experiments, including outlier filtering, merging data with HPLC results,
-    and generating statistical results based on defined experiments.
+    Contains all quantitative statistical resuts for hplc
 
-    Attributes:
-        treatment_information (TreatmentInformation): Information about treatments in the experiments.
-        experiments (list(Experiment)): A collection of `Experiment` objects detailing individual experiments.
-        p_value_threshold (float): The p-value threshold used to determine the statistical significance.
-        hplc (HPLC): An HPLC data object containing the HPLC results.
-        outliers (Outliers): An Outliers data object for managing and filtering outlier data.
-        _name (ClassVar): Static name attribute for the class, set to "statistics".
-
-    Methods:
-        generate: Processes experiments to produce a DataFrame of statistical results.
-        significant_results: Returns a DataFrame of results where all tests are significant.
-        insufficent_data: Returns a DataFrame of results flagged with "Not enough data".
     """
 
     project: str
     filename: ClassVar[str] = "statistics"
 
-    def __post_init__(self):
-        self.p_value_threshold = ProjectInformation(self.project).p_value_threshold
-        self.data = (
-            HPLC(self.project)
-            .extend(TreatmentInformation(self.project))
-            .extend(Outliers(self.project))
-        )
-        super().__post_init__()
-
     def select(self, **kwargs):
+        """
+        Enable selection of specific significance pairs
+        Args:
+            significant_pair: tuple of significant pairs
+
+        """
         searched_pair = kwargs.pop("significant_pair", None)
         data = self.df.select(**kwargs)
         if searched_pair:
             return data[
                 data.p_value.apply(
                     lambda p_value: (
-                        set(searched_pair) in [set(significant_pair) for significant_pair in p_value[0]]
+                        set(searched_pair)
+                        in [set(significant_pair) for significant_pair in p_value[0]]
                         if is_array_like(p_value)
                         else False
                     )
@@ -446,3 +431,53 @@ class Statistics(PickleDataset):
         return self.df[
             (self.df.test == "validation" & self.df.result == "Not enough data")
         ]
+
+
+@dataclass
+class AggregateStatistics(PickleDataset):
+    """
+    Calculates group level descriptive statistics.
+    """
+
+    project: str
+    filename: ClassVar[str] = "aggregate_statistics"
+
+    def generate(self):
+        result_ls = []
+        for (treatment, region, compound), groupby_df in tqdm(
+            HPLC(self.project).full_df.groupby(by=["treatment", "region", "compound"]),
+            desc="Calculating aggregate statistics",
+        ):
+            
+            if len(groupby_df) >= 3:
+                F, p, = scipy.stats.shapiro(groupby_df["value"])
+                is_parametric = p > 0.05            
+            else:
+                F, p, is_parametric = np.nan, np.nan, np.nan
+            
+            mean, std, sem, values = [
+                groupby_df.value.mean(),
+                groupby_df.value.std(),
+                groupby_df.value.sem(),
+                groupby_df.value.values,
+            ]
+            result_ls.append(
+                [treatment, region, compound, F, p, is_parametric, mean, std, sem, values]
+            )
+        return pd.DataFrame(
+            result_ls,
+            columns=[
+                "treatment",
+                "region",
+                "compound",
+                "shapiro_F",
+                "shapiro_p",
+                "is_parametric",
+                "mean",
+                "std",
+                "sem",
+                "values",
+            ],
+        )
+        
+        

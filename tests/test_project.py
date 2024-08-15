@@ -1,4 +1,4 @@
-from module.core.Statistics import QuantitativeStatistic
+from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
 import unittest
 from module.core.Project import Project, ROOT
 from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table
@@ -75,6 +75,9 @@ class TestProject(unittest.TestCase):
         stats = QuantitativeStatistic.calculate(
             project="TCB2", experiment="agonist antagonist", compound="5HT"
         )
+        AggregateStatistics(project=self.project_name)
+        len(AggregateStatistics(project=self.project_name).select(is_parametric=True, compound=lambda compound: '/' not in compound)) == 24
+        len(AggregateStatistics(project=self.project_name).select(is_parametric=False)) == 20
         assert len(stats.select(fully_significant=True)) == 9
         assert len(project.statistics.significant_results) == 6
 

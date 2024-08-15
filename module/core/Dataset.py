@@ -6,7 +6,6 @@ from typing import ClassVar
 from module.core.Cacheable import Cacheable
 import pandas as pd
 from module.core.utils import is_array_like
-
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
@@ -21,6 +20,8 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
         if value is None:
             print(f"Skipping {column}, .select() ignores None for practical purposes, use 'nan' (str) instead.")
             continue
+        elif callable(value):
+            sub_selection = df[column].apply(value)
         elif is_array_like(value):
             sub_selection = df[column].isin(value)
         else:
