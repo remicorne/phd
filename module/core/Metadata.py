@@ -235,7 +235,7 @@ class ProjectInformation(_ProjectSettings):
     }
     
     def generate(self):
-        from module.core.Outliers import OUTLIER_TESTS
+        from module.core.HPLC import OUTLIER_TESTS
         data = super().generate()
         data["label"] = input("Enter project name")
         data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())

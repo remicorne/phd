@@ -2,7 +2,6 @@ from .FileSystem import FileSystem
 from .Dataset import ExcelDataset, PickleDataset
 from .Project import Project
 from .HPLC import HPLC
-from .Outliers import Outliers
 from .Statistics import Statistics, QuantitativeStatistic
 from .Figure import Histogram
 from .Metadata import ProjectInformation, ExperimentInformation, Palette, TreatmentInformation
@@ -15,7 +14,6 @@ __all__ = [
     "PickleDataset",
     "Project",
     "HPLC",
-    "Outliers",
     "Statistics",
     "QuantitativeStatistic",
     "Histogram",

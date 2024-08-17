@@ -2,8 +2,7 @@ from dataclasses import dataclass, field
 from typing import get_args
 from module.core.FileSystem import FileSystem
 from module.core.Metadata import ProjectInformation, TreatmentInformation, ExperimentInformation
-from module.core.HPLC import HPLC
-from module.core.Outliers import Outliers
+from module.core.HPLC import HPLC, Outliers
 from module.core.utils import is_array_like
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -94,11 +93,11 @@ def handle_outlier_selection(title, data):
 @dataclass
 class DataSelection:
 
-    project: str | list = field(kw_only=True)
+    project: str | list | tuple = field(kw_only=True)
     experiment: str = field(kw_only=True, default=None)
     treatment: str = field(kw_only=True, default=None)
-    compound: str | list = field(kw_only=True, default=None)
-    region: str | list = field(kw_only=True, default=None)
+    compound: str | list | tuple = field(kw_only=True, default=None)
+    region: str | list | tuple = field(kw_only=True, default=None)
     remove_outliers: str | bool = field(kw_only=True, default=None)
     p_value_threshold: float = field(kw_only=True, default=None)
 
@@ -112,11 +111,7 @@ class DataSelection:
         
         self.p_value_threshold = self.p_value_threshold or self.project_information.p_value_threshold
 
-        self.data = (
-            HPLC(self.project)
-            .extend(self.treatment_information)
-            .extend(Outliers(self.project))
-        )
+        self.data = HPLC(self.project).full_df
         self.compound = COMPOUND_CLASSES.get(self.compound, self.compound)
         self.region = REGION_CLASSES.get(self.region, self.region)
 
@@ -145,8 +140,9 @@ class DataSelection:
         
         if self.treatment:
             self.data = self.data.select(treatment=self.treatment)
-        
-        self.treatments = self.treatment or [label for label in self.treatment_information.label if label in self.data.treatment.unique()]
+            self.treatments = [self.treatment] if isinstance(self.treatment, str) else self.treatment
+        else:
+            self.treatments = [label for label in self.treatment_information.label if label in self.data.treatment.unique()]
                     
         if self.remove_outliers == "eliminated":
             self.process_outliers()
@@ -158,9 +154,6 @@ class DataSelection:
 
     def process_parameter(self, name, options):
         parameter = getattr(self, name)
-        parameter_field = self.__dataclass_fields__[name]
-        if not isinstance(parameter, parameter_field.type):
-            raise ValueError(f"{name} must be of type {parameter_field.type}")
         parameter_to_list = convert_parameter_to_list(parameter)
         unknown_params = set(parameter_to_list) - set(options)
         if unknown_params:

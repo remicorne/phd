@@ -7,9 +7,7 @@ from module.core.Metadata import (
     TreatmentInformation,
     ProjectInformation,
 )
-from module.core.HPLC import RawHPLC, HPLC
-from module.core.Outliers import Outliers
-
+from module.core.HPLC import RawHPLC, HPLC, Outliers
 from module.core.Statistics import Statistics
 import os
 

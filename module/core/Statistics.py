@@ -4,9 +4,7 @@ import pandas as pd
 import numpy as np
 from module.core.Dataset import PickleDataset, SelectableDataFrame
 from module.core.HPLC import HPLC
-from module.core.Outliers import Outliers
 from module.core.Metadata import (
-    TreatmentInformation,
     ExperimentInformation,
     ProjectInformation,
 )
@@ -144,11 +142,7 @@ class QuantitativeStatistic:
             ValueError: If remove_outliers is not 'eliminated', 'calculated', or False.
         """
 
-        data = (
-            HPLC(project)
-            .extend(TreatmentInformation(project))
-            .extend(Outliers(project))
-        )
+        data = HPLC(project).full_df
 
         if compound:
             compounds = (
@@ -445,7 +439,7 @@ class AggregateStatistics(PickleDataset):
     def generate(self):
         result_ls = []
         for (treatment, region, compound), groupby_df in tqdm(
-            HPLC(self.project).full_df.groupby(by=["treatment", "region", "compound"]),
+            HPLC(self.project).full_df.select(value="notna", is_outlier=False).groupby(by=["treatment", "region", "compound"]),
             desc="Calculating aggregate statistics",
         ):
             
