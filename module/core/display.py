@@ -77,7 +77,7 @@ def playground():
         style={"description_width": "initial"},
     )
     region_class_checkbox = OrderedSelectMultipleWithAll(
-        description="Regions:",
+        description="Classes:",
         options=REGION_CLASSES.list,
         style={"description_width": "initial"},
     )
@@ -87,7 +87,7 @@ def playground():
         style={"description_width": "initial"},
     )
     compound_class_checkbox = OrderedSelectMultipleWithAll(
-        description="Compounds:",
+        description="Classes:",
         options=COMPOUND_CLASSES.list,
         style={"description_width": "initial"},
     )
