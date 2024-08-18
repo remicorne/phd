@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-
 import networkx as nx
 from scipy.stats import norm
 from scipy import stats
@@ -159,9 +158,9 @@ class Histogram(Figure):
     def plot_histogram(self, custom_params):
         self.fig, self.ax = plt.subplots(figsize=(20, 10))
         ax = sns.barplot(
+            data=custom_params.get("data", self.data),
             x="treatment",
             y="value",
-            data=custom_params.get("data", self.data),
             hue="treatment",
             palette=custom_params.get("palette", self.palette),
             errorbar=custom_params.get("errorbar", ("ci", 68)),
@@ -209,9 +208,9 @@ class Histogram(Figure):
         fig_width = custom_params.get("fig_width", 1.48 + 2 * len(self.order))
         self.fig, self.ax = plt.subplots(figsize=(fig_width, 10))
         self.ax = sns.barplot(
+            data=self.data,
             x=self.to_plot,
             y="value",
-            data=self.data,
             hue=self.hue,
             palette=custom_params.get("palette", self.palette),
             errorbar=custom_params.get("errorbar", ("ci", 68)),
@@ -415,7 +414,7 @@ class MatricesFigure(Figure):
         )
         # fig.tight_layout(pad=2)
         # fig.subplots_adjust(hspace=0.4, wspace=0.4)
-        return fig, axs.flatten()
+        return fig, [axs] if num_rows == num_cols == 1 else axs.flatten()
 
     def plot_ax(self, i):
         raise NotImplementedError("Must be implemented in subclass")
@@ -426,7 +425,6 @@ class Correlogram(MatricesFigure):
 
     figure_type: str = "correlogram"
     def plot_ax(self, i):
-
         ax = self.axs[i]
         matrix = self.matrices[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"

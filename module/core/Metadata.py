@@ -190,14 +190,14 @@ class ExperimentInformation(_ProjectSettings):
 
     def load(self):
         data = super().load()
-        treatment_information = TreatmentInformation(self.project)
-        palette = Palette(self.project)
+        treatment_information = TreatmentInformation(self.project).df
+        palette = Palette(self.project).dict
         full_experiment_info = []
         for _, experiment in data.iterrows():
             experiment["experiment"] = experiment.label
             experiment["treatments"] = treatment_information.select(group_id=experiment.groups).label.to_list()
             experiment["control_treatment"] = experiment.treatments[experiment.groups.index(experiment["control_group_id"])]
-            experiment["palette"] = {t: palette.dict[t] for t in experiment.treatments}
+            experiment["palette"] = {t: palette[t] for t in experiment.treatments}
             full_experiment_info.append(experiment)
         return SelectableDataFrame(full_experiment_info)
     
