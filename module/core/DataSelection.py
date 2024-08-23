@@ -135,7 +135,7 @@ class DataSelection:
             self.experiment_information = self.experiment_information.select(label=self.experiment)
             
             self.data = self.data.select(
-                group_id=self.experiment_information.groups
+                experiment=self.experiment
             )
         
         if self.treatment:

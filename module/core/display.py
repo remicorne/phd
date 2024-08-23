@@ -20,12 +20,12 @@ class OrderedSelectMultipleWithAll(widgets.SelectMultiple):
 
     def __setattr__(self, name: str, value: list) -> None:
         if name == "options":
-            value = ("Select all", *value)
+            value = ("Select/Deselect all", *value)
         super().__setattr__(name, value)
 
     def __getattribute__(self, name: str) -> tuple:
         return (
-            [item for item in super().__getattribute__(name) if item != "Select all"]
+            [item for item in super().__getattribute__(name) if item != "Select/Deselect all"]
             if name == "value"
             else super().__getattribute__(name)
         )
@@ -34,17 +34,14 @@ class OrderedSelectMultipleWithAll(widgets.SelectMultiple):
         new_values = set(change.new)
         old_values = set(change.old)
 
-        if new_values == {"Select all"}:
-            if "Select all" not in old_values:
+        if new_values == {"Select/Deselect all"}:
+            if "Select/Deselect all" not in old_values:
                 self.value = tuple(self.options)
             else:
                 self.value = tuple()
         else:
             added = new_values - old_values
-            new_value_ordered = []
-            for item in self.value_ordered:
-                if item in new_values:
-                    new_value_ordered.append(item)
+            new_value_ordered = [item for item in self.value_ordered if item in new_values]
             self.value_ordered = [*new_value_ordered, *added]
 
 
@@ -54,8 +51,9 @@ figure_mapping = {
     "correlation": Correlation,
     "network": Network,
     "table": Table,
+    "data": lambda **args: HPLC(args.pop("project")).select(**args),
 }
-class_constants_mapping = {
+class_constants_mappings = {
     "compounds": COMPOUND_CLASSES,
     "regions": REGION_CLASSES,
 }
@@ -138,24 +136,39 @@ def playground():
         display(widgets_vbox)
 
     display_interface()
-
-    def apply_class_dropdownion(type, dropdown):
-        single_select_multiple = {
-            "compounds": compound_ordered_select_multiple,
-            "regions": region_ordered_select_multiple,
-        }[type]
-
-        def apply_class_dropdown_callback(_):
-            classes_constant = class_constants_mapping[type]
-            single_select_multiple.value = ()
-            for selected_class in dropdown.value_ordered:
-                for element in classes_constant[selected_class]:
-                    single_select_multiple.value = (*single_select_multiple.value_ordered, element)
+    
+    def on_item_multiselect_updated(type, class_multiselect):
+        classes_constant_mapping = class_constants_mappings[type]
+        def update_selected_classes(item_multiselect):
+            selected_classes = []
+            for selected_class in class_multiselect.value:
+                if all(item in item_multiselect.new for item in classes_constant_mapping[selected_class]):
+                    selected_classes.append(selected_class)
+            class_multiselect.value = selected_classes 
+        return update_selected_classes
+    region_ordered_select_multiple.observe(on_item_multiselect_updated("regions", region_class_checkbox), names="value")
+    compound_ordered_select_multiple.observe(on_item_multiselect_updated("compounds", compound_class_checkbox), names="value")
             
-        return apply_class_dropdown_callback
 
-    region_class_checkbox.observe(apply_class_dropdownion("regions", region_class_checkbox), names="value")
-    compound_class_checkbox.observe(apply_class_dropdownion("compounds", compound_class_checkbox), names="value")
+    def on_class_multiselect_updated(type, item_multiselect):
+        classes_constant_mapping = class_constants_mappings[type]
+        def add_class_items_to_item_multiselect(class_multiselect):
+            items_to_add = []
+            new_selected_classes = set(class_multiselect.new) - set(class_multiselect.old)
+            for selected_class in new_selected_classes:
+                for element in classes_constant_mapping[selected_class]:
+                    items_to_add.append(element)
+            added_items = [*item_multiselect.value, *items_to_add]
+            removed_classes = set(class_multiselect.old) - set(class_multiselect.new)
+            removed_items = []
+            for removed_class in removed_classes:
+                removed_items.extend(classes_constant_mapping[removed_class])
+            item_multiselect.value = [item for item in added_items if item not in removed_items]
+            
+        return add_class_items_to_item_multiselect
+
+    region_class_checkbox.observe(on_class_multiselect_updated("regions", region_ordered_select_multiple), names="value")
+    compound_class_checkbox.observe(on_class_multiselect_updated("compounds", compound_ordered_select_multiple), names="value")
 
     def update_project(_):
         project = project_dropdown.value
@@ -183,7 +196,7 @@ def playground():
         )
         experiment_dropdown.value = "None"
 
-        def experiment_dropdown_updated(experiment_dropdown):
+        def on_experiment_dropdown_updated(experiment_dropdown):
             if experiment_dropdown.new != "None":
                 treatment_ordered_select_multiple.value = (
                     experiment_information.df.select(
@@ -193,16 +206,16 @@ def playground():
             else:
                 treatment_ordered_select_multiple.value = ()
 
-        experiment_dropdown.observe(experiment_dropdown_updated, names="value")
+        experiment_dropdown.observe(on_experiment_dropdown_updated, names="value")
 
-        def treatment_dropdown_updated(treatment_ordered_select_multiple):
+        def on_treatment_multiselect_updated(treatment_ordered_select_multiple):
             if set(treatment_ordered_select_multiple.new) not in [
                 set(treatments) for treatments in experiment_information.df.treatments
             ]:
                 experiment_dropdown.value = "None"
 
         treatment_ordered_select_multiple.observe(
-            treatment_dropdown_updated, names="value"
+            on_treatment_multiselect_updated, names="value"
         )
 
     project_dropdown.observe(update_project, names="value")

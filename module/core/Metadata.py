@@ -5,7 +5,7 @@ from module.core.Dataset import ExcelDataset, SelectableDataFrame
 from module.core.questions import select_one
 from dataclasses import dataclass, field
 from typing import ClassVar
-from distutils.util import strtobool
+from distutils.util import strtobool # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
 
 
 @dataclass(repr=False)

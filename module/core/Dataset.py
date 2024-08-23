@@ -144,8 +144,8 @@ class PickleDataset(Dataset):
     def save(self, data: pd.DataFrame):
         data.to_pickle(self.filepath)
 
-    def load(self):
-        return pd.read_pickle(self.filepath)
+    def load(self) -> SelectableDataFrame:
+        return SelectableDataFrame(pd.read_pickle(self.filepath))
 
 
 @dataclass
@@ -160,5 +160,5 @@ class ExcelDataset(Dataset):
     def save(self, data: pd.DataFrame):
         data.to_excel(self.filepath)
 
-    def load(self):
-        return pd.read_excel(self.filepath)
+    def load(self) -> SelectableDataFrame:
+        return SelectableDataFrame(pd.read_excel(self.filepath))

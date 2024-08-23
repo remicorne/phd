@@ -85,6 +85,28 @@ class RawHPLC(PickleDataset):
         }
 
 
+class ProjectSelectableDataframe(SelectableDataFrame):
+    """
+    Shameful hack.
+    TODO: Eliminate asap
+    """
+    
+    def __init__(self, data=None, project=None, *args, **kwargs):
+        super().__init__(data, *args, **kwargs)
+        self.project = project
+        
+    @property
+    def _constructor(self):
+        return lambda *args, **kwargs: ProjectSelectableDataframe(*args, project=self.project, **kwargs) if hasattr(self, "project") else SelectableDataFrame(*args, **kwargs)
+
+    def select(self, **selector) -> SelectableDataFrame:
+        experiment = selector.pop("experiment", None)
+        if experiment:
+            experiment = ExperimentInformation(self.project).select(label=experiment)
+            selector["group_id"] = experiment.groups
+        data = SelectableDataFrame(self).select(**selector)
+        return ProjectSelectableDataframe(data, project=self.project) if hasattr(self, "project") else data
+
 @dataclass(repr=False)
 class HPLC(PickleDataset):
 
@@ -139,11 +161,16 @@ class HPLC(PickleDataset):
             ]
         )
         return compound_and_ratios_df.replace(0, np.nan)
+    
+    def select(self, **selector) -> ProjectSelectableDataframe:
+        return self.full_df.select(**selector)
 
     @property
-    def full_df(self) -> SelectableDataFrame:
-        return self.extend(Outliers(self.project)).extend(
-            TreatmentInformation(self.project)
+    def full_df(self) -> ProjectSelectableDataframe:
+        return ProjectSelectableDataframe(
+            self.extend(Outliers(self.project)).extend(
+                TreatmentInformation(self.project)
+            ), self.project
         )
 
     @property

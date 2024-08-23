@@ -11,6 +11,7 @@ from module.core.Metadata import (
     Palette,
 )
 from module.core.Matrix import Matrix
+from module.core.Matrix import Network as NetworkModel
 from module.core.Constants import COMPOUNDS_AND_REGIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -466,11 +467,9 @@ class Network(MatricesFigure):
         self.filename = self.filename.replace("-", "->")
 
     def setup_plotter_parameters(self):
-        from module.core.Matrix import Network
-
         super().setup_plotter_parameters()
         self.networks = parallel_process(
-            [Network(matrix) for matrix in self.matrices],
+            [NetworkModel(matrix) for matrix in self.matrices],
             description="Creating networks",
         )
 
