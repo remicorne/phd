@@ -167,11 +167,12 @@ class HPLC(PickleDataset):
 
     @property
     def full_df(self) -> ProjectSelectableDataframe:
-        return ProjectSelectableDataframe(
+        data = ProjectSelectableDataframe(
             self.extend(Outliers(self.project)).extend(
                 TreatmentInformation(self.project)
             ), self.project
         )
+        return data[[col for col in data.columns if "Unnamed" not in col]]
 
     @property
     def compounds(self):

@@ -7,6 +7,7 @@ from module.core.Metadata import (
 from module.core.FileSystem import FileSystem
 from module.core.HPLC import HPLC
 from module.core.Figure import Correlogram, Histogram, Correlation, Network, Table
+from module.core.DataSelection import DataSelection
 from module.core.Constants import COMPOUNDS, COMPOUND_CLASSES, REGION_CLASSES, REGIONS
 
 
@@ -44,6 +45,9 @@ class OrderedSelectMultipleWithAll(widgets.SelectMultiple):
             new_value_ordered = [item for item in self.value_ordered if item in new_values]
             self.value_ordered = [*new_value_ordered, *added]
 
+def get_data(**kwargs):
+    kwargs.pop("from_scratch", None)
+    display(DataSelection(**kwargs).data)
 
 figure_mapping = {
     "correlogram": Correlogram,
@@ -51,7 +55,7 @@ figure_mapping = {
     "correlation": Correlation,
     "network": Network,
     "table": Table,
-    "data": lambda **args: HPLC(args.pop("project")).select(**args),
+    "data": get_data,
 }
 class_constants_mappings = {
     "compounds": COMPOUND_CLASSES,
@@ -187,6 +191,8 @@ def playground():
         ]
         compound_ordered_select_multiple.options = [
             compound for compound in compounds_constant if compound in data_compounds
+        ] + [
+            compound for compound in data_compounds if compound not in compounds_constant
         ]
         treatment_ordered_select_multiple.options = (
             treatment_information.label.unique()
@@ -231,7 +237,6 @@ def playground():
             experiment=None if experiment_dropdown.value == "None" else experiment_dropdown.value,
             treatment=treatment_ordered_select_multiple.value_ordered,
             remove_outliers=outliers_dropdown.value,
-            from_scratch=True,
         )
 
     submit.on_click(display_figure)
