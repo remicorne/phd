@@ -3,6 +3,7 @@ from typing import get_args
 from module.core.FileSystem import FileSystem
 from module.core.Metadata import ProjectInformation, TreatmentInformation, ExperimentInformation
 from module.core.HPLC import HPLC, Outliers
+from module.core.Statistics import QuantitativeStatistic
 from module.core.utils import is_array_like
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -168,3 +169,14 @@ class DataSelection:
                 title = f"{compound} in {region} for {treatment}"
                 data.outlier_status = handle_outlier_selection(title, data)
                 Outliers(self.project).update(data)
+
+
+class QuantitativeDataSelection(DataSelection):
+    
+    def __post_init__(self):
+        if self.experiment is None:
+            raise ValueError("Experiment(s) must be specified")
+        if self.treatment is not None:
+            raise ValueError("Treatment(s) must not be specified")
+        super().__post_init__()
+        self.statistics, self.statistics_table = QuantitativeStatistic.calculate_from_selection(self.data, [self.experiment_information] if self.experiment == 1 else self.experiment_information, self.p_value_threshold)

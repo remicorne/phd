@@ -229,6 +229,65 @@ class QuantitativeStatistic:
             results.append(result)
 
         return SelectableDataFrame(pd.concat(results))
+    
+    @staticmethod
+    def calculate_from_selection(
+        data,
+        experiments,
+        p_value_threshold: float = None,
+    ):
+        """
+        Calculate statistical for data, autmaticcaly groups by experiment, compound regions.
+
+        Args:
+            data (pd.DataFrame): The name of the project.
+            experiemnts (str): The experiments to calculate for.
+            p_value_threshold (float, optional): The p-value threshold used for statistical analysis. Defaults to None.
+
+        Returns:
+            SelectableDataFrame: Containing the statistical results.
+
+        """
+        
+        groupings = []
+        
+        experiments = [experiments] if isinstance(experiments, pd.Series) else experiments
+
+        for experiment in experiments:
+            groupings.extend(
+                [
+                    QuantitativeStatistic(
+                        data=group_data,
+                        independant_variables=experiment.independant_variables,
+                        treatments=experiment.treatments,
+                        is_paired=experiment.paired,
+                        is_parametric=experiment.parametric,
+                        p_value_threshold=p_value_threshold,
+                        delay_execution=True,
+                        metadata={
+                            "experiment": experiment.label,
+                            "compound": compound,
+                            "region": region,
+                        },
+                    )
+                    for (region, compound), group_data in tqdm(
+                        data.select(treatment=experiment.treatments).groupby(
+                            ["region", "compound"]
+                        ),
+                        desc=f"Preparing statistical groupings for {experiment.label}",
+                    )
+                ]
+            )
+
+        statistics = parallel_process(groupings, description="Calculating statistics")
+
+        results = []
+        for statistic in statistics:
+            result = statistic.results
+            result["fully_significant"] = statistic.is_significant
+            results.append(result)
+
+        return statistics[0] if len(statistics) == 1 else statistics, SelectableDataFrame(pd.concat(results))
 
     # for parallel
     def __call__(self):

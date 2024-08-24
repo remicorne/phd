@@ -87,14 +87,14 @@ class TestProject(unittest.TestCase):
             compound="5HIAA/5HT",
             region="OF",
             from_scratch=True,
-        ).statistics.is_significant.to_list() == [True, True]
+        ).statistics_table.is_significant.to_list() == [True, True]
         assert Histogram(
             project="TCB2",
             experiment="dose response",
             compound="5HIAA/5HT",
             from_scratch=True,
             remove_outliers="calculated",
-        ).statistics.is_significant.all()
+        ).statistics_table.is_significant.all()
         legit_regions = [
             "OF",
             "PL",

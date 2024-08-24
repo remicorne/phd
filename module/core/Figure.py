@@ -22,89 +22,93 @@ import pandas as pd
 import os
 from module.core.utils import parallel_process
 from statannotations.Annotator import Annotator
-from module.core.DataSelection import DataSelection
+from module.core.DataSelection import DataSelection, QuantitativeDataSelection
 from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
-
-@dataclass
-class Figure(Cacheable, DataSelection):
-    """
-    Base class for all figures. Handles loading, saving, and plotting of figures.
-
-    Attributes:
-        project (str): The name of the project.
-        compound (str|list, optional): The name of the compound. Defaults to None.
-        region (str|list, optional): The name of the region. Defaults to None.
-        experiment (str, optional): The name of the experiment. Defaults to None.
-        p_value_threshold (float, optional): The p-value threshold used for statistical analysis defaults to value set at project level.
-        handle_outliers (float, optional): Whether to handle outlier selection if any present. Defaults to True.
-        remove_outliers (str, optional): Whether to remove outliers. Defaults to "eliminated".
-        custom_params (dict, optional): Custom parameters for the figure. Defaults to an empty dictionary.
-        extension (ClassVar[str]): The file extension for the figure. Defaults to "png".
-    """
-
-    custom_params: dict = field(kw_only=True, default_factory=dict)
-    extension: ClassVar[str] = "png"
-
-    def __post_init__(self):
-        DataSelection.__post_init__(self)
-        self.setup()
-        self.define_filename()
-        Cacheable.__post_init__(self)
-
-    def setup(self):
-        self.compound_or_region = "compound" if self.is_compound() else "region"
-        self.to_plot = "region" if self.is_compound() else "compound"
-        self.order = [
-            item
-            for item in COMPOUNDS_AND_REGIONS[self.to_plot]
-            if item in self.data[self.to_plot].unique()
-        ]
-
-    def is_compound(self):
-        return isinstance(self.compound, str)
-
+class Figure:
     
-    def define_filename(self):
-        if self.is_compound() == True:
-            if self.region in REGION_CLASSES.values():
-                self.filename = (f"{self.compound} in {REGION_CLASSES.reversed.get(tuple(self.region), self.region)}")
-            else:
-                self.filename = (
-                f"{self.compound} in {self.region if self.region else 'all regions'}" )
-        else:
-            if self.compound in COMPOUND_CLASSES.values():
-                self.filename = (f"{self.region} in {COMPOUND_CLASSES.reversed.get(tuple(self.compound), self.compound)}")
-            else:
-                self.filename = (
-                f"{self.region} in {self.compound if self.compound else 'all compounds'}" )
+    def __new__(self, data_handler):
+             
+        @dataclass
+        class Figure(Cacheable, data_handler):
+            """
+            Base class for all figures. Handles loading, saving, and plotting of figures.
 
-    def save(self):
-        self.fig.savefig(self.filepath)
-        print(f"SAVED {self.filepath}")
-        filepath_no_extension, _ = os.path.splitext(self.filepath)
-        self.fig.savefig(f"{filepath_no_extension}.svg")
-        print(f"SAVED {filepath_no_extension}.svg")
+            Attributes:
+                project (str): The name of the project.
+                compound (str|list, optional): The name of the compound. Defaults to None.
+                region (str|list, optional): The name of the region. Defaults to None.
+                experiment (str, optional): The name of the experiment. Defaults to None.
+                p_value_threshold (float, optional): The p-value threshold used for statistical analysis defaults to value set at project level.
+                handle_outliers (float, optional): Whether to handle outlier selection if any present. Defaults to True.
+                remove_outliers (str, optional): Whether to remove outliers. Defaults to "eliminated".
+                custom_params (dict, optional): Custom parameters for the figure. Defaults to an empty dictionary.
+                extension (ClassVar[str]): The file extension for the figure. Defaults to "png".
+            """
 
-    def load(self):
-        display(Image(filename=f"{self.filepath}"))
+            custom_params: dict = field(kw_only=True, default_factory=dict)
+            extension: ClassVar[str] = "png"
 
-    def _repr_html_(self):
-        if not hasattr(self, "fig"):
-            if self.is_saved:
-                self.load()
-            else:
-                raise Exception("Could not load figure")
+            def __post_init__(self):
+                data_handler.__post_init__(self)
+                self.setup()
+                self.define_filename()
+                Cacheable.__post_init__(self)
+
+            def setup(self):
+                self.compound_or_region = "compound" if self.is_compound() else "region"
+                self.to_plot = "region" if self.is_compound() else "compound"
+                self.order = [
+                    item
+                    for item in COMPOUNDS_AND_REGIONS[self.to_plot]
+                    if item in self.data[self.to_plot].unique()
+                ]
+
+            def is_compound(self):
+                return isinstance(self.compound, str)
+
+            
+            def define_filename(self):
+                if self.is_compound() == True:
+                    if self.region in REGION_CLASSES.values():
+                        self.filename = (f"{self.compound} in {REGION_CLASSES.reversed.get(tuple(self.region), self.region)}")
+                    else:
+                        self.filename = (
+                        f"{self.compound} in {self.region if self.region else 'all regions'}" )
+                else:
+                    if self.compound in COMPOUND_CLASSES.values():
+                        self.filename = (f"{self.region} in {COMPOUND_CLASSES.reversed.get(tuple(self.compound), self.compound)}")
+                    else:
+                        self.filename = (
+                        f"{self.region} in {self.compound if self.compound else 'all compounds'}" )
+
+            def save(self):
+                self.fig.savefig(self.filepath)
+                print(f"SAVED {self.filepath}")
+                filepath_no_extension, _ = os.path.splitext(self.filepath)
+                self.fig.savefig(f"{filepath_no_extension}.svg")
+                print(f"SAVED {filepath_no_extension}.svg")
+
+            def load(self):
+                display(Image(filename=f"{self.filepath}"))
+
+            def _repr_html_(self):
+                if not hasattr(self, "fig"):
+                    if self.is_saved:
+                        self.load()
+                    else:
+                        raise Exception("Could not load figure")
+                
+        return Figure
 
 
 @dataclass
-class Histogram(Figure):
+class Histogram(Figure(QuantitativeDataSelection)):
     """
     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
 
-    __doc__ += Figure.__doc__
 
     plot_swarm: bool = field(default=True)
     figure_type: str = "histogram"
@@ -240,18 +244,8 @@ class Histogram(Figure):
         plt.tight_layout()
 
     def label_histogram_stats(self):
-        if not hasattr(self, "statistics"):
-            self._statistics = QuantitativeStatistic(
-                self.data,
-                self.experiment_information.independant_variables,
-                self.experiment_information.treatments,
-                self.experiment_information.paired,
-                self.experiment_information.parametric,
-                self.p_value_threshold,
-            )
-            self.statistics = self._statistics.results
-        if self._statistics.is_significant:
-            pairs, p_values = self._statistics.significant_pairs
+        if self.statistics.is_significant:
+            pairs, p_values = self.statistics.significant_pairs
             annotator = Annotator(
                 self.ax,
                 pairs,
@@ -264,26 +258,7 @@ class Histogram(Figure):
             annotator.set_pvalues_and_annotate(p_values)
 
     def label_summary_stats(self):
-        if not hasattr(self, "statistics"):
-            self._statistics = parallel_process(
-                [
-                    QuantitativeStatistic(
-                        self.data.select(**{self.to_plot: x}),
-                        self.experiment_information.independant_variables,
-                        self.experiment_information.treatments,
-                        self.experiment_information.paired,
-                        self.experiment_information.parametric,
-                        self.p_value_threshold,
-                        delay_execution=True,
-                        metadata={self.to_plot: x},
-                    )
-                    for x in self.order
-                ]
-            )
-            self.statistics = SelectableDataFrame(
-                pd.concat([s.results for s in self._statistics])
-            )
-        for statistics in self._statistics:
+        for statistics in self.statistics:
             if statistics.is_significant:
                 # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
                 base_font_size = 24
@@ -321,7 +296,7 @@ class Histogram(Figure):
 
 
 @dataclass
-class MatricesFigure(Figure):
+class MatricesFigure(Figure(DataSelection)):
 
     columns: list[str] = field(default=None)
     n_minimum: float = field(default=5)
@@ -645,7 +620,7 @@ class Correlation(MatricesFigure):
         plt.show()
 
 @dataclass
-class Table(ExcelDataset, Figure):
+class Table(ExcelDataset, Figure(DataSelection)):
 
     figure_type: str = field(default="table", init=False)
 

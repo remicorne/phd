@@ -7,7 +7,7 @@ from module.core.Metadata import (
 from module.core.FileSystem import FileSystem
 from module.core.HPLC import HPLC
 from module.core.Figure import Correlogram, Histogram, Correlation, Network, Table
-from module.core.DataSelection import DataSelection
+from module.core.DataSelection import DataSelection, QuantitativeDataSelection
 from module.core.Constants import COMPOUNDS, COMPOUND_CLASSES, REGION_CLASSES, REGIONS
 
 
@@ -49,13 +49,21 @@ def get_data(**kwargs):
     kwargs.pop("from_scratch", None)
     display(DataSelection(**kwargs).data)
 
+
+def get_stats(**kwargs):
+    kwargs.pop("from_scratch", None)
+    kwargs.pop("treatment", None)
+    display(QuantitativeDataSelection(**kwargs).statistics_table)
+
+
 figure_mapping = {
     "correlogram": Correlogram,
-    "histogram": Histogram,
+    "histogram": lambda **kwargs: Histogram(**{k: arg for k, arg in kwargs.items() if k != "treatment"}),
     "correlation": Correlation,
     "network": Network,
     "table": Table,
     "data": get_data,
+    "stats": get_stats,
 }
 class_constants_mappings = {
     "compounds": COMPOUND_CLASSES,
