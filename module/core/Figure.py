@@ -168,7 +168,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             y="value",
             hue="treatment",
             palette=custom_params.get("palette", self.palette),
-            errorbar=custom_params.get("errorbar", ("ci", 68)),
+            errorbar=custom_params.get("errorbar", 'sd'), #("ci", 68) remi :) would be nice to also have SEM intergrated as an option - it is not inbuild like ci or sd in seabourn
             edgecolor=custom_params.get("edgecolor", ".2"),
             errcolor=custom_params.get("errcolor", ".2"),
             capsize=custom_params.get("capsize", 0.1),
@@ -206,7 +206,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             custom_params.get("title", self.title),
             y=custom_params.get("y", 1.04),
             fontsize=custom_params.get("fontsize", 34),
-        )  # '+/- 68%CI'
+        )  
         sns.despine(left=False)
 
     def plot_summary(self, custom_params):
@@ -218,7 +218,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             y="value",
             hue=self.hue,
             palette=custom_params.get("palette", self.palette),
-            errorbar=custom_params.get("errorbar", ("ci", 68)),
+            errorbar=custom_params.get("errorbar", 'sd'),
             edgecolor=custom_params.get("edgecolor", ".2"),
             errcolor=custom_params.get("errcolor", ".2"),
             capsize=custom_params.get("capsize", 0.1),
