@@ -111,8 +111,8 @@ class Dataset(Cacheable):
 
     def replace(self, column, mapping):
         data = self.df
-        self.save(data.replace(mapping)
-
+        self.save(data.replace(mapping))
+        
     def __contains__(self, column):
         return column in self.df
 
