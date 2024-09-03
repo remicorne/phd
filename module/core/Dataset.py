@@ -109,6 +109,10 @@ class Dataset(Cacheable):
         """
         return self.df.extend(other)
 
+    def replace(self, column, mapping):
+        data = self.df
+        self.save(data.replace(mapping)
+
     def __contains__(self, column):
         return column in self.df
 
