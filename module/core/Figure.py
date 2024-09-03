@@ -124,7 +124,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.palette = (
             self.experiment_information.palette
             if self.experiment
-            else self.treatment_information.palette
+            else Palette(self.project.dict)
         )
         self.significance_palette = {
             row.treatment: row.significance for row in Palette(self.project)
