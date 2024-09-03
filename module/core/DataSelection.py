@@ -174,9 +174,8 @@ class DataSelection:
 class QuantitativeDataSelection(DataSelection):
     
     def __post_init__(self):
-        if self.experiment is None:
-            raise ValueError("Experiment(s) must be specified")
         if self.treatment is not None:
             raise ValueError("Treatment(s) must not be specified")
         super().__post_init__()
-        self.statistics, self.statistics_table = QuantitativeStatistic.calculate_from_selection(self.data, [self.experiment_information] if self.experiment == 1 else self.experiment_information, self.p_value_threshold)
+        if self.experiment is not None:
+            self.statistics, self.statistics_table = QuantitativeStatistic.calculate_from_selection(self.data, [self.experiment_information] if self.experiment == 1 else self.experiment_information, self.p_value_threshold)
