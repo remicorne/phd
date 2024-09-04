@@ -636,21 +636,21 @@ class Table(ExcelDataset, Figure(DataSelection)):
             self.data.groupby(["region", "compound", "treatment"])
             .agg(
                 mean_value=("value", "mean"),
-                sem_value=("value", lambda x: np.std(x, ddof=1)),
+                std_value=("value", lambda x: np.std(x, ddof=1)),
             )
             .reset_index()
         )
 
-        # Combine mean and SEM into a single string
-        grouped["mean ± SEM"] = grouped.apply(
-            lambda row: f"{row['mean_value']:.3f} ± {row['sem_value']:.3f}", axis=1
+        # Combine mean and STD into a single string
+        grouped["mean ± STD"] = grouped.apply(
+            lambda row: f"{row['mean_value']:.3f} ± {row['std_value']:.3f}", axis=1
         )
 
         # Pivot the DataFrame
         pivot_df = grouped.pivot_table(
             index="region",
             columns=["compound", "treatment"],
-            values="mean ± SEM",
+            values="mean ± STD",
             aggfunc="first",
         )
 
