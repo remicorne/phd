@@ -229,9 +229,9 @@ class Histogram(Figure(QuantitativeDataSelection)):
             dodge=custom_params.get("dodge", True),
             width=custom_params.get("bar_width", 0.8),
         )
-        self.ax.tick_params(labelsize=16)
+        self.ax.tick_params(labelsize=40)
         self.ax.set_ylabel(
-            self.ylabel, fontsize=24, labelpad=custom_params.get("labelpad", 100)
+            self.ylabel, fontsize=44, labelpad=custom_params.get("labelpad", 100)
         )
         self.ax.yaxis.set_label_coords(
             custom_params.get("ylabel_x", -0.459 / fig_width), 0.5
@@ -261,7 +261,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         for statistics in self.statistics:
             if statistics.is_significant:
                 # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
-                base_font_size = 24
+                base_font_size = 48
                 scaling_factor = 0.2
                 dynamic_font_size = max(
                     base_font_size - (scaling_factor * len(self.order)), 6
