@@ -9,7 +9,7 @@ from module.core.Metadata import (
     ExperimentInformation,
     TreatmentInformation,
 )
-from module.core.questions import yes_or_no
+from module.core.questions import yes_or_no, input_escape
 from module.core.Constants import REGIONS, COMPOUNDS
 from tqdm import tqdm
 from outliers import smirnov_grubbs as grubbs
@@ -167,8 +167,9 @@ class HPLC(PickleDataset):
 
     @property
     def full_df(self) -> ProjectSelectableDataframe:
+        data = ProjectSelectableDataframe(pd.concat([self.df, TissueWeight(self.project).df]))
         data = ProjectSelectableDataframe(
-            self.extend(Outliers(self.project)).extend(
+            data.extend(Outliers(self.project)).extend(
                 TreatmentInformation(self.project)
             ), self.project
         )
@@ -245,3 +246,36 @@ class Outliers(PickleDataset):
         updates = updates.set_index(["compound", "region", "mouse_id", "group_id"])
         data.update(updates[["outlier_status"]])
         self.save(data.reset_index())
+
+   
+@dataclass 
+class TissueWeight(PickleDataset):
+    
+    project: str
+    filename: ClassVar[str] = "tissue_weight"
+    
+    def generate(self):
+        filename = None
+        while not os.path.exists(f"{os.getcwd()}/{filename}"):
+            filename = input_escape("Enter tissue weight filename: ")
+        filepath = f"{os.getcwd()}/{filename}"
+        extension = os.path.splitext(filename)[1].lower()
+        raw_data = pd.read_excel(filepath) if extension == ".xlsx" else pd.read_csv(filepath)
+        raw_data.rename(columns={compound: REGIONS.get_valid_choice(compound) for compound in raw_data.columns[1:]})
+        raw_data = Groups(self.project).extend(raw_data)
+        raw_data = raw_data.melt(
+            id_vars=["mouse_id", "group_id"], value_vars=raw_data.columns[2:]
+        )
+        raw_data["compound"] = "weight"
+        return raw_data.rename(columns={"variable": "region"})
+        
+
+@dataclass
+class Groups(PickleDataset):
+    
+    project: str
+    filename: ClassVar[str] = "groups"
+    
+    def generate(self):
+        hplc_data = HPLC(self.project).df[["mouse_id", "group_id"]]
+        return hplc_data.drop_duplicates()

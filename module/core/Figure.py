@@ -620,8 +620,7 @@ class Correlation(MatricesFigure):
         plt.show()
 
 @dataclass
-class Table(ExcelDataset, Figure(DataSelection)):
-
+class Table(ExcelDataset, Figure(QuantitativeDataSelection)):
     figure_type: str = field(default="table", init=False)
 
     def setup(self):
@@ -656,3 +655,9 @@ class Table(ExcelDataset, Figure(DataSelection)):
 
         # Sort the multiindex columns
         return pivot_df.sort_index(axis=1).loc[self.order, self.compound]
+    
+    def load(self):
+        return SelectableDataFrame(pd.read_excel(self.filepath, index_col=0, header=[0,1]))
+        
+    
+    

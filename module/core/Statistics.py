@@ -67,6 +67,7 @@ class QuantitativeStatistic:
     group_column: str = field(default="treatment", kw_only=True)
     delay_execution: bool = field(default=False, kw_only=True)
     metadata: dict = field(default_factory=dict, kw_only=True)
+    pipeline: list = field(default=None, kw_only=True)
 
     def __post_init__(self):
         if self.delay_execution:
@@ -83,7 +84,7 @@ class QuantitativeStatistic:
                 ]
             )
             if self.has_enough_data:
-                self.pipeline = get_quantitative_statistics_pipeline(
+                self.pipeline = self.pipeline or get_quantitative_statistics_pipeline(
                     len(self.independant_variables) >= 2,
                     len(self.treatments) >= 2,
                     self.is_paired,
@@ -235,6 +236,7 @@ class QuantitativeStatistic:
         data,
         experiments,
         p_value_threshold: float = None,
+        pipeline: list = None,
     ):
         """
         Calculate statistical for data, autmaticcaly groups by experiment, compound regions.
@@ -263,6 +265,7 @@ class QuantitativeStatistic:
                         is_paired=experiment.paired,
                         is_parametric=experiment.parametric,
                         p_value_threshold=p_value_threshold,
+                        pipeline=pipeline,
                         delay_execution=True,
                         metadata={
                             "experiment": experiment.label,
