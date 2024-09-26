@@ -173,7 +173,7 @@ class TestProject(unittest.TestCase):
             from_scratch=True,
             remove_outliers="calculated",
         )
-        Histogram(project='TEST', compound="weight", region='OF', from_scratch=True, remove_outliers=False)
+        Histogram(project='TEST', compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
 
     def tearDown(self):
         # Cleanup code here

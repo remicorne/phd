@@ -11,24 +11,24 @@ ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index != None  # Select all
-    absent_columns = set(mask_conditions) - set(df.columns)
+    absent_columns = set(mask_conditions) - set([*df.columns, 'index'])
     if absent_columns:
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
-    for column, value in mask_conditions.items():  # Refine selection
+    for key, value in mask_conditions.items():  # Refine selection
+        column = pd.Series(df.index) if key == "index" else df[key] 
         if value is None:
-            print(f"Skipping {column}, .select() ignores None for practical purposes, use 'nan' (str) instead.")
-            continue
+            print(f"Skipping {column}, .select() ignores None for practical purpose s, use 'nan' (str) instead.")
         elif callable(value):
-            sub_selection = df[column].apply(value)
+            sub_selection = column.apply(value)
         elif is_array_like(value):
-            sub_selection = df[column].isin(value)
+            sub_selection = column.isin(value)
         else:
             if value in ["nan", "notna"]:
-                sub_selection = df[column].isna() if value is None else df[column].notna()
+                sub_selection = column.isna() if value is None else column.notna()
             else:
-                sub_selection = df[column] == value
+                sub_selection = column == value
         selected &= sub_selection
     return selected
 

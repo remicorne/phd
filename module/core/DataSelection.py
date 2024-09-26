@@ -157,7 +157,7 @@ class DataSelection:
             self.process_outliers()
             self.data = self.data.select(outlier_status=["normal", "kept"])
         elif self.remove_outliers == "calculated":
-            self.data = self.data.select(is_outlier=False)
+            self.data = self.data.select(is_outlier=lambda x: x != True) # nan considered not outlier
 
         self.data = self.data.select(value="notna")
 

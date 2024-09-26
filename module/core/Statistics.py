@@ -290,12 +290,12 @@ class QuantitativeStatistic:
             result["fully_significant"] = statistic.is_significant
             results.append(result)
 
-        return statistics[0] if len(statistics) == 1 else statistics, SelectableDataFrame(pd.concat(results))
+        return statistics, SelectableDataFrame(pd.concat(results))
 
     # for parallel
     def __call__(self):
         self.__post_init__()
-        return self
+        return self 
 
     def execute_stats_pipeline(self):
         results = []
