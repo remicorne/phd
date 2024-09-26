@@ -157,7 +157,9 @@ class DataSelection:
             self.process_outliers()
             self.data = self.data.select(outlier_status=["normal", "kept"])
         elif self.remove_outliers == "calculated":
-            self.data = self.data.select(is_outlier=lambda x: x != True) # nan considered not outlier
+            self.data = self.data.select(
+                is_outlier=lambda x: x != True
+            )  # nan considered not outlier
 
         self.data = self.data.select(value="notna")
 
@@ -196,6 +198,12 @@ class QuantitativeDataSelection(DataSelection):
                         else self.experiment_information
                     ),
                     self.p_value_threshold,
-                    pipeline=["one_way_anova", "tukey"] if self.compound == "weight" else None,
+                    pipeline=(
+                        ["one_way_anova", "tukey"]
+                        if self.compound == "weight"
+                        else None
+                    ),
                 )
             )
+            if len(self.statistics) == 1:
+                self.statistics = self.statistics[0]
