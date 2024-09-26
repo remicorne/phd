@@ -8,6 +8,7 @@ debug2.py
 .DS_Store
 PROJECTS
 *_HPLC*
+*.xlsx
 
 allen_sdk
 mouse_connectivity/manifest.json
