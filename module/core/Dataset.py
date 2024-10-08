@@ -19,17 +19,18 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     for key, value in mask_conditions.items():  # Refine selection
         column = pd.Series(df.index) if key == "index" else df[key] 
         if value is None:
-            print(f"Skipping {column}, .select() ignores None for practical purpose s, use 'nan' (str) instead.")
-        elif callable(value):
-            sub_selection = column.apply(value)
-        elif is_array_like(value):
-            sub_selection = column.isin(value)
+            print(f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead.")
         else:
-            if value in ["nan", "notna"]:
-                sub_selection = column.isna() if value is None else column.notna()
+            if callable(value):
+                sub_selection = column.apply(value)
+            elif is_array_like(value):
+                sub_selection = column.isin(value)
             else:
-                sub_selection = column == value
-        selected &= sub_selection
+                if value in ["nan", "notna"]:
+                    sub_selection = column.isna() if value is None else column.notna()
+                else:
+                    sub_selection = column == value
+            selected &= sub_selection
     return selected
 
 

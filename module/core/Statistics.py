@@ -15,7 +15,9 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from module.core.utils import parallel_process
 from IPython.display import HTML
 from module.core.utils import is_array_like
-from itertools import product
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
 
 
 def get_quantitative_statistics_pipeline(
@@ -90,6 +92,7 @@ class QuantitativeStatistic:
                     self.is_paired,
                     self.is_parametric,
                 )
+                self.statistical_test = self.pipeline[0]
                 self.post_hoc_test = self.pipeline[-1]
                 self.filtered_data = self.data.select(value="notna")
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
@@ -181,7 +184,7 @@ class QuantitativeStatistic:
         if remove_outliers == "eliminated":
             data = data.select(outlier_status=["normal", "kept"])
         elif remove_outliers == "calculated":
-            data = data.select(is_outlier=False)
+            data = data.select(is_outlier=lambda val: val != True)
         elif remove_outliers is not False:
             raise ValueError(
                 "remove_outliers must be 'eliminated', 'calculated', or False"
@@ -350,6 +353,7 @@ class QuantitativeStatistic:
             ],
             "is_significant": len(significance_infos) > 0,
             "result": results,
+            "result_string": significance_infos,
         }
 
     def get_one_way_anova(self):
@@ -366,16 +370,17 @@ class QuantitativeStatistic:
                 - A boolean indicating if the test result is significant at the given threshold.
                 - A DataFrame containing the ANOVA test results (F-value and p-value).
         """
-        F_value, p_value = scipy.stats.f_oneway(
-            *[
-                list(group_df.value)
-                for _, group_df in self.filtered_data.groupby(self.group_column)
-            ]
-        )
+        model = ols(f'value ~ C({self.group_column})', data=self.filtered_data).fit()
+        anova_table = sm.stats.anova_lm(model, typ=2)
+        p_value = anova_table["PR(>F)"][0]
+        F = anova_table['F'][0]
+        df1, df2 = anova_table['df'][0], anova_table['df'][1]
+    
         return {
             "p_value": p_value,
             "is_significant": p_value <= self.p_value_threshold,
-            "result": pd.DataFrame([[F_value, p_value]], columns=["F", "p_value"]),
+            "result": anova_table,
+            "result_string": f"F({df1}, {df2}) = {F}",
         }
 
     def get_two_way_anova(self):
@@ -406,11 +411,14 @@ class QuantitativeStatistic:
             between=self.independant_variables,
             detailed=True,
         ).round(3)
+        
+        
         return {
             "p_value": results["p-unc"][2],
             "is_significant": isinstance(results["p-unc"][2], float)
             and results["p-unc"][2] < self.p_value_threshold,
             "result": results,
+            "result_string": f"F({results['DF'][2]}, {results['DF'][3]}) = {results['F'][2]}"
         }
 
 

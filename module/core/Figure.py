@@ -12,7 +12,7 @@ from module.core.Metadata import (
 )
 from module.core.Matrix import Matrix
 from module.core.Matrix import Network as NetworkModel
-from module.core.Constants import COMPOUNDS_AND_REGIONS
+from module.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
 from typing import ClassVar
@@ -25,10 +25,11 @@ from statannotations.Annotator import Annotator
 from module.core.DataSelection import DataSelection, QuantitativeDataSelection
 from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
+
 class Figure:
-    
+
     def __new__(self, data_handler):
-             
+
         @dataclass
         class Figure(Cacheable, data_handler):
             """
@@ -58,29 +59,24 @@ class Figure:
             def setup(self):
                 self.compound_or_region = "compound" if self.is_compound() else "region"
                 self.to_plot = "region" if self.is_compound() else "compound"
-                self.order = [
-                    item
-                    for item in COMPOUNDS_AND_REGIONS[self.to_plot]
-                    if item in self.data[self.to_plot].unique()
-                ]
+                self.order = COMPOUNDS_AND_REGIONS[self.to_plot].order(
+                    self.data[self.to_plot].unique()
+                )
 
             def is_compound(self):
                 return isinstance(self.compound, str)
 
-            
             def define_filename(self):
                 if self.is_compound() == True:
                     if self.region in REGION_CLASSES.values():
-                        self.filename = (f"{self.compound} in {REGION_CLASSES.reversed.get(tuple(self.region), self.region)}")
+                        self.filename = f"{self.compound} in {REGION_CLASSES.reversed.get(tuple(self.region), self.region)}"
                     else:
-                        self.filename = (
-                        f"{self.compound} in {self.region if self.region else 'all regions'}" )
+                        self.filename = f"{self.compound} in {self.region if self.region else 'all regions'}"
                 else:
                     if self.compound in COMPOUND_CLASSES.values():
-                        self.filename = (f"{self.region} in {COMPOUND_CLASSES.reversed.get(tuple(self.compound), self.compound)}")
+                        self.filename = f"{self.region} in {COMPOUND_CLASSES.reversed.get(tuple(self.compound), self.compound)}"
                     else:
-                        self.filename = (
-                        f"{self.region} in {self.compound if self.compound else 'all compounds'}" )
+                        self.filename = f"{self.region} in {self.compound if self.compound else 'all compounds'}"
 
             def save(self):
                 self.fig.savefig(self.filepath)
@@ -98,7 +94,7 @@ class Figure:
                         self.load()
                     else:
                         raise Exception("Could not load figure")
-                
+
         return Figure
 
 
@@ -109,18 +105,14 @@ class Histogram(Figure(QuantitativeDataSelection)):
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
 
-
     plot_swarm: bool = field(default=True)
     figure_type: str = "histogram"
 
     def setup_plotter_parameters(self):
-        self.is_summary = (
-            isinstance(self.compound, list)
-            or isinstance(self.region, list)
-            or self.compound is None
-            or self.region is None
-        )
-        self.hue = self.swarm_hue = "treatment"
+        multiple_regions = isinstance(self.region, list) or self.region is None
+        multiple_compounds = isinstance(self.compound, list) or self.compound is None
+        self.swarm_hue = self.hue = self.x = "treatment"
+
         self.palette = (
             self.experiment_information.palette
             if self.experiment
@@ -130,6 +122,24 @@ class Histogram(Figure(QuantitativeDataSelection)):
             row.treatment: row.significance for row in Palette(self.project)
         }
         self.hue_order = self.treatments
+
+        if self.pool == "treatment":
+            self.is_summary = multiple_compounds and multiple_regions
+            self.x = self.to_plot
+            if self.is_summary:
+                self.hue = self.compound_or_region
+                self.hue_order = COMPOUNDS_AND_REGIONS[self.compound_or_region].order(
+                    self.data[self.compound_or_region].unique()
+                )
+                self.palette = self.significance_palette = None
+        else:
+            self.is_summary = (
+                isinstance(self.compound, list)
+                or isinstance(self.region, list)
+                or self.compound is None
+                or self.region is None
+            )
+            
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
         )
@@ -150,11 +160,15 @@ class Histogram(Figure(QuantitativeDataSelection)):
 
     def plot(self, custom_params=dict()):
         custom_params = {**self.custom_params, **custom_params}
-        custom_params["palette"] = {
-            **self.palette,
-            **self.custom_params.get("palette", {}),
-            **custom_params.get("palette", {}),
-        }
+        custom_params["palette"] = (
+            {
+                **self.palette,
+                **self.custom_params.get("palette", {}),
+                **custom_params.get("palette", {}),
+            }
+            if not self.pool == "treatment"
+            else None
+        )
         if self.is_summary:
             self.plot_summary(custom_params)
         else:
@@ -164,11 +178,13 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.fig, self.ax = plt.subplots(figsize=(20, 10))
         ax = sns.barplot(
             data=custom_params.get("data", self.data),
-            x="treatment",
+            x=self.x,
             y="value",
-            hue="treatment",
+            hue=self.hue,
             palette=custom_params.get("palette", self.palette),
-            errorbar=custom_params.get("errorbar", 'sd'), #("ci", 68) remi :) would be nice to also have SEM intergrated as an option - it is not inbuild like ci or sd in seabourn
+            errorbar=custom_params.get(
+                "errorbar", "sd"
+            ),  # ("ci", 68) remi :) would be nice to also have SEM intergrated as an option - it is not inbuild like ci or sd in seabourn
             edgecolor=custom_params.get("edgecolor", ".2"),
             errcolor=custom_params.get("errcolor", ".2"),
             capsize=custom_params.get("capsize", 0.1),
@@ -179,7 +195,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         if custom_params.get("plot_swarm", self.plot_swarm):
             ax = sns.swarmplot(
                 data=custom_params.get("data", self.data),
-                x="treatment",
+                x=self.x,
                 y="value",
                 hue=custom_params.get("swarm_hue", self.swarm_hue),
                 size=custom_params.get("size", 5),
@@ -206,7 +222,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             custom_params.get("title", self.title),
             y=custom_params.get("y", 1.04),
             fontsize=custom_params.get("fontsize", 34),
-        )  
+        )
         sns.despine(left=False)
 
     def plot_summary(self, custom_params):
@@ -218,7 +234,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             y="value",
             hue=self.hue,
             palette=custom_params.get("palette", self.palette),
-            errorbar=custom_params.get("errorbar", 'sd'),
+            errorbar=custom_params.get("errorbar", "sd"),
             edgecolor=custom_params.get("edgecolor", ".2"),
             errcolor=custom_params.get("errcolor", ".2"),
             capsize=custom_params.get("capsize", 0.1),
@@ -244,8 +260,8 @@ class Histogram(Figure(QuantitativeDataSelection)):
         plt.tight_layout()
 
     def label_histogram_stats(self):
-        if self.statistics.is_significant:
-            pairs, p_values = self.statistics.significant_pairs
+        if self.statistic and self.statistic.is_significant:
+            pairs, p_values = self.statistic.significant_pairs
             annotator = Annotator(
                 self.ax,
                 pairs,
@@ -400,6 +416,7 @@ class MatricesFigure(Figure(DataSelection)):
 class Correlogram(MatricesFigure):
 
     figure_type: str = "correlogram"
+
     def plot_ax(self, i):
         ax = self.axs[i]
         matrix = self.matrices[i]
@@ -421,11 +438,17 @@ class Correlogram(MatricesFigure):
             cbar_kws={"shrink": 0.7},  # adj color bar size
         )
         ax.set_xticklabels(
-            ax.get_xticklabels(), rotation=45, ha='center', fontsize = 12,
-        )  
+            ax.get_xticklabels(),
+            rotation=45,
+            ha="center",
+            fontsize=12,
+        )
         ax.set_yticklabels(
-            ax.get_yticklabels(), rotation=45, va='center', fontsize = 12,
-        ) 
+            ax.get_yticklabels(),
+            rotation=45,
+            va="center",
+            fontsize=12,
+        )
 
         ax.set_ylabel(matrix.var1, fontsize=28)
         ax.set_xlabel(matrix.var2, fontsize=28)
@@ -493,9 +516,9 @@ class Network(MatricesFigure):
         # )
 
         # Set the aspect ratio to 'equal' for the plot area
-        ax.set_aspect('equal')
-        ax.margins(0.1) 
-        
+        ax.set_aspect("equal")
+        ax.margins(0.1)
+
         # Set title for the graph
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
@@ -519,7 +542,7 @@ class Network(MatricesFigure):
         std_degree = np.std(degree_sequence)
 
         # Use the max_node_degree property from the Network class
-        max_degree= network.max_degree
+        max_degree = network.max_degree
         mean_degree = network.average_degree
 
         x = np.linspace(0, max_degree, 100)
@@ -537,8 +560,9 @@ class Network(MatricesFigure):
         total_nodes = len(all_nodes)
         total_counted = sum(counts)
         if total_nodes != total_counted:
-            raise ValueError(f"Total nodes ({total_nodes}) does not match total counted ({total_counted})")
-
+            raise ValueError(
+                f"Total nodes ({total_nodes}) does not match total counted ({total_counted})"
+            )
 
         # Annotate each bar with the corresponding node labels
         for i, patch in enumerate(patches):
@@ -566,69 +590,74 @@ class Network(MatricesFigure):
         ax.tick_params(axis="x", labelsize=20)  # Adjust x-axis tick label size
         ax.tick_params(axis="y", labelsize=20)
 
-        # HACKY PRINT 
+        # HACKY PRINT
         title = network.get_title()
         print(title)
         print(
-            f"edges = {network.total_edges}, pos = {network.pos_edges}, neg = {network.neg_edges}", 
-            f"density = {network.density}, max degree = {network.max_degree}, average degree = {network.average_degree}", 
-            f"unweighted clustering co = {network.avg_clust_coeff_unweighted}"
+            f"edges = {network.total_edges}, pos = {network.pos_edges}, neg = {network.neg_edges}",
+            f"density = {network.density}, max degree = {network.max_degree}, average degree = {network.average_degree}",
+            f"unweighted clustering co = {network.avg_clust_coeff_unweighted}",
         )
 
         return ax
 
+
 @dataclass
 class Correlation(MatricesFigure):
-    
+
     figure_type: str = "correlation"
-    
-    
+
     def define_filename(self):
         self.filename = f"{self.compound} in {self.region}"
-    
+
     def generate(self):
         compound = self.compound if isinstance(self.compound, list) else [self.compound]
         region = self.region if isinstance(self.region, list) else [self.region]
-        
+
         x_data = self.data.select(compound=compound[0], region=region[0])
         y_data = self.data.select(compound=compound[-1], region=region[-1])
         common_mouse_ids = list(set(x_data.mouse_id).intersection(set(y_data.mouse_id)))
-        x_data = x_data.set_index('mouse_id').loc[common_mouse_ids].value.values
-        y_data = y_data.set_index('mouse_id').loc[common_mouse_ids].value.values
-        
+        x_data = x_data.set_index("mouse_id").loc[common_mouse_ids].value.values
+        y_data = y_data.set_index("mouse_id").loc[common_mouse_ids].value.values
+
         x_label = f"{compound[0]} in {region[0]} (ng/mg)"
         y_label = f"{compound[-1]} in {region[-1]} (ng/mg)"
         pearson_r, p_value = stats.pearsonr(x_data, y_data)
-        color = 'red' if pearson_r > 0 else 'blue'
+        color = "red" if pearson_r > 0 else "blue"
 
         # Create the plot
         self.fig, ax = plt.subplots()
-        sns.scatterplot(x=x_data, y=y_data, ax=ax, marker='o', s=30, color='black')
-        sns.regplot(x=x_data, y=y_data, ci=95, ax=ax, scatter=False, line_kws={"color": color})
+        sns.scatterplot(x=x_data, y=y_data, ax=ax, marker="o", s=30, color="black")
+        sns.regplot(
+            x=x_data, y=y_data, ci=95, ax=ax, scatter=False, line_kws={"color": color}
+        )
 
         ax.set_xlabel(x_label, fontsize=22)
         ax.set_ylabel(y_label, fontsize=22)
-        ax.spines[['right', 'top']].set_visible(False)
+        ax.spines[["right", "top"]].set_visible(False)
         ax.set_title(self.treatment)
 
         # Add correlation values as text
-        p_value_annotation = f'{p_value:.1e}' if p_value < 0.0001 else f'{p_value:.4f}'
-        labels = f'Pearson R: {pearson_r:.2f}\np-value: {p_value_annotation}'
-        ax.text(0.05, 0.9, labels, transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='white', boxstyle='round'))
+        p_value_annotation = f"{p_value:.1e}" if p_value < 0.0001 else f"{p_value:.4f}"
+        labels = f"Pearson R: {pearson_r:.2f}\np-value: {p_value_annotation}"
+        ax.text(
+            0.05,
+            0.9,
+            labels,
+            transform=ax.transAxes,
+            bbox=dict(facecolor="white", edgecolor="white", boxstyle="round"),
+        )
 
         plt.tight_layout()
         plt.show()
+
 
 @dataclass
 class Table(ExcelDataset, Figure(QuantitativeDataSelection)):
     figure_type: str = field(default="table", init=False)
 
     def setup(self):
-        self.order = [
-            item
-            for item in COMPOUNDS_AND_REGIONS["region"]
-            if item in self.data["region"].unique()
-        ]
+        self.order = REGIONS.order(self.data["region"].unique())
 
     def generate(self):
         grouped = (
@@ -655,9 +684,42 @@ class Table(ExcelDataset, Figure(QuantitativeDataSelection)):
 
         # Sort the multiindex columns
         return pivot_df.sort_index(axis=1).loc[self.order, self.compound]
-    
+
     def load(self):
-        return SelectableDataFrame(pd.read_excel(self.filepath, index_col=0, header=[0,1]))
-        
-    
-    
+        return SelectableDataFrame(
+            pd.read_excel(self.filepath, index_col=0, header=[0, 1])
+        )
+
+
+@dataclass
+class StatisticsTable(Table):
+
+    def define_filename(self):
+        super().define_filename()
+        self.filename += " STATS"
+
+    def generate(self):
+
+        results = []
+        for statistic in self.statistics:
+            data = statistic.results
+            data = data[data["test"] == statistic.statistical_test][
+                ["test", "region", "compound", "result_string"]
+            ]
+            results.append(data)
+        results = pd.concat(results)
+        return (
+            results.pivot_table(
+                index="region",
+                columns=["test", "compound"],
+                values="result_string",
+                aggfunc="first",
+            )
+            if not results.empty
+            else results
+        )
+
+    def load(self):
+        return SelectableDataFrame(
+            pd.read_excel(self.filepath, index_col=0, header=[0, 1])
+        )

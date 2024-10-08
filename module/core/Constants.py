@@ -9,7 +9,7 @@ import json
 
 @dataclass
 class ConstantRegistry(JSONMapping):
-    """A JSON mapping for constants. 
+    """A JSON mapping for constants.
     Used for validation of predefined constants (regions, compounds, compound classes..)
 
     Args:
@@ -75,6 +75,9 @@ class ConstantRegistry(JSONMapping):
             print("EDIT REGISTRY AND RETRY")
             exit(1)
 
+    def order(self, iterable):
+        return [item for item in self if item in iterable]
+
 
 REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))
 COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compounds"))
@@ -85,4 +88,4 @@ REGION_CLASSES = ConstantRegistry(
     filepath=os.path.join(FileSystem.CONSTANTS, "region_classes")
 )
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
-COMPOUNDS_AND_REGIONS = {"region": REGIONS.list, "compound": COMPOUNDS.list}
+COMPOUNDS_AND_REGIONS = {"region": REGIONS, "compound": COMPOUNDS}

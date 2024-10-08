@@ -1,7 +1,7 @@
 from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
 import unittest
 from module.core.Project import Project, ROOT
-from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table
+from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable
 import os, shutil
 
 
@@ -174,7 +174,16 @@ class TestProject(unittest.TestCase):
             remove_outliers="calculated",
         )
         Histogram(project='TEST', compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
-
+        StatisticsTable(project="TCB2", compound=["DA", "5HT"], experiment ="agonist antagonist", from_scratch=True)
+        Histogram(project='TCB2', 
+                experiment='agonist antagonist',
+                compound=['DA', 'NA'], 
+                region=['OF', 'PL'],
+                from_scratch=True, 
+                remove_outliers='calculated',
+                pool="treatment"
+                )
+        
     def tearDown(self):
         # Cleanup code here
         print("DELETING TEST FILES")

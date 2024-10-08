@@ -51,6 +51,11 @@ class JSONMapping(Cacheable):
     def __setitem__(self, key, value):
         self.add(key, value)
 
+
+    def __iter__(self):
+        for item in self.list:
+            yield item
+        
     def __repr__(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.items())
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import get_args
+import pandas as pd
 from module.core.FileSystem import FileSystem
 from module.core.Metadata import (
     ProjectInformation,
@@ -101,6 +102,7 @@ class DataSelection:
     remove_outliers: str | bool = field(kw_only=True, default=None)
     data_source: str | bool = field(kw_only=True, default="hplc")
     p_value_threshold: float = field(kw_only=True, default=None)
+    pool: str = field(kw_only=True, default=None)
 
     def __post_init__(self):
         if self.project not in FileSystem.list_projects():
@@ -162,6 +164,9 @@ class DataSelection:
             )  # nan considered not outlier
 
         self.data = self.data.select(value="notna")
+        if self.pool: 
+            self.data[self.pool] = "all"
+            
 
     def process_parameter(self, name, options):
         parameter = getattr(self, name)
@@ -188,7 +193,7 @@ class QuantitativeDataSelection(DataSelection):
 
     def __post_init__(self):
         super().__post_init__()
-        if self.experiment is not None:
+        if self.experiment is not None and self.pool != "treatment":
             self.statistics, self.statistics_table = (
                 QuantitativeStatistic.calculate_from_selection(
                     self.data,
@@ -206,4 +211,6 @@ class QuantitativeDataSelection(DataSelection):
                 )
             )
             if len(self.statistics) == 1:
-                self.statistics = self.statistics[0]
+                self.statistic = self.statistics[0]
+        else:
+            self.statistics, self.statistics_table, self.statistic = [], pd.DataFrame(), None
