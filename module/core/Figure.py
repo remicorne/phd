@@ -124,14 +124,11 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.hue_order = self.treatments
 
         if self.pool == "treatment":
-            self.is_summary = multiple_compounds and multiple_regions
             self.x = self.to_plot
-            if self.is_summary:
-                self.hue = self.compound_or_region
-                self.hue_order = COMPOUNDS_AND_REGIONS[self.compound_or_region].order(
-                    self.data[self.compound_or_region].unique()
-                )
-                self.palette = self.significance_palette = None
+            self.hue = self.compound_or_region
+            self.hue_order = self.order
+            self.palette = self.significance_palette = None
+            self.is_summary = multiple_compounds and multiple_regions
         else:
             self.is_summary = (
                 isinstance(self.compound, list)
