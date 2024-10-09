@@ -697,7 +697,12 @@ class StatisticsTable(Table):
 
     def generate(self):
 
+        
+        if not self.statistics:
+            return pd.DataFrame()
+        
         results = []
+
         for statistic in self.statistics:
             data = statistic.results
             data = data[data["test"] == statistic.statistical_test][
@@ -705,16 +710,18 @@ class StatisticsTable(Table):
             ]
             results.append(data)
         results = pd.concat(results)
-        return (
-            results.pivot_table(
+        
+        results = results.pivot_table(
                 index="region",
                 columns=["test", "compound"],
                 values="result_string",
                 aggfunc="first",
             )
-            if not results.empty
-            else results
-        )
+        
+        results.index = pd.Categorical(results.index, categories=self.order, ordered=True)
+        return results.sort_index()
+        
+        
 
     def load(self):
         return SelectableDataFrame(
