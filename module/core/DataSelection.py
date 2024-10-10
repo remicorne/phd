@@ -193,7 +193,7 @@ class QuantitativeDataSelection(DataSelection):
 
     def __post_init__(self):
         super().__post_init__()
-        if self.experiment is not None and self.pool != "treatment":
+        if (self.experiment is not None and self.pool != "treatment") or self.compound == "weight":
             self.statistics, self.statistics_table = (
                 QuantitativeStatistic.calculate_from_selection(
                     self.data,
