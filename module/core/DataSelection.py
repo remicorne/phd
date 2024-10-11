@@ -192,8 +192,11 @@ class QuantitativeDataSelection(DataSelection):
     statistics_pipeline: list = field(kw_only=True, default=None)
 
     def __post_init__(self):
+        if self.experiment == "weights":
+            self.compound = "weight"
+            
         super().__post_init__()
-        if (self.experiment is not None and self.pool != "treatment") or self.compound == "weight":
+        if self.experiment is not None and self.pool != "treatment":
             self.statistics, self.statistics_table = (
                 QuantitativeStatistic.calculate_from_selection(
                     self.data,
@@ -203,11 +206,6 @@ class QuantitativeDataSelection(DataSelection):
                         else self.experiment_information
                     ),
                     self.p_value_threshold,
-                    pipeline=(
-                        ["one_way_anova", "tukey"]
-                        if self.compound == "weight"
-                        else None
-                    ),
                 )
             )
             if len(self.statistics) == 1:
