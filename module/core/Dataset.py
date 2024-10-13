@@ -34,9 +34,9 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     return selected
 
 
-def sub_select(df, selector, copy=True):
+def sub_select(df, selector):
     df = df.loc[mask(df, selector)]
-    return df.iloc[0] if len(df) == 1 else df
+    return df
 
 
 class SelectableDataFrame(pd.DataFrame):

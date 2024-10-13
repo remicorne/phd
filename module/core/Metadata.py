@@ -104,6 +104,12 @@ class _ProjectSettings(ExcelDataset):
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
     
+    
+    def select(self, **selector) -> SelectableDataFrame:
+        df = super().select(**selector)
+        return df.iloc[0] if len(df) == 1 else df
+
+    
 
 
 @dataclass(repr=False)
