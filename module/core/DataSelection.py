@@ -116,7 +116,7 @@ class DataSelection:
             self.p_value_threshold or self.project_information.p_value_threshold
         )
 
-        self.data = HPLC(self.project).full_df
+        self.data = HPLC(self.project).full_df #TODO clarify variables (plural?)
         self._region = self.region
         self._compound = self.compound
         self.compound = COMPOUND_CLASSES.get(self.compound, self.compound)
