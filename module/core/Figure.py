@@ -12,7 +12,7 @@ from module.core.Metadata import (
 )
 from module.core.Matrix import Matrix
 from module.core.Matrix import Network as NetworkModel
-from module.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS
+from module.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS, REGION_CLASSES_POSITIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
 from typing import ClassVar
@@ -455,7 +455,6 @@ class Correlogram(MatricesFigure):
 class Network(MatricesFigure):
 
     figure_type: str = "network"
-    node_positions: dict = None  # Optional parameter for manual node positions
 
     def define_filename(self):
         super().define_filename()
@@ -480,12 +479,12 @@ class Network(MatricesFigure):
         ax = self.axs[i]
         network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+        self.positions = REGION_CLASSES_POSITIONS.get(self._region, network.pos)
 
-        positions = self.node_positions if self.node_positions else network.pos
 
         nx.draw_networkx_nodes(
             network.G,
-            positions,
+            self.positions,
             node_size=2000,
             alpha=0.95,
             node_color="white",
@@ -494,7 +493,7 @@ class Network(MatricesFigure):
         )
         nx.draw_networkx_edges(
             network.G,
-            positions,
+            self.positions,
             width=list(nx.get_edge_attributes(network.G, "weight").values()),
             edge_color=list(nx.get_edge_attributes(network.G, "color").values()),
             ax=ax,
@@ -506,7 +505,7 @@ class Network(MatricesFigure):
             node: node for node in network.G.nodes()
         }  # Label nodes with their names
         nx.draw_networkx_labels(
-            network.G, positions, labels=node_labels, font_size=22, ax=ax
+            network.G, self.positions, labels=node_labels, font_size=22, ax=ax
         )
         # nx.draw_networkx_edge_labels(
         #     network.G, positions, edge_labels=network.edge_labels, font_size=18, ax=ax
