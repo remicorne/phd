@@ -135,7 +135,7 @@ class DataSelection:
                 setattr(self, name, getattr(self, name)[0])
 
         self.data = self.data.select(compound=self.compound, region=self.region)
-
+ 
         if self.experiment:
             self.experiment_information = self.experiment_information.select(
                 label=self.experiment
