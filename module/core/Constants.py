@@ -87,5 +87,9 @@ COMPOUND_CLASSES = ConstantRegistry(
 REGION_CLASSES = ConstantRegistry(
     filepath=os.path.join(FileSystem.CONSTANTS, "region_classes")
 )
+REGION_CLASSES_POSITIONS = ConstantRegistry(
+    filepath=os.path.join(FileSystem.CONSTANTS, "region_classes_positions")
+)
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
 COMPOUNDS_AND_REGIONS = {"region": REGIONS, "compound": COMPOUNDS}
+

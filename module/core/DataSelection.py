@@ -117,6 +117,8 @@ class DataSelection:
         )
 
         self.data = HPLC(self.project).full_df
+        self._region = self.region
+        self._compound = self.compound
         self.compound = COMPOUND_CLASSES.get(self.compound, self.compound)
         self.region = REGION_CLASSES.get(self.region, self.region)
 
@@ -192,7 +194,7 @@ class QuantitativeDataSelection(DataSelection):
     statistics_pipeline: list = field(kw_only=True, default=None)
 
     def __post_init__(self):
-        if self.experiment == "weights":
+        if self.experiment == "weight":
             self.compound = "weight"
             
         super().__post_init__()
