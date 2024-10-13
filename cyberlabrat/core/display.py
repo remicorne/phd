@@ -1,14 +1,14 @@
 import ipywidgets as widgets
 from IPython.display import display, clear_output
-from module.core.Metadata import (
+from cyberlabrat.core.Metadata import (
     TreatmentInformation,
     ExperimentInformation,
 )
-from module.core.FileSystem import FileSystem
-from module.core.HPLC import HPLC
-from module.core.Figure import Correlogram, Histogram, Correlation, Network, Table
-from module.core.DataSelection import DataSelection, QuantitativeDataSelection
-from module.core.Constants import COMPOUNDS, COMPOUND_CLASSES, REGION_CLASSES, REGIONS
+from cyberlabrat.core.FileSystem import FileSystem
+from cyberlabrat.core.HPLC import HPLC
+from cyberlabrat.core.Figure import Correlogram, Histogram, Correlation, Network, Table
+from cyberlabrat.core.DataSelection import DataSelection, QuantitativeDataSelection
+from cyberlabrat.core.Constants import COMPOUNDS, COMPOUND_CLASSES, REGION_CLASSES, REGIONS
 
 
 class OrderedSelectMultipleWithAll(widgets.SelectMultiple):

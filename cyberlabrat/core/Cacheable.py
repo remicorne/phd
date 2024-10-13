@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
 import os, platform, subprocess
-from module.core.FileSystem import FileSystem
+from cyberlabrat.core.FileSystem import FileSystem
 import re
 
 def sanitize_filename(filename):
@@ -98,4 +98,8 @@ class Cacheable:
 
     @property
     def is_saved(self):
-        return os.path.isfile(self.filepath)
+        try:
+            self.load()
+            return True
+        except FileNotFoundError:
+            return False

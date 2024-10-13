@@ -1,10 +1,11 @@
-from module.core.JSON import JSONMapping
-from module.core.FileSystem import FileSystem
+from cyberlabrat.core.JSON import JSONMapping
+from cyberlabrat.core.FileSystem import FileSystem
 import os
 from dataclasses import dataclass
 import difflib
-from module.core.questions import yes_or_no, select_one
+from cyberlabrat.core.questions import yes_or_no, select_one
 import json
+import importlib
 
 
 @dataclass
@@ -20,6 +21,11 @@ class ConstantRegistry(JSONMapping):
     """
 
     filepath: str
+    
+    def load(self):
+        with importlib.resources.open_text('cyberlabrat.json', self.filepath.split('/')[-1]) as f:
+            return json.load(f)
+
 
     def generate(self):
         raise NotImplementedError(

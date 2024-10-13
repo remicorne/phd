@@ -8,7 +8,8 @@ matplotlib==3.7.3
 outlier_utils
 pingouin
 scipy
-git+https://github.com/remicorne/statannotations
+remi_statannotations_fork
+setuptools
 statsmodels
 openpyxl
 pydantic

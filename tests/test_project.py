@@ -1,7 +1,7 @@
-from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
+from cyberlabrat.core.Statistics import QuantitativeStatistic, AggregateStatistics
 import unittest
-from module.core.Project import Project, ROOT
-from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable
+from cyberlabrat.core.Project import Project, ROOT
+from cyberlabrat.core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable
 import os, shutil
 
 
@@ -173,7 +173,7 @@ class TestProject(unittest.TestCase):
             from_scratch=True,
             remove_outliers="calculated",
         )
-        Histogram(project='TEST', compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
+        Histogram(project='TEST', experiment="weight", region='OF', from_scratch=True, remove_outliers="calculated")
         StatisticsTable(project="TCB2", compound=["DA", "5HT"], experiment ="agonist antagonist", from_scratch=True)
         Histogram(project='TCB2', 
                 experiment='agonist antagonist',

@@ -1,8 +1,8 @@
 import json
 from dataclasses import dataclass
-from module.core.Cacheable import Cacheable
+from cyberlabrat.core.Cacheable import Cacheable
 from typing import ClassVar
-from module.core.utils import is_array_like
+from cyberlabrat.core.utils import is_array_like
 
 
 @dataclass

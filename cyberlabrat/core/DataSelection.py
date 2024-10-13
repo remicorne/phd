@@ -1,19 +1,19 @@
 from dataclasses import dataclass, field
 from typing import get_args
 import pandas as pd
-from module.core.FileSystem import FileSystem
-from module.core.Metadata import (
+from cyberlabrat.core.FileSystem import FileSystem
+from cyberlabrat.core.Metadata import (
     ProjectInformation,
     TreatmentInformation,
     ExperimentInformation,
 )
-from module.core.HPLC import HPLC, Outliers
-from module.core.Statistics import QuantitativeStatistic
-from module.core.utils import is_array_like
+from cyberlabrat.core.HPLC import HPLC, Outliers
+from cyberlabrat.core.Statistics import QuantitativeStatistic
+from cyberlabrat.core.utils import is_array_like
 import matplotlib.pyplot as plt
 import seaborn as sns
-from module.core.questions import input_list, yes_or_no
-from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
+from cyberlabrat.core.questions import input_list, yes_or_no
+from cyberlabrat.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
 
 def convert_parameter_to_list(parameter):

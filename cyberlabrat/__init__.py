@@ -1,0 +1,1 @@
+from .core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable

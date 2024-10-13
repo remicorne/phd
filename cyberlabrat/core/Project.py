@@ -1,14 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from module.core.Dataset import SelectableDataFrame
-from module.core.questions import yes_or_no
-from module.core.Metadata import (
+from cyberlabrat.core.Dataset import SelectableDataFrame
+from cyberlabrat.core.questions import yes_or_no
+from cyberlabrat.core.Metadata import (
     ExperimentInformation,
     TreatmentInformation,
     ProjectInformation,
 )
-from module.core.HPLC import RawHPLC, HPLC, Outliers
-from module.core.Statistics import Statistics
+from cyberlabrat.core.HPLC import RawHPLC, HPLC, Outliers
+from cyberlabrat.core.Statistics import Statistics
 import os
 
 ROOT = f"{os.getcwd()}/PROJECTS" 

@@ -9,9 +9,10 @@ class FileSystem:
 
     """
 
-    ROOT = os.getcwd()
-    PROJECTS = f"{ROOT}/PROJECTS"
-    CONSTANTS = f"{ROOT}/module/json"
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    PROJECTS = os.path.join(ROOT, "PROJECTS")
+    CONSTANTS = os.path.join(ROOT, "json")
+
     PATH_ELEMENT_ORDER = ["project", "experiment", "figure_type"]
     
     @staticmethod

@@ -3,7 +3,7 @@ import networkx as nx
 import scipy
 import pandas as pd
 import numpy as np
-from module.core.utils import parallel_process
+from cyberlabrat.core.utils import parallel_process
 
 
 

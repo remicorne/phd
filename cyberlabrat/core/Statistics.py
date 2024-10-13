@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import PickleDataset, SelectableDataFrame
-from module.core.HPLC import HPLC
-from module.core.Metadata import (
+from cyberlabrat.core.Dataset import PickleDataset, SelectableDataFrame
+from cyberlabrat.core.HPLC import HPLC
+from cyberlabrat.core.Metadata import (
     ExperimentInformation,
     ProjectInformation,
 )
@@ -12,9 +12,9 @@ from tqdm import tqdm
 import scipy
 import pingouin as pg
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from module.core.utils import parallel_process
+from cyberlabrat.core.utils import parallel_process
 from IPython.display import HTML
-from module.core.utils import is_array_like
+from cyberlabrat.core.utils import is_array_like
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 

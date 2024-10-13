@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import ClassVar
-from module.core.Cacheable import Cacheable
+from cyberlabrat.core.Cacheable import Cacheable
 import pandas as pd
-from module.core.utils import is_array_like
+from cyberlabrat.core.utils import is_array_like
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
@@ -34,9 +34,9 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     return selected
 
 
-def sub_select(df, selector, copy=True):
+def sub_select(df, selector):
     df = df.loc[mask(df, selector)]
-    return df.iloc[0] if len(df) == 1 else df
+    return df
 
 
 class SelectableDataFrame(pd.DataFrame):

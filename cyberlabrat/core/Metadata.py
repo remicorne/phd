@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 import os
-from module.core.Dataset import ExcelDataset, SelectableDataFrame
-from module.core.questions import select_one
+from cyberlabrat.core.Dataset import ExcelDataset, SelectableDataFrame
+from cyberlabrat.core.questions import select_one
 from dataclasses import dataclass, field
 from typing import ClassVar
 from distutils.util import strtobool # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
@@ -235,7 +235,7 @@ class ProjectInformation(_ProjectSettings):
     }
     
     def generate(self):
-        from module.core.HPLC import OUTLIER_TESTS
+        from cyberlabrat.core.HPLC import OUTLIER_TESTS
         data = super().generate()
         data["label"] = input("Enter project name")
         data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())

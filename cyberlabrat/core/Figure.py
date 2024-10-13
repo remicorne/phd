@@ -4,15 +4,15 @@ import networkx as nx
 from scipy.stats import norm
 from scipy import stats
 
-from module.core.Cacheable import Cacheable
-from module.core.Dataset import SelectableDataFrame, ExcelDataset
-from module.core.Statistics import QuantitativeStatistic
-from module.core.Metadata import (
+from cyberlabrat.core.Cacheable import Cacheable
+from cyberlabrat.core.Dataset import SelectableDataFrame, ExcelDataset
+from cyberlabrat.core.Statistics import QuantitativeStatistic
+from cyberlabrat.core.Metadata import (
     Palette,
 )
-from module.core.Matrix import Matrix
-from module.core.Matrix import Network as NetworkModel
-from module.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS
+from cyberlabrat.core.Matrix import Matrix
+from cyberlabrat.core.Matrix import Network as NetworkModel
+from cyberlabrat.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS
 from matplotlib import pyplot as plt
 import seaborn as sns
 from typing import ClassVar
@@ -20,10 +20,10 @@ import numpy as np
 from IPython.display import Image, display
 import pandas as pd
 import os
-from module.core.utils import parallel_process
+from cyberlabrat.core.utils import parallel_process
 from statannotations.Annotator import Annotator
-from module.core.DataSelection import DataSelection, QuantitativeDataSelection
-from module.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
+from cyberlabrat.core.DataSelection import DataSelection, QuantitativeDataSelection
+from cyberlabrat.core.Constants import REGION_CLASSES, COMPOUND_CLASSES
 
 
 class Figure:
