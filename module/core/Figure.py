@@ -480,39 +480,65 @@ class Network(MatricesFigure):
         nx.draw_networkx_nodes(
             network.G,
             self.positions,
-            node_size=2000,
+            node_size=2500,
             alpha=0.95,
             node_color="white",
             edgecolors="black",
             ax=ax,
         )
+
+        weight_scaler = 3
+        edge_weights = list(nx.get_edge_attributes(network.G, "weight").values())
+        scaled_weights = [weight * weight_scaler for weight in edge_weights] 
+        edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
+        
         nx.draw_networkx_edges(
             network.G,
             self.positions,
-            width=list(nx.get_edge_attributes(network.G, "weight").values()),
-            edge_color=list(nx.get_edge_attributes(network.G, "color").values()),
+            width=scaled_weights, #list(nx.get_edge_attributes(network.G, "weight").values()),
+            edge_color= edge_colors, # list(nx.get_edge_attributes(network.G, "color").values()),
             ax=ax,
-            node_size=2000,
+            node_size=2500,
             **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
         )
-        # Add labels to nodes
+
+        # Label nodes
         node_labels = {
             node: node for node in network.G.nodes()
-        }  # Label nodes with their names
+        }  
         nx.draw_networkx_labels(
-            network.G, self.positions, labels=node_labels, font_size=22, ax=ax
+            network.G, self.positions, labels=node_labels, font_size=24, ax=ax
         )
-        # nx.draw_networkx_edge_labels(
-        #     network.G, positions, edge_labels=network.edge_labels, font_size=18, ax=ax
-        # )
 
-        # Set the aspect ratio to 'equal' for the plot area
+        #Label edges
+        rounded_edge_labels = {
+            edge: f"{round(weight, 1):.1g}"  
+            for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
+        }
+
+        color_labels = {'red': [], 'blue': []}
+        for edge, weight in rounded_edge_labels.items():
+            color = nx.get_edge_attributes(network.G, "color")[edge]
+            color_labels[color].append((edge, weight))
+
+        for color, edges in color_labels.items():
+            edge_labels = {edge: label for edge, label in edges}
+            nx.draw_networkx_edge_labels(
+                network.G, 
+                self.positions, 
+                edge_labels=edge_labels, 
+                font_size=10, 
+                ax=ax,
+                font_color=color, 
+                label_pos= 0.5,
+                bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01')  # White background box
+            )
+  
         ax.set_aspect("equal")
         ax.margins(0.1)
-
-        # Set title for the graph
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
+
 
     def plot_degrees(self, ax, network):
         """
