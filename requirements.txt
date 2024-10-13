@@ -4,11 +4,17 @@
 # Use command "pip install -r requirements.txt" to install
 
 pandas==2.0.3
-matplotlib
+matplotlib==3.7.3
 outlier_utils
 pingouin
 scipy
 git+https://github.com/remicorne/statannotations
 statsmodels
+openpyxl
+pydantic
+pytest
+tqdm
+ipykernel
+ipywidgets
+IPython
 networkx
-

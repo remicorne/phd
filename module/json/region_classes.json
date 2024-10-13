@@ -1,0 +1,42 @@
+{
+  "cortex": ["OF", "PL", "aCC", "IC", "M1", "S1L", "S1R", "AC", "V1"],
+  "subcortical_telencephalon": ["A", "dH", "vH", "NAc", "VM", "DM", "VL", "DL"],
+  "diencephalon": ["MD", "VPL", "VPR", "DLG", "HY"],
+  "mesencephalon": ["SC", "SN", "VTA", "DR", "MR"],
+  "cerebellum": ["CB"],
+
+  "reward_system": ["PL", "NAc", "A", "VTA", "HY"],
+  "vision_equilibrium": ["V1", "DLG", "SC", "CB", "SN"],
+  "basal_ganglia": ["DM", "DL", "VM", "VL", "NAc", "SN", "VTA", "DR", "MR"],
+  "cognitive_loops": ["DM", "DL", "VM", "VL", "NAc", "OF", "PL", "aCC"],
+  "motor_loops": ["DM", "DL", "VM", "VL", "NAc", "M1", "SJ"],
+  "sensory_systems": ["V1", "S1L", "S1R", "AC", "DLG", "VPL", "VPR"],
+  "limbic_loops": [
+    "A",
+    "dH",
+    "vH",
+    "MD",
+    "OF",
+    "aCC",
+    "NAc",
+    "VTA",
+    "DR",
+    "MR",
+    "HY"
+  ],
+  "thalamocortical_interaction": [
+    "OF",
+    "PL",
+    "aCC",
+    "M1",
+    "SJ",
+    "S1L",
+    "S1R",
+    "AC",
+    "V1",
+    "MD",
+    "VPL",
+    "VPR",
+    "DLG"
+  ]
+}

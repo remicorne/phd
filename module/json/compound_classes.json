@@ -1,0 +1,33 @@
+{
+  "monoamines": [
+    "LDOPA",
+    "NA",
+    "A",
+    "5HTP",
+    "DOPAC",
+    "DA",
+    "5HIAA",
+    "HVA",
+    "5HT",
+    "VMA",
+    "3MT"
+  ],
+  "amino_acids": [
+    "ASP",
+    "GLU",
+    "ASPN",
+    "HIS",
+    "HSER",
+    "LSER",
+    "GLN",
+    "ARG",
+    "GLY",
+    "THR",
+    "TAU",
+    "ALA",
+    "TYR",
+    "GABA"
+  ],
+  "neurotransmitters": ["DA", "NA", "5HT", "GLU", "GABA", "ASP", "GLY", "TAU"],
+  "ratios": ["5HIAA/5HT", "5HT/5HTP", "DOPAC/DA", "HVA/DA", "3MT/DA", "VMA/NA"]
+}

@@ -1,0 +1,36 @@
+{
+  "reward_system": ["PL", "NAc", "Am", "VTA", "HY"],
+  "vision_equilibrium": ["V1", "DLG", "SC", "CB", "SN"],
+  "basal_ganglia": ["DM", "DL", "VM", "VL", "NAC", "SN", "VTA", "DR", "MR"],
+  "cognitive_loops": ["DM", "DL", "VM", "VL", "NAC", "OF", "PL", "aCC"],
+  "motor_loops": ["DM", "DL", "VM", "VL", "NAC", "M1", "SJ"],
+  "sensory_systems": ["V1", "S1L", "S1R", "AC", "DLG", "VPL", "VPR"],
+  "limbic_loops": [
+    "Am",
+    "dH",
+    "vH",
+    "MD",
+    "OF",
+    "aCC",
+    "NAC",
+    "VTA",
+    "DR",
+    "MR",
+    "HY"
+  ],
+  "thalamocortical_interaction": [
+    "OF",
+    "PL",
+    "aCC",
+    "M1",
+    "SJ",
+    "S1L",
+    "S1R",
+    "AC",
+    "V1",
+    "MD",
+    "VPL",
+    "VPR",
+    "DLG"
+  ]
+}
