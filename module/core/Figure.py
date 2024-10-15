@@ -480,7 +480,7 @@ class Network(MatricesFigure):
         nx.draw_networkx_nodes(
             network.G,
             self.positions,
-            node_size=2500,
+            node_size=3200,
             alpha=0.95,
             node_color="white",
             edgecolors="black",
@@ -498,7 +498,7 @@ class Network(MatricesFigure):
             width=scaled_weights, #list(nx.get_edge_attributes(network.G, "weight").values()),
             edge_color= edge_colors, # list(nx.get_edge_attributes(network.G, "color").values()),
             ax=ax,
-            node_size=2500,
+            node_size=3200,
             **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
         )
 
@@ -527,11 +527,11 @@ class Network(MatricesFigure):
                 network.G, 
                 self.positions, 
                 edge_labels=edge_labels, 
-                font_size=10, 
+                font_size=14, 
                 ax=ax,
                 font_color=color, 
                 label_pos= 0.5,
-                bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01')  # White background box
+                bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
             )
   
         ax.set_aspect("equal")
