@@ -1,13 +1,15 @@
-from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
+import os, shutil
 import unittest
+from module.core.HPLC import HPLC
+from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
 from module.core.Project import Project, ROOT
 from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable
-import os, shutil
 
 
 class TestProject(unittest.TestCase):
     def setUp(self):
         # Setup initial conditions here if necessary
+        
         self.project_name = "TEST"
         self.project_location = f"{ROOT}/{self.project_name}"
         self.raw_data_filename = "raw_data.xlsx"
@@ -32,7 +34,6 @@ class TestProject(unittest.TestCase):
                 shutil.copy(test_data_file, project_test_location)
 
     def test_project(self):
-        # This runs the test
         project = Project(self.project_name)
         assert project.data.columns.to_list() == [
             "mouse_id",
@@ -56,6 +57,9 @@ class TestProject(unittest.TestCase):
             )
             == 18
         )
+        assert len(project.statistics.significant_results) == 6
+        
+    def test_stats(self):
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
             experiment="agonist antagonist",
@@ -79,8 +83,8 @@ class TestProject(unittest.TestCase):
         assert len(AggregateStatistics(project=self.project_name).select(is_parametric=True, compound=lambda compound: '/' not in compound)) == 20
         assert len(AggregateStatistics(project=self.project_name).select(is_parametric=False)) == 4
         assert len(stats.select(fully_significant=True)) == 9
-        assert len(project.statistics.significant_results) == 6
 
+    def test_figures(self):
         assert Histogram(
             project="TCB2",
             experiment="dose response",
@@ -141,25 +145,8 @@ class TestProject(unittest.TestCase):
             from_scratch=True,
             remove_outliers="calculated",
         )
-        node_positions = {
-            "OF": (5.9, 2.4),
-            "PL": (5.6, 3.5),
-            "aCC": (7.1, 4),
-            "M1": (6.2, 3.8),
-            "SJ": (7.5, 3.8),
-            "S1L": (8.5, 3.8),
-            "S1R": (8.2, 4.1),
-            "AC": (9.9, 4.2),
-            "V1": (10.9, 4),
-            "MD": (10.3, 1.45),
-            "VPR": (9.1, 1.45),
-            "VPL": (9.4, 1.15),
-            "DLG": (9.7, 1.9),
-        }
-
         Network(
             project="TCB2",
-            node_positions=node_positions,
             compound="5HT",
             region="thalamocortical_interaction",
             from_scratch=True,
@@ -183,6 +170,11 @@ class TestProject(unittest.TestCase):
                 remove_outliers='calculated',
                 pool="treatment"
                 )
+        
+    def test_utils(self):
+        filtered = HPLC(project=self.project_name).select(region="thalamocortical_interaction", compound="monoamines").select(region="cortex", compound="neurotransmitters")
+        assert set(filtered.region.unique()) == {"OF"}
+        assert set(filtered.compound.unique()) == {"DA", "5HT"}
         
     def tearDown(self):
         # Cleanup code here
