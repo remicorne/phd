@@ -77,20 +77,14 @@ class ConstantRegistry(JSONMapping):
 
     def order(self, iterable):
         return [item for item in self if item in iterable]
-    
-    
-class ClassRegistry(ConstantRegistry):
-    
-    def get_item_classes(self, item):
-        return [klass for klass, constituents in self.items() if item in constituents]
 
 
 REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))
 COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compounds"))
-COMPOUND_CLASSES = ClassRegistry(
+COMPOUND_CLASSES = ConstantRegistry(
     filepath=os.path.join(FileSystem.CONSTANTS, "compound_classes")
 )
-REGION_CLASSES = ClassRegistry(
+REGION_CLASSES = ConstantRegistry(
     filepath=os.path.join(FileSystem.CONSTANTS, "region_classes")
 )
 REGION_CLASSES_POSITIONS = ConstantRegistry(
@@ -98,5 +92,4 @@ REGION_CLASSES_POSITIONS = ConstantRegistry(
 )
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
 COMPOUNDS_AND_REGIONS = {"region": REGIONS, "compound": COMPOUNDS}
-COMPOUNDS_AND_REGIONS_CLASSES = {"region": REGION_CLASSES, "compound": COMPOUND_CLASSES}
 
