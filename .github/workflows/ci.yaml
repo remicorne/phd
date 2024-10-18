@@ -35,7 +35,7 @@ jobs:
       # Step 4: Run security scan with Bandit
       - name: Run Security Scan with Bandit
         run: |
-          bandit -r . -ll -o bandit-report.txt -f txt  # Scan code and output report
+          bandit -r /module -ll -o bandit-report.txt -f txt  # Scan code and output report
         continue-on-error: true  # Continue even if Bandit finds issues
 
       # Step 5: Upload Bandit report as an artifact
