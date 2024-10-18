@@ -61,13 +61,13 @@ jobs:
 
       # Step 8: Comment coverage results on pull requests
       - name: Comment Coverage on PR
-        if: github.event_name == 'pull_request'  # Only run on pull requests
-        uses: dorny/coverage-comment@v2
+        if: github.event_name == 'pull_request'
+        uses: dorny/test-reporter@v1
         with:
-          path: coverage.xml       # Path to coverage report
-          format: cobertura        # Format of the coverage report
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
+          name: Coverage Report
+          path: coverage.xml
+          type: cobertura
+          fail-on-error: false
 
   codeql-analysis:
     name: CodeQL Analysis
