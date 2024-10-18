@@ -62,7 +62,7 @@ jobs:
       # Step 8: Comment coverage results on pull requests
       - name: Comment Coverage on PR
         if: github.event_name == 'pull_request'  # Only run on pull requests
-        uses: dorny/coverage-check@v2
+        uses: dorny/coverage-comment@v2
         with:
           path: coverage.xml       # Path to coverage report
           format: cobertura        # Format of the coverage report
