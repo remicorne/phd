@@ -1,0 +1,134 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main]  # Run workflow on pull requests targeting the 'main' branch
+  push:
+    branches:
+      - main          # Run workflow on pushes to the 'main' branch
+  schedule:
+    - cron: '0 1 * * 0'  # Run workflow weekly at 1 AM on Sunday
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout repository code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python 3.10
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'  # Specify Python version
+
+      # Step 3: Install dependencies and additional tools
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Install project dependencies
+          pip install coverage             # Install coverage tool
+          pip install bandit               # Install Bandit for security scanning
+
+      # Step 4: Run security scan with Bandit
+      - name: Run Security Scan with Bandit
+        run: |
+          bandit -r . -ll -o bandit-report.txt -f txt  # Scan code and output report
+        continue-on-error: true  # Continue even if Bandit finds issues
+
+      # Step 5: Upload Bandit report as an artifact
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.txt
+
+      # Step 6: Run tests with coverage
+      - name: Run Tests with Coverage
+        run: |
+          coverage run -m unittest discover -s tests -p 'test_*.py'  # Run tests
+          coverage xml -o coverage.xml  # Generate coverage report in XML format
+          coverage report               # Display coverage report
+
+      # Step 7: Upload coverage report as an artifact
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+      # Step 8: Comment coverage results on pull requests
+      - name: Comment Coverage on PR
+        if: github.event_name == 'pull_request'  # Only run on pull requests
+        uses: dorny/coverage-check@v2
+        with:
+          path: coverage.xml       # Path to coverage report
+          format: cobertura        # Format of the coverage report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write  # Required for uploading results to the Security tab
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python]  # Specify languages to analyze
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout repository code
+        uses: actions/checkout@v3
+
+      # Step 2: Initialize CodeQL
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+
+      # Step 3: Build code (optional for Python)
+      - name: Build Code
+        run: |
+          # Install dependencies if necessary
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Perform CodeQL analysis
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    needs: [build]  # Run this job after the 'build' job
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # Only on pushes to 'main'
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout repository code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for accurate release notes
+
+      # Step 2: Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'  # Specify Node.js version compatible with semantic-release
+
+      # Step 3: Install semantic-release and plugins
+      - name: Install semantic-release and plugins
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git
+
+      # Step 4: Run semantic-release to automate releases
+      - name: Run semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Personal access token for authentication
+        run: |
+          semantic-release
