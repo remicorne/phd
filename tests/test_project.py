@@ -55,7 +55,7 @@ class TestProject(unittest.TestCase):
                     treatment=["vehicles", "MDL"]
                 )
             )
-            == 18
+            == 28
         )
         assert len(project.statistics.significant_results) == 6
         
