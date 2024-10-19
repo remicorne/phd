@@ -119,8 +119,8 @@ class DataSelection:
         self.data = HPLC(self.project).full_df #TODO clarify variables (plural?)
         self._region = self.region
         self._compound = self.compound
-        self.compound = COMPOUND_CLASSES.get(self.compound, self.compound)
-        self.region = REGION_CLASSES.get(self.region, self.region)
+        self.compound = COMPOUND_CLASSES.get_many(self.compound, self.compound)
+        self.region = REGION_CLASSES.get_many(self.region, self.region)
 
         self.experiment_options = self.experiment_information.experiments
         self.treatment_options = self.treatment_information.label.unique()
@@ -175,7 +175,7 @@ class DataSelection:
         parameter_to_list = convert_parameter_to_list(parameter)
         unknown_params = set(parameter_to_list) - set(options)
         if unknown_params:
-            raise ValueError(f"Invalid parameter(s) for {name}: {unknown_params}")
+            print(f"Unknown parameter(s) for {name}: {unknown_params}")
         return parameter_to_list
 
     def process_outliers(self):

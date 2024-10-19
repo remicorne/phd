@@ -76,8 +76,9 @@ class ConstantRegistry(JSONMapping):
             exit(1)
 
     def order(self, iterable):
-        return [item for item in self if item in iterable]
-    
+        ordered = [item for item in self if item in iterable]
+        rest = [item for item in iterable if item not in ordered]
+        return ordered + rest
     
 class ClassRegistry(ConstantRegistry):
     

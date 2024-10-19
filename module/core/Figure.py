@@ -135,7 +135,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
         )
-        self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
+        self.ylabel = "" if self.compound and "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
             self.ylabel = f"{self.compound_or_region} {self.ylabel} +/-98CI"
             self.title = ""
@@ -674,7 +674,7 @@ class Table(ExcelDataset, Figure(QuantitativeDataSelection)):
         )
 
         # Sort the multiindex columns
-        return pivot_df.sort_index(axis=1).loc[self.order, self.compound]
+        return pivot_df.sort_index(axis=1).loc[self.order]
 
     def load(self):
         return SelectableDataFrame(

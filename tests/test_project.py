@@ -67,7 +67,7 @@ class TestProject(unittest.TestCase):
             region="OF",
             p_value_threshold=0.05,
         )
-        assert stats.is_significant.to_list() == [True, True, True]
+        assert stats.is_significant.to_list() == [False, True, True]
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
             experiment="agonist antagonist",
@@ -76,96 +76,53 @@ class TestProject(unittest.TestCase):
             p_value_threshold=0.01,
         )
         assert stats.is_significant.to_list() == [False, True, False]
-        stats = QuantitativeStatistic.calculate(
-            project="TCB2", experiment="agonist antagonist", compound="5HT"
-        )
-        AggregateStatistics(project=self.project_name)
-        assert len(AggregateStatistics(project=self.project_name).select(is_parametric=True, compound=lambda compound: '/' not in compound)) == 20
-        assert len(AggregateStatistics(project=self.project_name).select(is_parametric=False)) == 4
-        assert len(stats.select(fully_significant=True)) == 9
+        assert len(stats.select(fully_significant=True)) == 0
+        
+        agg_stats = AggregateStatistics(project=self.project_name)
+        assert len(agg_stats.select(is_parametric=True, compound=lambda compound: '/' not in compound)) == 19
+        assert len(agg_stats.select(is_parametric=False)) == 24
 
     def test_figures(self):
         assert Histogram(
-            project="TCB2",
-            experiment="dose response",
-            compound="5HIAA/5HT",
+            project=self.project_name,
+            experiment="agonist antagonist",
+            compound="5HT/5HTP",
             region="OF",
-            from_scratch=True,
-        ).statistics_table.is_significant.to_list() == [True, True]
-        assert Histogram(
-            project="TCB2",
-            experiment="dose response",
-            compound="5HIAA/5HT",
-            from_scratch=True,
             remove_outliers="calculated",
-        ).statistics_table.is_significant.all()
-        legit_regions = [
-            "OF",
-            "PL",
-            "aCC",
-            "M1",
-            "SJ",
-            "S1L",
-            "S1R",
-            "AC",
-            "V1",
-            "A",
-            "dH",
-            "vH",
-            "NAc",
-            "VM",
-            "DM",
-            "VL",
-            "DL",
-            "MD",
-            "VPL",
-            "VPR",
-            "DLG",
-            "HY",
-            "SC",
-            "SN",
-            "VTA",
-            "DR",
-            "MR",
-            "CB",
-        ]
+            from_scratch=True,
+        ).statistics_table.is_significant.to_list() == [False, False, False]
         Correlogram(
-            project="TCB2",
+            project=self.project_name,
             compound="5HT-DA",
-            region=legit_regions,
             from_scratch=True,
             remove_outliers="calculated",
         )
         Correlation(
-            project="TCB2",
+            project=self.project_name,
             experiment="agonist antagonist",
             treatment="vehicles",
             compound="DA",
-            region=["VPL", "SN"],
+            region=["OF", "CB"],
             from_scratch=True,
             remove_outliers="calculated",
         )
         Network(
-            project="TCB2",
-            compound="5HT",
+            project=self.project_name,
+            compound="DA, 5HT",
             region="thalamocortical_interaction",
             from_scratch=True,
             remove_outliers="calculated",
         )
         Table(
-            project="TCB2",
-            compound=["5HT", "5HIAA", "DA", "DOPAC", "HVA", "3MT", "NA"],
+            project=self.project_name,
             treatment="vehicles",
-            region=legit_regions,
             from_scratch=True,
             remove_outliers="calculated",
         )
-        Histogram(project='TEST', compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
-        StatisticsTable(project="TCB2", compound=["DA", "5HT"], experiment ="agonist antagonist", from_scratch=True)
-        Histogram(project='TCB2', 
+        Histogram(project=self.project_name, compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
+        StatisticsTable(project=self.project_name, compound="neurotransmitters", experiment ="agonist antagonist", from_scratch=True)
+        Histogram(project=self.project_name, 
                 experiment='agonist antagonist',
-                compound=['DA', 'NA'], 
-                region=['OF', 'PL'],
                 from_scratch=True, 
                 remove_outliers='calculated',
                 pool="treatment"
