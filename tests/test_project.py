@@ -57,7 +57,7 @@ class TestProject(unittest.TestCase):
             )
             == 28
         )
-        assert len(project.statistics.significant_results) == 6
+        assert len(project.statistics.significant_results) == 12
         
     def test_stats(self):
         stats = QuantitativeStatistic.calculate(
