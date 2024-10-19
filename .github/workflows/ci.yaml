@@ -48,26 +48,25 @@ jobs:
       # Step 6: Run tests with coverage
       - name: Run Tests with Coverage
         run: |
-          coverage run -m unittest discover -s tests -p 'test_*.py'  # Run tests
-          coverage xml -o coverage.xml  # Generate coverage report in XML format
-          coverage report               # Display coverage report
+          coverage run -m xmlrunner discover -s tests -p 'test_*.py' -o test-reports
+          coverage xml -o coverage.xml
+          coverage report
 
-      # Step 7: Upload coverage report as an artifact
+      - name: Publish Test Results
+        if: success() || failure()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit Tests
+          path: test-reports/*.xml
+          reporter: junit
+          fail-on-error: true
+
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report
           path: coverage.xml
 
-      # Step 8: Comment coverage results on pull requests
-      - name: Comment Coverage on PR
-        if: github.event_name == 'pull_request'
-        uses: dorny/test-reporter@v1
-        with:
-          name: Coverage Report
-          path: coverage.xml
-          type: cobertura
-          fail-on-error: false
 
   codeql-analysis:
     name: CodeQL Analysis
