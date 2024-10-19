@@ -59,7 +59,7 @@ jobs:
         with:
           name: Unit Tests
           path: test-reports/*.xml
-          reporter: junit
+          reporter: jest-junit
           fail-on-error: true
 
       - name: Upload Coverage Report
