@@ -58,7 +58,7 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: Unit Tests
-          path: test-reports/*.xml
+          path: coverage.xml
           reporter: jest-junit
           fail-on-error: true
 
