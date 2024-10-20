@@ -67,9 +67,9 @@ class Figure:
                 return isinstance(self.compound, str)
 
             def define_filename(self):
-                region = self.region or "all regions"
+                region = self._region or "all regions"
                 region = region if isinstance(region, str) else ",".join(region)
-                compound = self.compound or "all compounds"
+                compound = self._compound or "all compounds"
                 compound = compound if isinstance(compound, str) else ",".join(compound)
                 self.filename = f"{compound} in {region}"
 
