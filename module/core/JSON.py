@@ -31,6 +31,14 @@ class JSONMapping(Cacheable):
     def get(self, key, default=None):
         return self.dict.get(tuple(key) if is_array_like(key) else key, default)
 
+    def get_many(self, key, default=None):
+        key = [key] if not is_array_like(key) else key
+        values = []
+        for subkey in key:
+            if subkey in self:
+                values.extend(self[subkey]) 
+        return values or default
+
     def values(self) -> list:
         return self.dict.values()
 
