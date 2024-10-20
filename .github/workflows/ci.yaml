@@ -52,23 +52,6 @@ jobs:
           coverage xml -o coverage.xml  # Generate coverage report in XML format
           coverage report               # Display coverage report
 
-
-      - name: Publish Test Results
-        if: success() || failure()
-        uses: dorny/test-reporter@v1
-        with:
-          name: Unit Tests
-          path: coverage.xml
-          reporter: jest-junit
-          fail-on-error: true
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage.xml
-
-
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
