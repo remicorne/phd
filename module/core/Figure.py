@@ -510,29 +510,28 @@ class Network(MatricesFigure):
             network.G, self.positions, labels=node_labels, font_size=24, ax=ax
         )
 
-        #Label edges
-        rounded_edge_labels = {
-            edge: f"{round(weight, 1):.1g}"  
-            for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
-        }
 
-        color_labels = {'red': [], 'blue': []}
-        for edge, weight in rounded_edge_labels.items():
-            color = nx.get_edge_attributes(network.G, "color")[edge]
-            color_labels[color].append((edge, weight))
-
-        for color, edges in color_labels.items():
-            edge_labels = {edge: label for edge, label in edges}
-            nx.draw_networkx_edge_labels(
-                network.G, 
-                self.positions, 
-                edge_labels=edge_labels, 
-                font_size=14, 
-                ax=ax,
-                font_color=color, 
-                label_pos= 0.5,
-                bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
-            )
+        # #Label edges
+        # rounded_edge_labels = {
+        #     edge: f"{round(weight, 1):.1g}"  
+        #     for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
+        # }
+        # color_labels = {'red': [], 'blue': []}
+        # for edge, weight in rounded_edge_labels.items():
+        #     color = nx.get_edge_attributes(network.G, "color")[edge]
+        #     color_labels[color].append((edge, weight))
+        # for color, edges in color_labels.items():
+        #     edge_labels = {edge: label for edge, label in edges}
+        #     nx.draw_networkx_edge_labels(
+        #         network.G, 
+        #         self.positions, 
+        #         edge_labels=edge_labels, 
+        #         font_size=14, 
+        #         ax=ax,
+        #         font_color=color, 
+        #         label_pos= 0.5,
+        #         bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
+        #     )
   
         ax.set_aspect("equal")
         ax.margins(0.1)
