@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 import networkx as nx
 from scipy.stats import norm
 from scipy import stats
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 
 from module.core.Cacheable import Cacheable
 from module.core.Dataset import SelectableDataFrame, ExcelDataset
@@ -409,10 +411,14 @@ class Correlogram(MatricesFigure):
 
     figure_type: str = "correlogram"
 
-    def plot_ax(self, i):
+    def plot_ax(self, i,custom_params=dict()):
+        custom_params = {**self.custom_params, **(custom_params if custom_params else {})}
+
         ax = self.axs[i]
         matrix = self.matrices[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
+
+        colormap = custom_params.get('colormap', 'coolwarm')
 
         ax.set_title(
             title, fontsize=28, pad=20, y=1
@@ -424,7 +430,7 @@ class Correlogram(MatricesFigure):
             vmax=1,
             square=True,
             # annot=True, #R value annotations
-            cmap="coolwarm",
+            cmap=colormap,
             annot_kws={"size": 8},
             ax=ax,
             cbar_kws={"shrink": 0.7},  # adj color bar size
@@ -470,12 +476,17 @@ class Network(MatricesFigure):
             network = self.networks[i]
             self.plot_degrees(ax, network)
 
-    def plot_ax(self, i):
+    def plot_ax(self, i, custom_params=dict()):
+        custom_params = {**self.custom_params, **(custom_params if custom_params else {})}
+
+        show_edge_labels = custom_params.get('show_edge_labels', False)
+        edge_thickness = custom_params.get('edge_thickness', 4)
+        colormap = custom_params.get('colormap', 'coolwarm')
+
         ax = self.axs[i]
         network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         self.positions = REGION_CLASSES_POSITIONS.get(self._region, network.pos)
-
 
         nx.draw_networkx_nodes(
             network.G,
@@ -487,16 +498,26 @@ class Network(MatricesFigure):
             ax=ax,
         )
 
-        weight_scaler = 3
         edge_weights = list(nx.get_edge_attributes(network.G, "weight").values())
-        scaled_weights = [weight * weight_scaler for weight in edge_weights] 
-        edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
         
+        if edge_thickness == 'weight': # display weight by line thickness   
+            edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
+            weight_scaler = 5 # this should be log #TODO
+            edge_weight_to_plot = [weight * weight_scaler for weight in edge_weights] 
+
+        else: #display weight by colormap
+            norm = Normalize(vmin=-1, vmax=1)
+            cmap = plt.get_cmap(colormap) 
+            edge_colors = [cmap(norm(weight)) for weight in edge_weights]  
+            edge_weight_to_plot = edge_thickness
+            sm = ScalarMappable(cmap=cmap, norm=norm)
+            plt.colorbar(sm, ax=ax,  fraction=0.02, pad=0.04)   #label='Edge Weight',
+            
         nx.draw_networkx_edges(
             network.G,
             self.positions,
-            width=scaled_weights, #list(nx.get_edge_attributes(network.G, "weight").values()),
-            edge_color= edge_colors, # list(nx.get_edge_attributes(network.G, "color").values()),
+            width=edge_weight_to_plot, 
+            edge_color= edge_colors, 
             ax=ax,
             node_size=3200,
             **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
@@ -510,28 +531,54 @@ class Network(MatricesFigure):
             network.G, self.positions, labels=node_labels, font_size=24, ax=ax
         )
 
+        if show_edge_labels == True:
+            rounded_edge_labels = {
+                edge: f"{weight:.1f}"  
+                for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
+            }
 
-        # #Label edges
-        # rounded_edge_labels = {
-        #     edge: f"{round(weight, 1):.1g}"  
-        #     for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
-        # }
-        # color_labels = {'red': [], 'blue': []}
-        # for edge, weight in rounded_edge_labels.items():
-        #     color = nx.get_edge_attributes(network.G, "color")[edge]
-        #     color_labels[color].append((edge, weight))
-        # for color, edges in color_labels.items():
-        #     edge_labels = {edge: label for edge, label in edges}
-        #     nx.draw_networkx_edge_labels(
-        #         network.G, 
-        #         self.positions, 
-        #         edge_labels=edge_labels, 
-        #         font_size=14, 
-        #         ax=ax,
-        #         font_color=color, 
-        #         label_pos= 0.5,
-        #         bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
-        #     )
+            if edge_thickness == 'weight':
+                color_labels = {'red': [], 'blue': []}
+                for edge, weight in rounded_edge_labels.items():
+                    color = nx.get_edge_attributes(network.G, "color")[edge]
+                    color_labels[color].append((edge, weight))
+
+                for color, edges in color_labels.items():
+                    edge_labels = {edge: label for edge, label in edges}
+                    nx.draw_networkx_edge_labels(
+                        network.G, 
+                        self.positions, 
+                        edge_labels=edge_labels, 
+                        font_size=14, 
+                        ax=ax,
+                        font_color=color, 
+                        label_pos= 0.5,
+                        bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
+                    )
+
+
+            else:
+                edge_colors = [cmap(weight) for weight in nx.get_edge_attributes(network.G, "weight").values()]
+                edge_label_colors = {}
+                for (edge, weight), color in zip(rounded_edge_labels.items(), edge_colors):
+                    edge_label_colors[edge] = color
+
+                for edge in edge_label_colors.keys():
+                    label = rounded_edge_labels[edge]
+                    color = edge_label_colors[edge]
+
+                    nx.draw_networkx_edge_labels(
+                        network.G, 
+                        self.positions, 
+                        edge_labels={edge: label},  # Pass a dict with the edge and its label
+                        font_size=14, 
+                        ax=ax,
+                        font_color=color,  # Use the unique color for each label
+                        label_pos=0.5,
+                        bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.9)  
+                    )
+
+
   
         ax.set_aspect("equal")
         ax.margins(0.1)
