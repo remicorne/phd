@@ -69,11 +69,11 @@ class Figure:
                 return isinstance(self.compound, str)
 
             def define_filename(self):
-                self.region = self.region or "all regions"
-                self.region = self.region if isinstance(self.region, str) else ",".join(self.region)
-                self.compound = self.compound or "all compounds"
-                self.compound = self.compound if isinstance(self.compound, str) else ",".join(self.compound)
-                self.filename = f"{self.compound} in {self.region}"
+                region = self._region or "all regions"
+                region = region if isinstance(region, str) else ",".join(region)
+                compound = self._compound or "all compounds"
+                compound = compound if isinstance(compound, str) else ",".join(compound)
+                self.filename = f"{compound} in {region}"
 
             def save(self):
                 self.fig.savefig(self.filepath)
@@ -137,7 +137,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
         )
-        self.ylabel = "" if "/" in self.compound else "ng/mg of tissue"
+        self.ylabel = "" if self.compound and "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
             self.ylabel = f"{self.compound_or_region} {self.ylabel} +/-98CI"
             self.title = ""
@@ -747,7 +747,7 @@ class Table(ExcelDataset, Figure(QuantitativeDataSelection)):
         )
 
         # Sort the multiindex columns
-        return pivot_df.sort_index(axis=1).loc[self.order, self.compound]
+        return pivot_df.sort_index(axis=1).loc[self.order]
 
     def load(self):
         return SelectableDataFrame(
