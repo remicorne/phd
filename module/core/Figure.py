@@ -479,15 +479,18 @@ class Network(MatricesFigure):
     def plot_ax(self, i, custom_params=dict()):
         custom_params = {**self.custom_params, **(custom_params if custom_params else {})}
         show_edge_labels = custom_params.get('show_edge_labels', False)
-        edge_thickness = custom_params.get('edge_thickness', 3)
+        edge_thickness = custom_params.get('edge_thickness', 3) # 'weight' for thickness weighting
         colormap = custom_params.get('colormap', 'coolwarm')
+
 
         ax = self.axs[i]
         network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         self.positions = REGION_CLASSES_POSITIONS.get(self._region, network.pos)
-        ax.set_xlim(0, 27)
-        ax.set_ylim(0, 15)
+
+        if self.positions != network.pos: #sagital positions made for this figure size
+            ax.set_xlim(0, 27)
+            ax.set_ylim(0, 15)
 
         nx.draw_networkx_nodes(
             network.G,
