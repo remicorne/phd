@@ -418,7 +418,7 @@ class Correlogram(MatricesFigure):
         matrix = self.matrices[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
 
-        colormap = custom_params.get('colormap', 'coolwarm')
+        colormap = custom_params.get('colormap', 'coolwarm') 
 
         ax.set_title(
             title, fontsize=28, pad=20, y=1
@@ -506,7 +506,7 @@ class Network(MatricesFigure):
         
         if edge_thickness == 'weight': # display weight by line thickness   
             edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
-            weight_scaler = 5 # this should be log #TODO
+            weight_scaler = 3 # this should be log #TODO
             edge_weight_to_plot = [weight * weight_scaler for weight in edge_weights] 
 
         else: #display weight by colormap
