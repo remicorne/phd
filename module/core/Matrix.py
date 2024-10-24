@@ -248,7 +248,7 @@ class Network:
                     self.G.add_edge(
                         row,
                         col,
-                        weight=abs(correlation),
+                        weight=correlation,
                         color="red" if correlation > 0 else "blue",
                     )
                     
