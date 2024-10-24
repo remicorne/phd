@@ -3,11 +3,24 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import ClassVar
+from module.core.Constants import COMPOUNDS_AND_REGIONS_CLASSES
 from module.core.Cacheable import Cacheable
 import pandas as pd
 from module.core.utils import is_array_like
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
+
+def handle_class_selectors(classes, select_value):
+    
+    if is_array_like(select_value):
+        values = []
+        for item in select_value:
+            values.extend(classes.get(item, [item]))
+        return values
+        
+    return classes.get(select_value, select_value)
+                    
+                    
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index != None  # Select all
@@ -21,15 +34,19 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
         if value is None:
             print(f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead.")
         else:
+                
             if callable(value):
                 sub_selection = column.apply(value)
-            elif is_array_like(value):
-                sub_selection = column.isin(value)
             else:
-                if value in ["nan", "notna"]:
-                    sub_selection = column.isna() if value is None else column.notna()
+                if key in COMPOUNDS_AND_REGIONS_CLASSES:
+                    value = handle_class_selectors(COMPOUNDS_AND_REGIONS_CLASSES[key], value)
+                if is_array_like(value):
+                    sub_selection = column.isin(value)
                 else:
-                    sub_selection = column == value
+                    if value in ["na", "notna"]:
+                        sub_selection = column.isna() if value == "nan" else column.notna()
+                    else:
+                        sub_selection = column == value
             selected &= sub_selection
     return selected
 
