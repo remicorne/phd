@@ -6,8 +6,6 @@ import numpy as np
 from module.core.utils import parallel_process
 
 
-
-
 def calculate_correlation(method, x, y):
     """Calculate the correlation and p-value based on the specified method."""
     if method == "pearson":
@@ -40,9 +38,8 @@ def correlate(method, return_type):
 
 @dataclass
 class Matrix:
-
     """
-    Creates a reusable matrix class for a given eperimnet. 
+    Creates a reusable matrix class for a given eperimnet.
     Args:
         data (pd.DataFrame):    The original dataset.
         treatment (str):        Identifier for the treatment group.
@@ -84,7 +81,7 @@ class Matrix:
     pvalues: pd.DataFrame = field(init=False)
     missing_values: list = field(init=False)
     missing_overlap: list = field(init=False)
-    
+
     def __call__(self):
         self.__post_init__()
         return self
@@ -92,7 +89,7 @@ class Matrix:
     def __post_init__(self):
         if self.delay_execution:
             self.delay_execution = False
-        else:    
+        else:
             self.is_square = self.var1 != self.var2
             self.filter_missing_values()
             self.pivot_data()
@@ -111,19 +108,24 @@ class Matrix:
         """
         if self.is_square:
             return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
-        return f"{self.var1} in {self.grouping}"  
-    
+        return f"{self.var1} in {self.grouping}"
+
     def filter_missing_values(self):
         """
         Filters out variables with occurrences less than n_minimum and updates missing_values list.
         """
         self.missing_values = []
-        missing_indices = []
-        for col, df in self.data.groupby(by=[self.between, self.accross]):
+        missing_accross_vars = []
+        for (between_var, accross_var), df in self.data.groupby(
+            by=[self.between, self.accross]
+        ):
             if df.value.notna().sum() < self.n_minimum:
-                self.missing_values.append(col)
-                missing_indices.extend(df.index)
-        self.filtered_data = self.data.drop(missing_indices)
+                self.missing_values.append((between_var, accross_var))
+                missing_accross_vars.append(accross_var)
+        indices_to_eliminate = self.data.select(
+            **{self.accross: missing_accross_vars}
+        ).index
+        self.filtered_data = self.data.drop(indices_to_eliminate)
         if self.missing_values:
             print(
                 f"{self.grouping} missing data for {self.missing_values}, deleted from analysis"
@@ -146,23 +148,22 @@ class Matrix:
         columns = (
             sorted(
                 self.pivot.columns,
-                key=lambda x: self.order.index(x[1])
-                if x[1] in self.order
-                else float("inf"),
+                key=lambda x: (
+                    self.order.index(x[1]) if x[1] in self.order else float("inf")
+                ),
             )
             if self.order
             else self.pivot.columns
         )
         self.pivot = self.pivot[columns]
-        
+
     def correlate(self):
         """
         Calculates and stores correlation and p-value matrices.
         """
-        self.pvalues = self.create_corr_matrix('pvalues')
-        self.correlations = self.create_corr_matrix('correlations')
+        self.pvalues = self.create_corr_matrix("pvalues")
+        self.correlations = self.create_corr_matrix("correlations")
         self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
-        
 
     def create_corr_matrix(self, result_type):
         """
@@ -176,7 +177,7 @@ class Matrix:
         """
         method = correlate(self.method, result_type)
         return self.pivot.corr(method=method, min_periods=self.n_minimum).loc[
-            tuple([self.var1, self.var2])
+            self.var1, self.var2
         ]
 
     def find_missing_overlap(self):
@@ -184,9 +185,10 @@ class Matrix:
         Identifies and reports variable pairs with insufficient data overlap.
         """
         self.missing_overlap = [
-            ((self.var1, index), (self.var2, column))
-            for (index, column), is_na in self.correlations.T.isna().stack().items()
-            if is_na
+            (row_idx, col_idx)
+            for row_idx in self.correlations.index
+            for col_idx in self.correlations.columns
+            if pd.isna(self.correlations.loc[row_idx, col_idx])
         ]
         if self.missing_overlap:
             print(
@@ -202,6 +204,11 @@ class Matrix:
             mask = np.triu(np.ones(self.corr_masked.shape, dtype=bool), k=1)
             self.corr_masked[mask] = np.nan
             np.fill_diagonal(self.corr_masked.values, 1)
+            
+    @property
+    def significant_correlations(self):
+        return self.corr_masked.stack().items()
+
 
 @dataclass
 class Network:
@@ -217,9 +224,10 @@ class Network:
     get_title(): Generates a title for the network graph.
     plot_ax(ax): Plots the network graph on the given matplotlib axis.
     """
+
     matrix: Matrix
     delay_execution: bool = field(default=True, kw_only=True)
-    
+
     def __call__(self):
         self.__post_init__()
         return self
@@ -241,17 +249,19 @@ class Network:
                 self.matrix.corr_masked.columns.tolist()
             )  # adds every BR as a node
             self.edge_labels = {}
-            for (row, col), correlation in self.matrix.corr_masked.stack().dropna().items():
+            for (row, col), correlation in (
+                self.matrix.significant_correlations
+            ):
                 # Add edge to the graph with edge weight and color
                 # Avoid self sorrelation
-                if not(row == col and not self.is_directed):
+                if not (row == col and not self.is_directed):
                     self.G.add_edge(
                         row,
                         col,
                         weight=correlation,
                         color="red" if correlation > 0 else "blue",
                     )
-                    
+
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
             angles = np.linspace(
@@ -265,7 +275,9 @@ class Network:
             self.total_edges, self.pos_edges, self.neg_edges = self.edge_count()
             self.density = self.calculate_graph_density()
             self.max_degree, self.average_degree = self.calculate_node_degree()
-            self.avg_clust_coeff_unweighted, self.avg_clust_coeff_weighted = self.calculate_clustering_coefficient()
+            self.avg_clust_coeff_unweighted, self.avg_clust_coeff_weighted = (
+                self.calculate_clustering_coefficient()
+            )
 
             # self.local_efficiency = self.calculate_local_efficiency()
             # self.global_efficiency = self.calculate_global_efficiency()
@@ -274,8 +286,8 @@ class Network:
     def get_title(self):
         """Generates a formatted title for the network graph."""
         title = self.matrix.get_title()
-        return title.replace('-', '->') if self.is_directed else title
-    
+        return title.replace("-", "->") if self.is_directed else title
+
     def edge_count(self):
         """
         Returns the total number of edges, positive edges, and negative edges in the graph.
@@ -290,13 +302,13 @@ class Network:
         neg_edges = 0
 
         for u, v, data in self.G.edges(data=True):
-            color = data.get('color')  
-            if color == 'red':
+            color = data.get("color")
+            if color == "red":
                 pos_edges += 1
-            elif color == 'blue':
+            elif color == "blue":
                 neg_edges += 1
         return total_edges, pos_edges, neg_edges
-    
+
     def calculate_node_degree(self):
         """
         Returns:
@@ -308,7 +320,6 @@ class Network:
         average_degree = np.mean(list(degrees.values()))
         return max_degree, average_degree
 
-
     def calculate_graph_density(self):
         """
         Returns:
@@ -317,14 +328,12 @@ class Network:
         num_edges = self.G.number_of_edges()
         num_nodes = self.G.number_of_nodes()
 
-        if self.is_directed: #directed graph have doubble possible edges
+        if self.is_directed:  # directed graph have doubble possible edges
             max_edges = num_nodes * (num_nodes - 1)
         else:
             max_edges = num_nodes * (num_nodes - 1) / 2
         return num_edges / max_edges if max_edges > 0 else 0
-    
 
-    
     def calculate_clustering_coefficient(self):
         """
         Calculates the average unweighted and weighted clustering coefficients for the graph.
@@ -335,18 +344,28 @@ class Network:
         """
         if self.is_directed:
             # For directed graphs, use nx.clustering with 'directed' and 'weight' parameters
-            clust_coeff_unweighted = None #nx.clustering(self.G.to_undirected(), weight=None)  # Unweighted
-            clust_coeff_weighted = None #nx.clustering(self.G.to_undirected(), weight='weight')  # Weighted
+            clust_coeff_unweighted = (
+                None  # nx.clustering(self.G.to_undirected(), weight=None)  # Unweighted
+            )
+            clust_coeff_weighted = None  # nx.clustering(self.G.to_undirected(), weight='weight')  # Weighted
         else:
             # For undirected graphs, use nx.clustering without 'directed' parameter
             clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted
-            clust_coeff_weighted = nx.clustering(self.G, weight='weight')  # Weighted
+            clust_coeff_weighted = nx.clustering(self.G, weight="weight")  # Weighted
 
-        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted) if clust_coeff_unweighted else 0
-        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted) if clust_coeff_weighted else 0
+        avg_clust_coeff_unweighted = (
+            sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
+            if clust_coeff_unweighted
+            else 0
+        )
+        avg_clust_coeff_weighted = (
+            sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted)
+            if clust_coeff_weighted
+            else 0
+        )
 
         return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
-    
+
     # def calculate_local_efficiency(self):
     #     """
     #     Returns:
@@ -396,10 +415,7 @@ class Network:
     #     nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
     #     avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
 
-
     #     return avg_global_eff_unweighted, avg_global_eff_weighted
-
-    
 
     # def calculate_characteristic_path_length(self):
     #     """
@@ -411,7 +427,7 @@ class Network:
     #     """
     #     if nx.is_connected(self.G):
     #         avg_path_length_unweighted = nx.average_shortest_path_length(self.G)
-            
+
     #         # Inverting weights for path length calculation as smaller weights imply stronger connections
     #         G_copy = self.G.copy()
     #         inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
@@ -422,4 +438,3 @@ class Network:
     #         avg_path_length_weighted = None
 
     #     return avg_path_length_unweighted, avg_path_length_weighted
-    

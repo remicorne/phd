@@ -44,7 +44,7 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
                     sub_selection = column.isin(value)
                 else:
                     if value in ["na", "notna"]:
-                        sub_selection = column.isna() if value == "nan" else column.notna()
+                        sub_selection = column.isna() if value == "na" else column.notna()
                     else:
                         sub_selection = column == value
             selected &= sub_selection
