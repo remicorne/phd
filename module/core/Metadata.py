@@ -178,7 +178,7 @@ class ExperimentInformation(_ProjectSettings):
 
     filename: ClassVar[str] = "experiment_information"
     _template: ClassVar[dict] = {
-        "label": ["agonist antagonist"],
+        "label": ["agonist_antagonist"],
         "groups": ["1, 5, 3, 4"],
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],

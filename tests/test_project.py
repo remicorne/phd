@@ -62,7 +62,7 @@ class TestProject(unittest.TestCase):
     def test_stats(self):
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
-            experiment="agonist antagonist",
+            experiment="agonist_antagonist",
             compound="DA/5HT",
             region="OF",
             p_value_threshold=0.05,
@@ -70,7 +70,7 @@ class TestProject(unittest.TestCase):
         assert stats.is_significant.to_list() == [False, True, True]
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
-            experiment="agonist antagonist",
+            experiment="agonist_antagonist",
             compound="DA/5HT",
             region="OF",
             p_value_threshold=0.01,
@@ -85,7 +85,7 @@ class TestProject(unittest.TestCase):
     def test_figures(self):
         assert Histogram(
             project=self.project_name,
-            experiment="agonist antagonist",
+            experiment="agonist_antagonist",
             compound="5HT/5HTP",
             region="OF",
             remove_outliers="calculated",
@@ -99,7 +99,7 @@ class TestProject(unittest.TestCase):
         )
         Correlation(
             project=self.project_name,
-            experiment="agonist antagonist",
+            experiment="agonist_antagonist",
             treatment="vehicles",
             compound="DA",
             region=["OF", "CB"],
@@ -120,9 +120,9 @@ class TestProject(unittest.TestCase):
             remove_outliers="calculated",
         )
         Histogram(project=self.project_name, compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
-        StatisticsTable(project=self.project_name, compound="neurotransmitters", experiment ="agonist antagonist", from_scratch=True)
+        StatisticsTable(project=self.project_name, compound="neurotransmitters", experiment ="agonist_antagonist", from_scratch=True)
         Histogram(project=self.project_name, 
-                experiment='agonist antagonist',
+                experiment='agonist_antagonist',
                 from_scratch=True, 
                 remove_outliers='calculated',
                 pool="treatment"
