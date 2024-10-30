@@ -1,3 +1,4 @@
+import sys
 from tqdm.contrib.concurrent import process_map
 import itertools
 from collections.abc import Iterable
@@ -39,7 +40,7 @@ def parallel_process(cases, executor=call_case, description="Processing"):
     Returns:
         List of results from executor
     """
-    results = process_map(executor, cases, desc=description, chunksize=1)
+    results = process_map(executor, cases, desc=description, chunksize=1) if not sys.gettrace() else [executor(case) for case in cases]
     return results
 
 

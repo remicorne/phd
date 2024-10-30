@@ -470,9 +470,7 @@ class Network(MatricesFigure):
 
     def generate(self):
         super().generate()
-        fig, axs = self.generate_figure()
-        for i in range(len(self.axs)):
-            ax = axs[i]
+        for i, ax in enumerate(self.axs):
             network = self.networks[i]
             self.plot_degrees(ax, network)
 
