@@ -3,13 +3,20 @@ import unittest
 from module.core.HPLC import HPLC
 from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
 from module.core.Project import Project, ROOT
-from module.core.Figure import Histogram, Correlation, Correlogram, Network, Table, StatisticsTable
+from module.core.Figure import (
+    Histogram,
+    Correlation,
+    Correlogram,
+    Network,
+    Table,
+    StatisticsTable,
+)
 
 
 class TestProject(unittest.TestCase):
     def setUp(self):
         # Setup initial conditions here if necessary
-        
+
         self.project_name = "TEST"
         self.project_location = f"{ROOT}/{self.project_name}"
         self.raw_data_filename = "raw_data.xlsx"
@@ -58,11 +65,11 @@ class TestProject(unittest.TestCase):
             == 28
         )
         assert len(project.statistics.significant_results) == 12
-        
+
     def test_stats(self):
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
-            experiment="agonist_antagonist",
+            experiment="agonist antagonist",
             compound="DA/5HT",
             region="OF",
             p_value_threshold=0.05,
@@ -70,22 +77,29 @@ class TestProject(unittest.TestCase):
         assert stats.is_significant.to_list() == [False, True, True]
         stats = QuantitativeStatistic.calculate(
             project=self.project_name,
-            experiment="agonist_antagonist",
+            experiment="agonist antagonist",
             compound="DA/5HT",
             region="OF",
             p_value_threshold=0.01,
         )
         assert stats.is_significant.to_list() == [False, True, False]
         assert len(stats.select(fully_significant=True)) == 0
-        
+
         agg_stats = AggregateStatistics(project=self.project_name)
-        assert len(agg_stats.select(is_parametric=True, compound=lambda compound: '/' not in compound)) == 19
+        assert (
+            len(
+                agg_stats.select(
+                    is_parametric=True, compound=lambda compound: "/" not in compound
+                )
+            )
+            == 19
+        )
         assert len(agg_stats.select(is_parametric=False)) == 24
 
     def test_figures(self):
         assert Histogram(
             project=self.project_name,
-            experiment="agonist_antagonist",
+            experiment="agonist antagonist",
             compound="5HT/5HTP",
             region="OF",
             remove_outliers="calculated",
@@ -99,7 +113,7 @@ class TestProject(unittest.TestCase):
         )
         Correlation(
             project=self.project_name,
-            experiment="agonist_antagonist",
+            experiment="agonist antagonist",
             treatment="vehicles",
             compound="DA",
             region=["OF", "CB"],
@@ -119,20 +133,36 @@ class TestProject(unittest.TestCase):
             from_scratch=True,
             remove_outliers="calculated",
         )
-        Histogram(project=self.project_name, compound="weight", region='OF', from_scratch=True, remove_outliers="calculated")
-        StatisticsTable(project=self.project_name, compound="neurotransmitters", experiment ="agonist_antagonist", from_scratch=True)
-        Histogram(project=self.project_name, 
-                experiment='agonist_antagonist',
-                from_scratch=True, 
-                remove_outliers='calculated',
-                pool="treatment"
-                )
-        
+        Histogram(
+            project=self.project_name,
+            compound="weight",
+            region="OF",
+            from_scratch=True,
+            remove_outliers="calculated",
+        )
+        StatisticsTable(
+            project=self.project_name,
+            compound="neurotransmitters",
+            experiment="agonist antagonist",
+            from_scratch=True,
+        )
+        Histogram(
+            project=self.project_name,
+            experiment="agonist antagonist",
+            from_scratch=True,
+            remove_outliers="calculated",
+            pool="treatment",
+        )
+
     def test_utils(self):
-        filtered = HPLC(project=self.project_name).select(region="thalamocortical_interaction", compound="monoamines").select(region="cortex", compound="neurotransmitters")
+        filtered = (
+            HPLC(project=self.project_name)
+            .select(region="thalamocortical_interaction", compound="monoamines")
+            .select(region="cortex", compound="neurotransmitters")
+        )
         assert set(filtered.region.unique()) == {"OF"}
         assert set(filtered.compound.unique()) == {"DA", "5HT"}
-        
+
     def tearDown(self):
         # Cleanup code here
         print("DELETING TEST FILES")
