@@ -139,7 +139,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         )
         self.ylabel = "" if self.compound and "/" in self.compound else "ng/mg of tissue"
         if self.is_summary:
-            self.ylabel = f"{self.compound_or_region} {self.ylabel} +/-98CI"
+            self.ylabel = f" {self.ylabel} {getattr(self, self.compound_or_region)} +/-SD"
             self.title = ""
 
     def generate(self):
