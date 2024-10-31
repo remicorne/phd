@@ -14,7 +14,11 @@ from module.core.Metadata import (
 )
 from module.core.Matrix import Matrix
 from module.core.Matrix import Network as NetworkModel
-from module.core.Constants import COMPOUNDS_AND_REGIONS, REGIONS, REGION_CLASSES_POSITIONS
+from module.core.Constants import (
+    COMPOUNDS_AND_REGIONS,
+    REGIONS,
+    REGION_CLASSES_POSITIONS,
+)
 from matplotlib import pyplot as plt
 import seaborn as sns
 from typing import ClassVar
@@ -133,13 +137,17 @@ class Histogram(Figure(QuantitativeDataSelection)):
                 or self.compound is None
                 or self.region is None
             )
-            
+
         self.title = (
             f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
         )
-        self.ylabel = "" if self.compound and "/" in self.compound else "ng/mg of tissue"
+        self.ylabel = (
+            "" if self.compound and "/" in self.compound else "ng/mg of tissue"
+        )
         if self.is_summary:
-            self.ylabel = f" {self.ylabel} {getattr(self, self.compound_or_region)} +/-SD"
+            self.ylabel = (
+                f" {self.ylabel} {getattr(self, self.compound_or_region)} +/-SD"
+            )
             self.title = ""
 
     def generate(self):
@@ -411,14 +419,17 @@ class Correlogram(MatricesFigure):
 
     figure_type: str = "correlogram"
 
-    def plot_ax(self, i,custom_params=dict()):
-        custom_params = {**self.custom_params, **(custom_params if custom_params else {})}
+    def plot_ax(self, i, custom_params=dict()):
+        custom_params = {
+            **self.custom_params,
+            **(custom_params if custom_params else {}),
+        }
 
         ax = self.axs[i]
         matrix = self.matrices[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
 
-        colormap = custom_params.get('colormap', 'coolwarm') 
+        colormap = custom_params.get("colormap", "coolwarm")
 
         ax.set_title(
             title, fontsize=28, pad=20, y=1
@@ -470,23 +481,28 @@ class Network(MatricesFigure):
 
     def generate(self):
         super().generate()
-        for i, ax in enumerate(self.axs):
+        fig, axs = self.generate_figure()
+        for i, ax in enumerate(axs):
             network = self.networks[i]
             self.plot_degrees(ax, network)
 
     def plot_ax(self, i, custom_params=dict()):
-        custom_params = {**self.custom_params, **(custom_params if custom_params else {})}
-        show_edge_labels = custom_params.get('show_edge_labels', False)
-        edge_thickness = custom_params.get('edge_thickness', 3) # 'weight' for thickness weighting
-        colormap = custom_params.get('colormap', 'coolwarm')
-
+        custom_params = {
+            **self.custom_params,
+            **(custom_params if custom_params else {}),
+        }
+        show_edge_labels = custom_params.get("show_edge_labels", False)
+        edge_thickness = custom_params.get(
+            "edge_thickness", 3
+        )  # 'weight' for thickness weighting
+        colormap = custom_params.get("colormap", "coolwarm")
 
         ax = self.axs[i]
         network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         self.positions = REGION_CLASSES_POSITIONS.get(self._region, network.pos)
 
-        if self.positions != network.pos: #sagital positions made for this figure size
+        if self.positions != network.pos:  # sagital positions made for this figure size
             ax.set_xlim(0, 27)
             ax.set_ylim(0, 15)
 
@@ -501,46 +517,44 @@ class Network(MatricesFigure):
         )
 
         edge_weights = list(nx.get_edge_attributes(network.G, "weight").values())
-        
-        if edge_thickness == 'weight': # display weight by line thickness   
-            edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
-            weight_scaler = 3 # this should be log #TODO
-            edge_weight_to_plot = [weight * weight_scaler for weight in edge_weights] 
 
-        else: #display weight by colormap
+        if edge_thickness == "weight":  # display weight by line thickness
+            edge_colors = list(nx.get_edge_attributes(network.G, "color").values())
+            weight_scaler = 3  # this should be log #TODO
+            edge_weight_to_plot = [weight * weight_scaler for weight in edge_weights]
+
+        else:  # display weight by colormap
             norm = Normalize(vmin=-1, vmax=1)
-            cmap = plt.get_cmap(colormap) 
-            edge_colors = [cmap(norm(weight)) for weight in edge_weights]  
+            cmap = plt.get_cmap(colormap)
+            edge_colors = [cmap(norm(weight)) for weight in edge_weights]
             edge_weight_to_plot = edge_thickness
             sm = ScalarMappable(cmap=cmap, norm=norm)
-            plt.colorbar(sm, ax=ax,  fraction=0.02, pad=0.04)   #label='Edge Weight',
-            
+            plt.colorbar(sm, ax=ax, fraction=0.02, pad=0.04)  # label='Edge Weight',
+
         nx.draw_networkx_edges(
             network.G,
             self.positions,
-            width=edge_weight_to_plot, 
-            edge_color= edge_colors, 
+            width=edge_weight_to_plot,
+            edge_color=edge_colors,
             ax=ax,
             node_size=2000,
             **({"arrowstyle": "->", "arrowsize": 20} if network.is_directed else {}),
         )
 
         # Label nodes
-        node_labels = {
-            node: node for node in network.G.nodes()
-        }  
+        node_labels = {node: node for node in network.G.nodes()}
         nx.draw_networkx_labels(
             network.G, self.positions, labels=node_labels, font_size=24, ax=ax
         )
 
         if show_edge_labels == True:
             rounded_edge_labels = {
-                edge: f"{weight:.1f}"  
+                edge: f"{weight:.1f}"
                 for edge, weight in nx.get_edge_attributes(network.G, "weight").items()
             }
 
-            if edge_thickness == 'weight':
-                color_labels = {'red': [], 'blue': []}
+            if edge_thickness == "weight":
+                color_labels = {"red": [], "blue": []}
                 for edge, weight in rounded_edge_labels.items():
                     color = nx.get_edge_attributes(network.G, "color")[edge]
                     color_labels[color].append((edge, weight))
@@ -548,21 +562,30 @@ class Network(MatricesFigure):
                 for color, edges in color_labels.items():
                     edge_labels = {edge: label for edge, label in edges}
                     nx.draw_networkx_edge_labels(
-                        network.G, 
-                        self.positions, 
-                        edge_labels=edge_labels, 
-                        font_size=14, 
+                        network.G,
+                        self.positions,
+                        edge_labels=edge_labels,
+                        font_size=14,
                         ax=ax,
-                        font_color=color, 
-                        label_pos= 0.5,
-                        bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.7)  # White background box
+                        font_color=color,
+                        label_pos=0.5,
+                        bbox=dict(
+                            facecolor="white",
+                            edgecolor="none",
+                            boxstyle="round,pad=0.01",
+                            alpha=0.7,
+                        ),  # White background box
                     )
 
-
             else:
-                edge_colors = [cmap(weight) for weight in nx.get_edge_attributes(network.G, "weight").values()]
+                edge_colors = [
+                    cmap(weight)
+                    for weight in nx.get_edge_attributes(network.G, "weight").values()
+                ]
                 edge_label_colors = {}
-                for (edge, weight), color in zip(rounded_edge_labels.items(), edge_colors):
+                for (edge, weight), color in zip(
+                    rounded_edge_labels.items(), edge_colors
+                ):
                     edge_label_colors[edge] = color
 
                 for edge in edge_label_colors.keys():
@@ -570,23 +593,27 @@ class Network(MatricesFigure):
                     color = edge_label_colors[edge]
 
                     nx.draw_networkx_edge_labels(
-                        network.G, 
-                        self.positions, 
-                        edge_labels={edge: label},  # Pass a dict with the edge and its label
-                        font_size=14, 
+                        network.G,
+                        self.positions,
+                        edge_labels={
+                            edge: label
+                        },  # Pass a dict with the edge and its label
+                        font_size=14,
                         ax=ax,
                         font_color=color,  # Use the unique color for each label
                         label_pos=0.5,
-                        bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.01', alpha=0.9)  
+                        bbox=dict(
+                            facecolor="white",
+                            edgecolor="none",
+                            boxstyle="round,pad=0.01",
+                            alpha=0.9,
+                        ),
                     )
 
-
-  
         ax.set_aspect("equal")
         ax.margins(0.1)
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
-
 
     def plot_degrees(self, ax, network):
         """
@@ -765,10 +792,9 @@ class StatisticsTable(Table):
 
     def generate(self):
 
-        
         if not self.statistics:
             return pd.DataFrame()
-        
+
         results = []
 
         for statistic in self.statistics:
@@ -778,18 +804,18 @@ class StatisticsTable(Table):
             ]
             results.append(data)
         results = pd.concat(results)
-        
+
         results = results.pivot_table(
-                index="region",
-                columns=["test", "compound"],
-                values="result_string",
-                aggfunc="first",
-            )
-        
-        results.index = pd.Categorical(results.index, categories=self.order, ordered=True)
+            index="region",
+            columns=["test", "compound"],
+            values="result_string",
+            aggfunc="first",
+        )
+
+        results.index = pd.Categorical(
+            results.index, categories=self.order, ordered=True
+        )
         return results.sort_index()
-        
-        
 
     def load(self):
         return SelectableDataFrame(
