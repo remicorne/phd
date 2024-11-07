@@ -316,7 +316,6 @@ class Histogram(Figure(QuantitativeDataSelection)):
 @dataclass
 class MatricesFigure(Figure(DataSelection)):
 
-    columns: list[str] = field(default=None)
     n_minimum: float = field(default=5)
     method: float = field(default="pearson")
 
