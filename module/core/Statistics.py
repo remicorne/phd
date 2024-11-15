@@ -374,6 +374,7 @@ class QuantitativeStatistic:
         model = ols(f'value ~ C({self.group_column})', data=self.filtered_data).fit()
         anova_table = sm.stats.anova_lm(model, typ=2)
         p_value = anova_table["PR(>F)"][0]
+        is_significant = p_value <= self.p_value_threshold
         F = anova_table['F'][0]
         df1, df2 = anova_table['df'][0], anova_table['df'][1]
     
@@ -381,7 +382,7 @@ class QuantitativeStatistic:
             "p_value": p_value,
             "is_significant": p_value <= self.p_value_threshold,
             "result": anova_table,
-            "result_string": f"F({df1}, {df2}) = {F}",
+            "result_string": f"F({int(df1)}, {int(df2)}) = {F:.3g}, p = {p_value:.2g} {'*' if is_significant else ''}",
         }
 
     def get_two_way_anova(self):
@@ -413,13 +414,14 @@ class QuantitativeStatistic:
             detailed=True,
         ).round(3)
         
+        p_value=results["p-unc"][2]
+        is_significant=isinstance(p_value, float) and p_value < self.p_value_threshold
         
         return {
-            "p_value": results["p-unc"][2],
-            "is_significant": isinstance(results["p-unc"][2], float)
-            and results["p-unc"][2] < self.p_value_threshold,
+            "p_value": p_value,
+            "is_significant": is_significant,
             "result": results,
-            "result_string": f"F({results['DF'][2]}, {results['DF'][3]}) = {results['F'][2]}"
+            "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else '' }"
         }
 
 
