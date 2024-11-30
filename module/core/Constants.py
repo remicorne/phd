@@ -1,6 +1,6 @@
 from module.core.JSON import JSONMapping
 from module.core.FileSystem import FileSystem
-import os
+import os, sys
 from dataclasses import dataclass
 import difflib
 from module.core.questions import yes_or_no, select_one
@@ -43,7 +43,7 @@ class ConstantRegistry(JSONMapping):
         )
         return case_converter[lazy_guess_upper[0]] if lazy_guess_upper else None
 
-    def get_valid_choice(self, invalid_choice):
+    def choose_valid_value(self, value):
         """
         Tries to get a valid choice from the user.
         Uses difflib to detect the closest match in the list.
@@ -55,17 +55,17 @@ class ConstantRegistry(JSONMapping):
         Returns:
             str: A valid choice from keys
         """
-        lazy_guess = self.detect(invalid_choice)
+        if value in self:
+            return value
+        lazy_guess = self.detect(value)
         if lazy_guess:
             is_correct = yes_or_no(
-                f"INVALID: {invalid_choice}. DETECTED {lazy_guess}: {self[lazy_guess]}. CONFIRM?"
+                f"INVALID: {value}. DETECTED {lazy_guess}: {self[lazy_guess]}. CONFIRM?"
             )
             if is_correct:
                 return lazy_guess
         try:
-            new_choice = select_one(
-                f"INVALID: {invalid_choice}, SELECT FROM:", self.dict
-            )
+            new_choice = select_one(f"INVALID: {value}, SELECT FROM:", self.dict)
             while new_choice not in self:
                 new_choice = select_one(
                     f"UNKNOWN CHOICE: {new_choice}, SELECT FROM:", self.dict
@@ -73,15 +73,26 @@ class ConstantRegistry(JSONMapping):
             return new_choice
         except SystemExit:
             print("EDIT REGISTRY AND RETRY")
-            exit(1)
+            sys.exit(1)
 
     def order(self, iterable):
         ordered = [item for item in self if item in iterable]
         rest = [item for item in iterable if item not in ordered]
         return ordered + rest
-    
+
+    @classmethod
+    def get_registry(cls, name=None, element_type=None):
+        if name and element_type:
+            raise ValueError("Specify nam OR element type")
+        filename = f"{name or element_type + 's'}.{cls.extension}"
+        filepath = os.path.join(FileSystem.CONSTANTS, filename)
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Unknown ConstantRegistry: {filename}")
+        return cls(filepath=filepath)
+
+
 class ClassRegistry(ConstantRegistry):
-    
+
     def get_item_classes(self, item):
         return [klass for klass, constituents in self.items() if item in constituents]
 
@@ -100,4 +111,3 @@ REGION_CLASSES_POSITIONS = ConstantRegistry(
 CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
 COMPOUNDS_AND_REGIONS = {"region": REGIONS, "compound": COMPOUNDS}
 COMPOUNDS_AND_REGIONS_CLASSES = {"region": REGION_CLASSES, "compound": COMPOUND_CLASSES}
-

@@ -4,9 +4,10 @@ import os, platform, subprocess
 from module.core.FileSystem import FileSystem
 import re
 
+
 def sanitize_filename(filename):
     illegal_chars = r'[<>:"/\\|?*]'
-    sanitized = re.sub(illegal_chars, '_', filename)
+    sanitized = re.sub(illegal_chars, "_", filename)
     return sanitized
 
 
@@ -21,7 +22,7 @@ class Cacheable:
     If filepath is provided, it will be used as-is.
     All child classes must implement the generate(), load() and save() methods.
     Generate must either return something that can be saved or the save method should know how to handle it.
-    
+
     Args:
         filepath (str, optional): The path to the file. Defaults to None.
 
@@ -49,7 +50,7 @@ class Cacheable:
                 FileSystem.get_location(**self.__dict__), self.filename
             )
         if not self.extension:
-            raise ValueError("Child classes must define extension") 
+            raise ValueError("Child classes must define extension")
         # Remove extension if it has already been added
         filepath, _ = os.path.splitext(self.filepath)
         self.filepath = f"{filepath}.{self.extension}"
@@ -69,7 +70,6 @@ class Cacheable:
         self.save(data) if data is not None else self.save()
         print(f"CREATED AND CACHED {self.filepath}")
 
-
     def load(self):
         raise NotImplementedError(
             "This method should be implemented for all custom Cacheables"
@@ -79,10 +79,10 @@ class Cacheable:
         raise NotImplementedError(
             "This method should be implemented for all custom Cacheables"
         )
-        
+
     def delete(self):
         os.remove(self.filepath)
-                
+
     def open(self):
         if self.is_saved:
             if platform.system() == "Windows":

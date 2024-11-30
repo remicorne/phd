@@ -7,44 +7,50 @@ from module.core.Constants import COMPOUNDS_AND_REGIONS_CLASSES
 from module.core.Cacheable import Cacheable
 import pandas as pd
 from module.core.utils import is_array_like
+
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
 def handle_class_selectors(classes, select_value):
-    
+
     if is_array_like(select_value):
         values = []
         for item in select_value:
             values.extend(classes.get(item, [item]))
         return values
-        
+
     return classes.get(select_value, select_value)
-                    
-                    
+
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index != None  # Select all
-    absent_columns = set(mask_conditions) - set([*df.columns, 'index'])
+    absent_columns = set(mask_conditions) - set([*df.columns, "index"])
     if absent_columns:
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
     for key, value in mask_conditions.items():  # Refine selection
-        column = pd.Series(df.index) if key == "index" else df[key] 
+        column = pd.Series(df.index) if key == "index" else df[key]
         if value is None:
-            print(f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead.")
+            print(
+                f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead."
+            )
         else:
-                
+
             if callable(value):
                 sub_selection = column.apply(value)
             else:
                 if key in COMPOUNDS_AND_REGIONS_CLASSES:
-                    value = handle_class_selectors(COMPOUNDS_AND_REGIONS_CLASSES[key], value)
+                    value = handle_class_selectors(
+                        COMPOUNDS_AND_REGIONS_CLASSES[key], value
+                    )
                 if is_array_like(value):
                     sub_selection = column.isin(value)
                 else:
                     if value in ["na", "notna"]:
-                        sub_selection = column.isna() if value == "na" else column.notna()
+                        sub_selection = (
+                            column.isna() if value == "na" else column.notna()
+                        )
                     else:
                         sub_selection = column == value
             selected &= sub_selection
@@ -67,8 +73,8 @@ class SelectableDataFrame(pd.DataFrame):
         Filter the DataFrame based on a selector.
 
         Args:
-            selector (dict): A dictionary of column conditions to filter by. 
-            'nan' and 'notna' are supported using strings. 
+            selector (dict): A dictionary of column conditions to filter by.
+            'nan' and 'notna' are supported using strings.
             None is ignored for dict unpacking purposes and because it is not a valid value.
 
         Returns:
@@ -77,8 +83,10 @@ class SelectableDataFrame(pd.DataFrame):
         """
         sub_selection = sub_select(self, selector)
         return sub_selection
-    
-    def extend(self, df: "Dataset|SelectableDataFrame|pd.DataFrame") -> "SelectableDataFrame":
+
+    def extend(
+        self, df: "Dataset|SelectableDataFrame|pd.DataFrame"
+    ) -> "SelectableDataFrame":
         """
         Extend the DataFrame with another DataFrame. Automatically selects common columns.
 
@@ -91,7 +99,8 @@ class SelectableDataFrame(pd.DataFrame):
         if isinstance(df, Dataset):
             df = df.df
         common_columns = self.columns.intersection(df.columns).to_list()
-        return self.merge(df, on=common_columns, how="left")
+        return self.merge(df, on=common_columns)
+
 
 @dataclass
 class Dataset(Cacheable):
@@ -130,7 +139,7 @@ class Dataset(Cacheable):
     def replace(self, column, mapping):
         data = self.df
         self.save(data.replace(mapping))
-        
+
     def __contains__(self, column):
         return column in self.df
 
@@ -148,10 +157,10 @@ class Dataset(Cacheable):
         Returns:
             str: Pretty representation of the df
         """
-        return self.df._repr_html_()
-    
-    def __iter__(self):
-        return iter([row for _, row in self.df.iterrows()])
+        if self.is_saved:
+            return self.df._repr_html_()
+        else:
+            return repr(self)
 
 
 @dataclass
@@ -163,8 +172,8 @@ class PickleDataset(Dataset):
 
     extension: ClassVar[str] = "pkl"
 
-    def save(self, data: pd.DataFrame):
-        data.to_pickle(self.filepath)
+    def save(self, data: pd.DataFrame, filepath=None):
+        data.to_pickle(filepath or self.filepath)
 
     def load(self) -> SelectableDataFrame:
         return SelectableDataFrame(pd.read_pickle(self.filepath))
@@ -180,7 +189,7 @@ class ExcelDataset(Dataset):
     extension: ClassVar[str] = "xlsx"
 
     def save(self, data: pd.DataFrame):
-        data.to_excel(self.filepath)
+        data.to_excel(self.filepath, index=False)
 
     def load(self) -> SelectableDataFrame:
         return SelectableDataFrame(pd.read_excel(self.filepath))

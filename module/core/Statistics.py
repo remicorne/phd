@@ -3,7 +3,8 @@ from typing import ClassVar
 import pandas as pd
 import numpy as np
 from module.core.Dataset import PickleDataset, SelectableDataFrame
-from module.core.HPLC import HPLC
+
+# from module.core.HPLC import HPLC
 from module.core.Metadata import (
     ExperimentInformation,
     ProjectInformation,
@@ -19,16 +20,15 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 
 
-
 def get_quantitative_statistics_pipeline(
-    multiple_factors, multiple_treatments, paired, parametric
+    multiple_factors, multiple_groups, paired, parametric
 ):
     """
     Determines the statistical tests pipeline based on experiment design parameters.
 
     Args:
         multiple_factors (bool): Flag indicating if multiple factors are involved.
-        multiple_treatments (bool): Flag indicating if multiple treatments are considered.
+        multiple_groups (bool): Flag indicating if multiple groups are considered.
         paired (bool): Flag indicating if the design is paired.
         parametric (bool): Flag indicating if the tests should be parametric.
 
@@ -41,7 +41,7 @@ def get_quantitative_statistics_pipeline(
         (False, True, False, True): ["one_way_anova", "tukey"],
         (False, True, True, True): ["repeated_measures_anova", "paired_ttest"],
         (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
-    }[(multiple_factors, multiple_treatments, paired, parametric)]
+    }[(multiple_factors, multiple_groups, paired, parametric)]
 
 
 @dataclass
@@ -62,7 +62,6 @@ class QuantitativeStatistic:
 
     data: pd.DataFrame
     independant_variables: list[str]
-    treatments: list[str]
     is_paired: bool
     is_parametric: bool
     p_value_threshold: float
@@ -76,10 +75,8 @@ class QuantitativeStatistic:
             self.delay_execution = False
         else:
             self.filtered_data = self.data.select(value="notna")
-            # check all treatments present and enough data
-            self.has_enough_data = set(
-                self.filtered_data[self.group_column].unique()
-            ) == set(self.treatments) and all(
+            # check enough data
+            self.has_enough_data = all(
                 [
                     group_data.value.count() >= 5
                     for _, group_data in self.filtered_data.groupby(self.group_column)
@@ -87,7 +84,7 @@ class QuantitativeStatistic:
             )
             self.pipeline = self.pipeline or get_quantitative_statistics_pipeline(
                 len(self.independant_variables) >= 2,
-                len(self.treatments) >= 2,
+                len(self.data[self.group_column].unique()) >= 2,
                 self.is_paired,
                 self.is_parametric,
             )
@@ -97,7 +94,7 @@ class QuantitativeStatistic:
             if self.has_enough_data:
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
                 self.significant_pairs = (
-                    self.results.select(test=self.post_hoc_test).iloc[0,:].p_value
+                    self.results.select(test=self.post_hoc_test).iloc[0, :].p_value
                     if self.post_hoc_test in self.results.test.to_list()
                     else None
                 )
@@ -111,130 +108,14 @@ class QuantitativeStatistic:
                             "result_string": "n/a",
                             "p_value_threshold": self.p_value_threshold,
                             "p_value": np.nan,
-                        } for test in self.pipeline + ["validation"]
+                        }
+                        for test in self.pipeline + ["validation"]
                     ]
                 )
             for key, val in self.metadata.items():
                 self.results[key] = val
             self.is_significant = self.results.is_significant.all()
 
-    @classmethod
-    def calculate(
-        cls,
-        project: str,
-        experiment: str = None,
-        compound: str = None,
-        region: str = None,
-        p_value_threshold: float = None,
-        remove_outliers="calculated",
-    ):
-        """
-        Calculate statistical results for a given experiment, compound, and region.
-        If one ore some of the parameters are None or lists, calculate the results for all possible combinations.
-
-        Args:
-            project (str): The name of the project.
-            experiment (str|list): The name of the experiment.
-            compound (str|list): The name of the compound.
-            region (str|list): The name of the region.
-            p_value_threshold (float, optional): The p-value threshold used for statistical analysis. Defaults to None.
-            remove_outliers (str, optional): Whether to remove outliers. Must be 'eliminated', 'calculated', or False. Defaults to "calculated".
-
-        Returns:
-            SelectableDataFrame: Containing the statistical results.
-
-        Raises:
-            ValueError: If remove_outliers is not 'eliminated', 'calculated', or False.
-        """
-
-        data = HPLC(project).full_df
-
-        if compound:
-            compounds = (
-                compound
-                if is_array_like(compound)
-                else compound.replace(" ", "").split(",")
-            )
-        else:
-            compounds = data.compound.unique()
-
-        if region:
-            regions = (
-                region if is_array_like(region) else region.replace(" ", "").split(",")
-            )
-        else:
-            regions = data.region.unique()
-
-        if experiment:
-            experiment = (
-                experiment
-                if is_array_like(experiment)
-                else experiment.replace(", ", "").split(",")
-            )
-            experiments = [
-                ExperimentInformation(project).select(experiment=experiment)
-                for experiment in experiment
-            ]
-        else:
-            experiments = [experiment for experiment in ExperimentInformation(project)]
-
-        p_value_threshold = (
-            p_value_threshold or ProjectInformation(project).p_value_threshold
-        )
-
-        if remove_outliers == "eliminated":
-            data = data.select(outlier_status=["normal", "kept"])
-        elif remove_outliers == "calculated":
-            data = data.select(is_outlier=lambda val: val != True)
-        elif remove_outliers is not False:
-            raise ValueError(
-                "remove_outliers must be 'eliminated', 'calculated', or False"
-            )
-
-        data = data.select(
-            region=regions,
-            compound=compounds,
-        )
-
-        groupings = []
-
-        for experiment in experiments:
-            groupings.extend(
-                [
-                    cls(
-                        data=group_data,
-                        independant_variables=experiment.independant_variables,
-                        treatments=experiment.treatments,
-                        is_paired=experiment.paired,
-                        is_parametric=experiment.parametric,
-                        p_value_threshold=p_value_threshold,
-                        delay_execution=True,
-                        metadata={
-                            "project": project,
-                            "experiment": experiment.label,
-                            "compound": compound,
-                            "region": region,
-                        },
-                    )
-                    for (region, compound), group_data in tqdm(
-                        data.select(treatment=experiment.treatments).groupby(
-                            ["region", "compound"]
-                        ),
-                        desc=f"Preparing statistical groupings for {experiment.label}",
-                    )
-                ]
-            )
-
-        statistics = parallel_process(groupings, description="Calculating statistics")
-
-        results = []
-        for statistic in statistics:
-            result = statistic.results
-            result["fully_significant"] = statistic.is_significant
-            results.append(result)
-
-        return SelectableDataFrame(pd.concat(results))
-    
     @staticmethod
     def calculate_from_selection(
         data,
@@ -254,10 +135,12 @@ class QuantitativeStatistic:
             SelectableDataFrame: Containing the statistical results.
 
         """
-        
+
         groupings = []
-        
-        experiments = [experiments] if isinstance(experiments, pd.Series) else experiments
+
+        experiments = (
+            [experiments] if isinstance(experiments, pd.Series) else experiments
+        )
 
         for experiment in experiments:
             groupings.extend(
@@ -265,7 +148,6 @@ class QuantitativeStatistic:
                     QuantitativeStatistic(
                         data=group_data,
                         independant_variables=experiment.independant_variables,
-                        treatments=experiment.treatments,
                         is_paired=experiment.paired,
                         is_parametric=experiment.parametric,
                         p_value_threshold=p_value_threshold,
@@ -278,7 +160,7 @@ class QuantitativeStatistic:
                         },
                     )
                     for (region, compound), group_data in tqdm(
-                        data.select(treatment=experiment.treatments).groupby(
+                        data.select(group_id=experiment.groups).groupby(
                             ["region", "compound"]
                         ),
                         desc=f"Preparing statistical groupings for {experiment.label}",
@@ -299,7 +181,7 @@ class QuantitativeStatistic:
     # for parallel
     def __call__(self):
         self.__post_init__()
-        return self 
+        return self
 
     def execute_stats_pipeline(self):
         results = []
@@ -371,13 +253,13 @@ class QuantitativeStatistic:
                 - A boolean indicating if the test result is significant at the given threshold.
                 - A DataFrame containing the ANOVA test results (F-value and p-value).
         """
-        model = ols(f'value ~ C({self.group_column})', data=self.filtered_data).fit()
+        model = ols(f"value ~ C({self.group_column})", data=self.filtered_data).fit()
         anova_table = sm.stats.anova_lm(model, typ=2)
         p_value = anova_table["PR(>F)"][0]
         is_significant = p_value <= self.p_value_threshold
-        F = anova_table['F'][0]
-        df1, df2 = anova_table['df'][0], anova_table['df'][1]
-    
+        F = anova_table["F"][0]
+        df1, df2 = anova_table["df"][0], anova_table["df"][1]
+
         return {
             "p_value": p_value,
             "is_significant": p_value <= self.p_value_threshold,
@@ -413,138 +295,13 @@ class QuantitativeStatistic:
             between=self.independant_variables,
             detailed=True,
         ).round(3)
-        
-        p_value=results["p-unc"][2]
-        is_significant=isinstance(p_value, float) and p_value < self.p_value_threshold
-        
+
+        p_value = results["p-unc"][2]
+        is_significant = isinstance(p_value, float) and p_value < self.p_value_threshold
+
         return {
             "p_value": p_value,
             "is_significant": is_significant,
             "result": results,
-            "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else '' }"
+            "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else '' }",
         }
-
-
-@dataclass(repr=False)
-class Statistics(PickleDataset):
-    """
-    Contains all quantitative statistical resuts for hplc
-
-    """
-
-    project: str
-    filename: ClassVar[str] = "statistics"
-
-    def select(self, **kwargs):
-        """
-        Enable selection of specific significance pairs
-        Args:
-            significant_pair: tuple of significant pairs
-
-        """
-        searched_pair = kwargs.pop("significant_pair", None)
-        data = self.df.select(**kwargs)
-        if searched_pair:
-            return data[
-                data.p_value.apply(
-                    lambda p_value: (
-                        set(searched_pair)
-                        in [set(significant_pair) for significant_pair in p_value[0]]
-                        if is_array_like(p_value)
-                        else False
-                    )
-                )
-            ]
-        return data
-
-    def generate(self):
-        return QuantitativeStatistic.calculate(self.project).select(
-            fully_significant=True
-        )
-
-    @property
-    def significant_results(self):
-        """Return groupings where all tests are significant.
-
-        Returns:
-            pd.DataFrame: Significant results.
-        """
-        return SelectableDataFrame(
-            pd.concat(
-                [
-                    results
-                    for _, results in self.df.groupby(
-                        ["experiment", "compound", "region"]
-                    )
-                    if results.is_significant.all()
-                ]
-            )
-        )
-
-    @property
-    def insufficent_data(self):
-        """Return groupings where one group has less than 5 data points.
-
-        Returns:
-            pd.DataFrame: Insufficient data results.
-        """
-        try:
-            invalid_groupings = self.select(test="validation")
-            return invalid_groupings[invalid_groupings.result == "Not enough data"]
-        except ValueError as e:
-            if "EMPTY SELECTION" in str(e):
-                return "No data"
-
-        return self.df[
-            (self.df.test == "validation" & self.df.result == "Not enough data")
-        ]
-
-
-@dataclass
-class AggregateStatistics(PickleDataset):
-    """
-    Calculates group level descriptive statistics.
-    """
-
-    project: str
-    filename: ClassVar[str] = "aggregate_statistics"
-
-    def generate(self):
-        result_ls = []
-        for (treatment, region, compound), groupby_df in tqdm(
-            HPLC(self.project).full_df.select(value="notna", is_outlier=False).groupby(by=["treatment", "region", "compound"]),
-            desc="Calculating aggregate statistics",
-        ):
-            
-            if len(groupby_df) >= 3:
-                F, p, = scipy.stats.shapiro(groupby_df["value"])
-                is_parametric = p > 0.05            
-            else:
-                F, p, is_parametric = np.nan, np.nan, np.nan
-            
-            mean, std, sem, values = [
-                groupby_df.value.mean(),
-                groupby_df.value.std(),
-                groupby_df.value.sem(),
-                groupby_df.value.values,
-            ]
-            result_ls.append(
-                [treatment, region, compound, F, p, is_parametric, mean, std, sem, values]
-            )
-        return pd.DataFrame(
-            result_ls,
-            columns=[
-                "treatment",
-                "region",
-                "compound",
-                "shapiro_F",
-                "shapiro_p",
-                "is_parametric",
-                "mean",
-                "std",
-                "sem",
-                "values",
-            ],
-        )
-        
-        

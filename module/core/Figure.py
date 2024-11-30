@@ -8,6 +8,7 @@ from matplotlib.cm import ScalarMappable
 
 from module.core.Cacheable import Cacheable
 from module.core.Dataset import SelectableDataFrame, ExcelDataset
+from module.core.questions import input_escape
 from module.core.Statistics import QuantitativeStatistic
 from module.core.Metadata import (
     Palette,
@@ -63,21 +64,34 @@ class Figure:
                 Cacheable.__post_init__(self)
 
             def setup(self):
-                self.compound_or_region = "compound" if self.is_compound() else "region"
-                self.to_plot = "region" if self.is_compound() else "compound"
-                self.order = COMPOUNDS_AND_REGIONS[self.to_plot].order(
-                    self.data[self.to_plot].unique()
-                )
+                if self.request:
+                    pass
+                else:
+                    self.compound_or_region = (
+                        "compound" if self.is_compound() else "region"
+                    )
+                    self.to_plot = "region" if self.is_compound() else "compound"
+                    self.order = COMPOUNDS_AND_REGIONS[self.to_plot].order(
+                        self.data[self.to_plot].unique()
+                    )
 
             def is_compound(self):
+
                 return isinstance(self.compound, str)
 
             def define_filename(self):
-                region = self._region or "all regions"
-                region = region if isinstance(region, str) else ",".join(region)
-                compound = self._compound or "all compounds"
-                compound = compound if isinstance(compound, str) else ",".join(compound)
-                self.filename = f"{compound} in {region}"
+                if self.request:
+                    self.filename = "testgfhj" or input_escape(
+                        "Enter figure for filename"
+                    )  # TODO remove before prod
+                else:
+                    region = self._region or "all regions"
+                    region = region if isinstance(region, str) else ",".join(region)
+                    compound = self._compound or "all compounds"
+                    compound = (
+                        compound if isinstance(compound, str) else ",".join(compound)
+                    )
+                    self.filename = f"{compound} in {region}"
 
             def save(self):
                 self.fig.savefig(self.filepath)
@@ -106,6 +120,117 @@ class Histogram(Figure(QuantitativeDataSelection)):
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
 
+    x: bool = field(kw_only=True, default=None)
+    x_order: bool = field(kw_only=True, default=None)
+    plot_swarm: bool = field(kw_only=True, default=True)
+    figure_type: str = "histogram"
+
+    def setup_plotter_parameters(self):
+        self.x = self.x or self.project_information.group_label
+        self.swarm_hue = self.hue = self.x
+
+        self.palette = (
+            self.experiment_information.palette
+            if self.experiment
+            else Palette(self.project).dict
+        )
+        self.title = (
+            f"{self.compound or 'all compounds'} in {self.region or 'all regions'}"
+        )
+        self.ylabel = (
+            "" if self.compound and "/" in self.compound else "ng/mg of tissue"
+        )
+
+    def generate(self):
+        self.setup_plotter_parameters()
+        self.plot()
+        if self.experiment:
+            self.label_histogram_stats()
+
+    def plot(self, custom_params=dict()):
+        custom_params = {**self.custom_params, **custom_params}
+        custom_params["palette"] = (
+            {
+                **self.palette,
+                **self.custom_params.get("palette", {}),
+                **custom_params.get("palette", {}),
+            }
+            if not self.pool == "treatment"
+            else None
+        )
+        self.plot_histogram(custom_params)
+
+    def plot_histogram(self, custom_params):
+        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+        ax = sns.barplot(
+            data=custom_params.get("data", self.data),
+            x=self.x,
+            y="value",
+            hue=self.hue,
+            palette=custom_params.get("palette", self.palette),
+            errorbar=custom_params.get("errorbar", "sd"),
+            edgecolor=custom_params.get("edgecolor", ".2"),
+            errcolor=custom_params.get("errcolor", ".2"),
+            capsize=custom_params.get("capsize", 0.1),
+            alpha=custom_params.get("alpha", 0.8),
+            order=custom_params.get("x_order", self.x_order),
+            dodge=custom_params.get("dodge", False),
+        )
+        if custom_params.get("plot_swarm", self.plot_swarm):
+            ax = sns.swarmplot(
+                data=custom_params.get("data", self.data),
+                x=self.x,
+                y="value",
+                hue=custom_params.get("swarm_hue", self.swarm_hue),
+                size=custom_params.get("size", 5),
+                palette=custom_params.get(
+                    "swarm_palette", custom_params.get("palette", self.palette)
+                ),
+                legend=custom_params.get("legend", False),
+                order=custom_params.get("x_order", self.x_order),
+                edgecolor=custom_params.get("edgecolor", "k"),
+                linewidth=custom_params.get("linewidth", 1),
+                linestyle=custom_params.get("linestyle", "-"),
+                dodge=custom_params.get("dodge", False),
+            )
+
+        ax.tick_params(labelsize=custom_params.get("labelsize", 24))
+        ax.set_ylabel(
+            custom_params.get("ylabel", self.ylabel),
+            fontsize=custom_params.get("ylabel_fontsize", 24),
+        )
+        ax.set_xlabel(
+            " ", fontsize=custom_params.get("xlabel_fontsize", 20)
+        )  # treatments
+        ax.set_title(
+            custom_params.get("title", self.title),
+            y=custom_params.get("y", 1.04),
+            fontsize=custom_params.get("fontsize", 34),
+        )
+        sns.despine(left=False)
+
+    def label_histogram_stats(self):
+        if self.statistic and self.statistic.is_significant:
+            pairs, p_values = self.statistic.significant_pairs
+            annotator = Annotator(
+                self.ax,
+                pairs,
+                data=self.data,
+                x=self.x,
+                y="value",
+                order=self.x_order,
+            )
+            annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+            annotator.set_pvalues_and_annotate(p_values)
+
+
+@dataclass
+class Histogram(Figure(QuantitativeDataSelection)):
+    """
+    Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
+    If multiple compounds or regions are specified, a summary histogram is generated.
+    """
+
     plot_swarm: bool = field(default=True)
     figure_type: str = "histogram"
 
@@ -119,9 +244,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             if self.experiment
             else Palette(self.project).dict
         )
-        self.significance_palette = {
-            row.treatment: row.significance for row in Palette(self.project)
-        }
+        self.significance_palette = Palette(self.project).get_significance_palette()
         self.hue_order = self.treatments
 
         if self.pool == "treatment":
@@ -154,11 +277,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.setup_plotter_parameters()
         self.plot()
         if self.experiment:
-            (
-                self.label_summary_stats()
-                if self.is_summary
-                else self.label_histogram_stats()
-            )
+            self.label_summary_stats()
 
     def plot(self, custom_params=dict()):
         custom_params = {**self.custom_params, **custom_params}
@@ -171,61 +290,7 @@ class Histogram(Figure(QuantitativeDataSelection)):
             if not self.pool == "treatment"
             else None
         )
-        if self.is_summary:
-            self.plot_summary(custom_params)
-        else:
-            self.plot_histogram(custom_params)
-
-    def plot_histogram(self, custom_params):
-        self.fig, self.ax = plt.subplots(figsize=(20, 10))
-        ax = sns.barplot(
-            data=custom_params.get("data", self.data),
-            x=self.x,
-            y="value",
-            hue=self.hue,
-            palette=custom_params.get("palette", self.palette),
-            errorbar=custom_params.get(
-                "errorbar", "sd"
-            ),  # ("ci", 68) remi :) would be nice to also have SEM intergrated as an option - it is not inbuild like ci or sd in seabourn
-            edgecolor=custom_params.get("edgecolor", ".2"),
-            errcolor=custom_params.get("errcolor", ".2"),
-            capsize=custom_params.get("capsize", 0.1),
-            alpha=custom_params.get("alpha", 0.8),
-            order=custom_params.get("hue_order", self.hue_order),
-            dodge=custom_params.get("dodge", False),
-        )
-        if custom_params.get("plot_swarm", self.plot_swarm):
-            ax = sns.swarmplot(
-                data=custom_params.get("data", self.data),
-                x=self.x,
-                y="value",
-                hue=custom_params.get("swarm_hue", self.swarm_hue),
-                size=custom_params.get("size", 5),
-                palette=custom_params.get(
-                    "swarm_palette", custom_params.get("palette", self.palette)
-                ),
-                legend=custom_params.get("legend", False),
-                order=custom_params.get("hue_order", self.hue_order),
-                edgecolor=custom_params.get("edgecolor", "k"),
-                linewidth=custom_params.get("linewidth", 1),
-                linestyle=custom_params.get("linestyle", "-"),
-                dodge=custom_params.get("dodge", False),
-            )
-
-        ax.tick_params(labelsize=custom_params.get("labelsize", 24))
-        ax.set_ylabel(
-            custom_params.get("ylabel", self.ylabel),
-            fontsize=custom_params.get("ylabel_fontsize", 24),
-        )
-        ax.set_xlabel(
-            " ", fontsize=custom_params.get("xlabel_fontsize", 20)
-        )  # treatments
-        ax.set_title(
-            custom_params.get("title", self.title),
-            y=custom_params.get("y", 1.04),
-            fontsize=custom_params.get("fontsize", 34),
-        )
-        sns.despine(left=False)
+        self.plot_summary(custom_params)
 
     def plot_summary(self, custom_params):
         fig_width = custom_params.get("fig_width", 1.48 + 2 * len(self.order))
@@ -260,20 +325,6 @@ class Histogram(Figure(QuantitativeDataSelection)):
         self.ax.spines["top"].set_visible(False)
         self.ax.spines["right"].set_visible(False)
         plt.tight_layout()
-
-    def label_histogram_stats(self):
-        if self.statistic and self.statistic.is_significant:
-            pairs, p_values = self.statistic.significant_pairs
-            annotator = Annotator(
-                self.ax,
-                pairs,
-                data=self.data,
-                x="treatment",
-                y="value",
-                order=self.hue_order,
-            )
-            annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
-            annotator.set_pvalues_and_annotate(p_values)
 
     def label_summary_stats(self):
         for statistics in self.statistics:
@@ -320,17 +371,44 @@ class MatricesFigure(Figure(DataSelection)):
     method: float = field(default="pearson")
 
     def __post_init__(self):
+        # if "between" in self.request.get("custom_params", {}):
+        #     self.request.get("custom_params", {})
         if self.compound and "-" in self.compound:
+            print("DEPRECATION WARNING: pass as list instead of string")
             self.compound = self.compound.split("-")
         if self.region and "-" in self.region:
+            print("DEPRECATION WARNING: pass as list instead of string")
             self.region = self.region.split("-")
         super().__post_init__()
 
     def setup(self):
         super().setup()
-        c_or_r = getattr(self, self.compound_or_region)
-        self.var1 = c_or_r[0] if isinstance(c_or_r, list) else c_or_r
-        self.var2 = c_or_r[-1] if isinstance(c_or_r, list) else c_or_r
+        if self.request:
+            self.order = None
+            self.pivot_columns = sorted(
+                self.measurement_columns,
+                key=lambda col: len(self.data[col].unique()),
+            )
+            if "between" in self.request.get("custom_params", {}):
+                between = self.request["custom_params"]["between"]
+                self.between = list(between.keys())[0]
+                self.var1, self.var2 = list(between.values())[0]
+                self.pivot_columns.remove(self.between)
+                self.pivot_columns.insert(0, self.between)
+            else:
+                between_vars = self.data[
+                    self.pivot_columns[0]
+                ].unique()  # By default first col is
+                if len(between_vars) == 1:
+                    self.var1 = self.var2 = between_vars[0]
+                else:
+                    self.var1, *self.var2 = between_vars
+
+        else:
+            c_or_r = getattr(self, self.compound_or_region)
+            self.var1 = c_or_r[0] if isinstance(c_or_r, list) else c_or_r
+            self.var2 = c_or_r[-1] if isinstance(c_or_r, list) else c_or_r
+            self.pivot_columns = [self.compound_or_region, self.to_plot]
         self.is_square = self.var1 != self.var2
 
     def is_compound(self):
@@ -343,18 +421,19 @@ class MatricesFigure(Figure(DataSelection)):
     def build_matrices(self):
         cases = [
             Matrix(
-                self.data.select(treatment=treatment),
-                treatment,
-                self.compound_or_region,
+                data,
+                self.group_information.select(group_id=group_id).label,
                 self.var1,
                 self.var2,
-                self.to_plot,
+                self.pivot_columns,
                 self.order,
                 self.n_minimum,
                 self.method,
                 self.p_value_threshold,
             )
-            for treatment in self.treatments
+            for group_id, data in self.data.groupby(
+                self.project_information.group_column
+            )
         ]  # Setup multiprocessing pool
         self.matrices = parallel_process(cases, description="Creating matrices")
 
@@ -392,16 +471,15 @@ class MatricesFigure(Figure(DataSelection)):
         ) // num_cols  # Compute the number of rows
 
         # define the base size and a scaling factor for the figure size
-        base_size = 11
-        scale_factor = 1
+        square_side = 11
 
         # create subplots
         fig, axs = plt.subplots(
             num_rows,
             num_cols,
             figsize=(
-                num_cols * base_size * scale_factor,
-                num_rows * base_size * scale_factor,
+                self.custom_params.get("width", num_cols * square_side),
+                self.custom_params.get("height", num_rows * square_side),
             ),
             constrained_layout=True,
         )
@@ -426,7 +504,7 @@ class Correlogram(MatricesFigure):
 
         ax = self.axs[i]
         matrix = self.matrices[i]
-        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.grouping}"
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {matrix.group}"
 
         colormap = custom_params.get("colormap", "coolwarm")
 
@@ -498,7 +576,7 @@ class Network(MatricesFigure):
 
         ax = self.axs[i]
         network = self.networks[i]
-        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.group}"
         self.positions = REGION_CLASSES_POSITIONS.get(self._region, network.pos)
 
         if self.positions != network.pos:  # sagital positions made for this figure size
@@ -623,7 +701,7 @@ class Network(MatricesFigure):
         returns:
             ax to plot
         """
-        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.group}"  # TODO factorize
         G = network.G  # Access the graph from the Network object
         all_nodes = list(G.nodes())
         degree_sequence = [d for n, d in G.degree()]
@@ -670,9 +748,7 @@ class Network(MatricesFigure):
                     rotation=90,
                 )
 
-        ax.set_title(
-            title, fontsize=28, pad=20, y=1
-        )  # Use the get_title property from Network class
+        ax.set_title(title, fontsize=28, pad=20, y=1)
         ax.set_xlabel("Degree", fontsize=22)
         ax.set_ylabel("Frequency (n nodes)", fontsize=22)
         ax.spines["top"].set_visible(False)
@@ -682,7 +758,7 @@ class Network(MatricesFigure):
         ax.tick_params(axis="y", labelsize=20)
 
         # HACKY PRINT
-        title = network.get_title()
+        title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.group}"
         print(title)
         print(
             f"edges = {network.total_edges}, pos = {network.pos_edges}, neg = {network.neg_edges}",

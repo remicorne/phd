@@ -21,7 +21,7 @@ def calculate_correlation(method, x, y):
         raise ValueError(f"Unknown method: {method}")
 
 
-def correlate(method, return_type):
+def get_correlation_callback(method, return_type):
     """Return a correlation function based on the specified method, p-value threshold, and return type."""
 
     def executor(x, y):
@@ -42,11 +42,9 @@ class Matrix:
     Creates a reusable matrix class for a given eperimnet.
     Args:
         data (pd.DataFrame):    The original dataset.
-        treatment (str):        Identifier for the treatment group.
-        between (str):          Variable type for correlation (e.g., 'compound' or 'region').
+        group (str):        Identifier for the group (logging purposes).
         variables (str):         'var1-var2' to correlate from type 'between'. If only one: self correlation.
-        accross (str): The column that will constitute the rows/cols of the matrix.
-        columns (list[str]): Columns to include in the analysis. If None, all columns are included.
+        pivot_columns (list[str]): Columns (orederd) used to pivot the data).
         n_minimum (int): Minumum occurnces of overlapping var1 and var2 to be correlated. Default = 5.
         method (str): Correlation method ('pearson', 'spearman', 'kendall'). Default = "pearson".
         pvalue_threshold (float): Threshold for significance in correlation. Defult = 0.05
@@ -63,11 +61,10 @@ class Matrix:
     """
 
     data: pd.DataFrame
-    grouping: str
-    between: str
+    group: str  # TODO remove business logic
     var1: str
     var2: str
-    accross: str
+    pivot_columns: list[str]
     order: list[str] = None
     n_minimum: int = 5
     method: str = "pearson"
@@ -97,38 +94,26 @@ class Matrix:
             self.correlate()
             self.find_missing_overlap()
             self.process_triangle_correlogram()
-            self.get_title
-
-    def get_title(self):
-        """
-        Generates a title for the correlogram based on the matrix configuration.
-
-        Returns:
-            str: A title string.
-        """
-        if self.is_square:
-            return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
-        return f"{self.var1} in {self.grouping}"
 
     def filter_missing_values(self):
         """
         Filters out variables with occurrences less than n_minimum and updates missing_values list.
         """
         self.missing_values = []
-        missing_accross_vars = []
-        for (between_var, accross_var), df in self.data.groupby(
-            by=[self.between, self.accross]
-        ):
+        indices_to_eliminate = []
+        for measurment_col_values, df in self.data.groupby(by=self.pivot_columns):
             if df.value.notna().sum() < self.n_minimum:
-                self.missing_values.append((between_var, accross_var))
-                missing_accross_vars.append(accross_var)
-        indices_to_eliminate = self.data.select(
-            **{self.accross: missing_accross_vars}
-        ).index
+                self.missing_values.append(measurment_col_values)
+            indices_to_eliminate = self.data.select(
+                **{
+                    col: val
+                    for col, val in zip(self.pivot_columns, measurment_col_values)
+                }
+            ).index
         self.filtered_data = self.data.drop(indices_to_eliminate)
         if self.missing_values:
             print(
-                f"{self.grouping} missing data for {self.missing_values}, deleted from analysis"
+                f"{self.group} missing data for {self.missing_values}, deleted from analysis"
             )
 
     def pivot_data(self):
@@ -137,8 +122,8 @@ class Matrix:
         """
         self.pivot = self.filtered_data.pivot_table(
             values="value",
-            index=self.filtered_data["mouse_id"],
-            columns=[self.between, self.accross],
+            index="mouse_id",
+            columns=self.pivot_columns,
         )
 
     def order_columns(self):
@@ -175,7 +160,7 @@ class Matrix:
         Returns:
             pd.DataFrame: A DataFrame containing the requested correlation matrix.
         """
-        method = correlate(self.method, result_type)
+        method = get_correlation_callback(self.method, result_type)
         return self.pivot.corr(method=method, min_periods=self.n_minimum).loc[
             self.var1, self.var2
         ]
@@ -184,16 +169,14 @@ class Matrix:
         """
         Identifies and reports variable pairs with insufficient data overlap.
         """
-        self.missing_overlap = [
-            (row_idx, col_idx)
-            for row_idx in self.correlations.index
-            for col_idx in self.correlations.columns
-            if pd.isna(self.correlations.loc[row_idx, col_idx])
-        ]
+        stack = self.correlations.stack(dropna=False)
+        stack.index = stack.index.rename(self.pivot_columns)
+        stack = pd.DataFrame(stack.reset_index())
+        stack.columns = list(stack.columns[:-1]) + ["value"]
+        stack = stack[stack.value.isna()]
+        self.missing_overlap = stack[stack.value.isna()][self.pivot_columns].values
         if self.missing_overlap:
-            print(
-                f"{self.grouping} insuficient overlapp for {self.missing_overlap} pairs"
-            )
+            print(f"{self.group} insuficient overlapp for {self.missing_overlap} pairs")
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
     def process_triangle_correlogram(self):
@@ -204,7 +187,7 @@ class Matrix:
             mask = np.triu(np.ones(self.corr_masked.shape, dtype=bool), k=1)
             self.corr_masked[mask] = np.nan
             np.fill_diagonal(self.corr_masked.values, 1)
-            
+
     @property
     def significant_correlations(self):
         return self.corr_masked.stack().items()
@@ -221,7 +204,6 @@ class Network:
     Methods:
     max_node_degree(): Returns the maximum degree of the nodes in the graph.
     is_directed(): Property that checks if the network is directed (based on the matrix being square).
-    get_title(): Generates a title for the network graph.
     plot_ax(ax): Plots the network graph on the given matplotlib axis.
     """
 
@@ -249,9 +231,7 @@ class Network:
                 self.matrix.corr_masked.columns.tolist()
             )  # adds every BR as a node
             self.edge_labels = {}
-            for (row, col), correlation in (
-                self.matrix.significant_correlations
-            ):
+            for (row, col), correlation in self.matrix.significant_correlations:
                 # Add edge to the graph with edge weight and color
                 # Avoid self sorrelation
                 if not (row == col and not self.is_directed):
@@ -282,11 +262,6 @@ class Network:
             # self.local_efficiency = self.calculate_local_efficiency()
             # self.global_efficiency = self.calculate_global_efficiency()
             # self.characteristic_path_length = self.calculate_characteristic_path_length()
-
-    def get_title(self):
-        """Generates a formatted title for the network graph."""
-        title = self.matrix.get_title()
-        return title.replace("-", "->") if self.is_directed else title
 
     def edge_count(self):
         """

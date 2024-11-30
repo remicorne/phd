@@ -13,7 +13,7 @@ class FileSystem:
     PROJECTS = f"{ROOT}/PROJECTS"
     CONSTANTS = f"{ROOT}/module/json"
     PATH_ELEMENT_ORDER = ["project", "experiment", "figure_type"]
-    
+
     @staticmethod
     def list_projects():
         projects = os.listdir(FileSystem.PROJECTS)

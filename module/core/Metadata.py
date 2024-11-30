@@ -5,7 +5,9 @@ from module.core.Dataset import ExcelDataset, SelectableDataFrame
 from module.core.questions import select_one
 from dataclasses import dataclass, field
 from typing import ClassVar
-from distutils.util import strtobool # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
+from distutils.util import (
+    strtobool,
+)  # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
 
 
 @dataclass(repr=False)
@@ -20,7 +22,7 @@ class _ProjectSettings(ExcelDataset):
     project: str = field(default=None)
     _template: ClassVar[dict] = None
     _template_types: ClassVar[dict] = None
-    
+
     def __post_init__(self):
         """
         Load data from template and set columns as attributes
@@ -77,7 +79,10 @@ class _ProjectSettings(ExcelDataset):
         data = super().load().replace(np.nan, "")
         try:
             return self.convert_dtypes(data)
-        except:
+        except KeyError as e:
+            raise ValueError(f"Missing column {e}")
+        except ValueError as e:
+            print(e)
             raise ValueError(f"Wrong data types, please correct {self.filename}")
 
     def convert_dtypes(self, df):
@@ -86,7 +91,7 @@ class _ProjectSettings(ExcelDataset):
                 df[col_name] = df[col_name].apply(
                     lambda val: [
                         col_info["subtype"](subval)
-                        for subval in val.replace(" ", "").split(",")
+                        for subval in (val.replace(" ", "").split(",") if val else [])
                     ]
                 )
             elif col_info["type"] == bool:
@@ -94,37 +99,38 @@ class _ProjectSettings(ExcelDataset):
             else:
                 df[col_name] = df[col_name].apply(col_info["type"])
         return df
-    
-    
-    
-    def __contains__(self, label):
-        return label in self.df.label        
 
+    def __contains__(self, label):
+        return label in self.df.label
 
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
-    
-    
+
     def select(self, **selector) -> SelectableDataFrame:
         df = super().select(**selector)
         return df.iloc[0] if len(df) == 1 else df
 
-    
-
 
 @dataclass(repr=False)
-class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
+class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
-    filename: ClassVar[str] = "treatment_information"
+    filename: ClassVar[str] = "group_information"
     _template: ClassVar[dict] = {
         "group_id": [1, 5, 3, 4],
         "label": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
         "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
+        "mouse_id": [
+            "2, 5, 7, 9, 11, 17, 20, 28, 32, 59, 67",
+            "13, 14, 15, 26, 29, 34, 42, 48, 63, 65",
+            "23, 24, 31, 36, 38, 40, 44, 50, 51, 57",
+            "21, 25, 35, 41, 45, 49, 52, 58, 61, 66, 69",
+        ],
     }
     _template_types: ClassVar[dict] = {
         "group_id": {"type": int},
         "label": {"type": str},
         "independant_variables": {"type": list, "subtype": str},
+        "mouse_id": {"type": list, "subtype": int},
     }
     control_group: ClassVar[list] = "vehicles"
 
@@ -132,19 +138,14 @@ class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInform
     def palette(self):
         return {t.label: t.color for t in self}
 
-    def get_hue_order(self):
-        return self.df.sort_values(by="group_id").treatment.tolist()
-    
-    def load(self):
-        data = super().load()
-        data["treatment"] = data.label
-        return data
-    
     @property
     def treatments(self):
         return list(self.df.label)
-    
-    
+
+    def extend_dataset(self, dataset):
+        return self.df.explode("mouse_id").extend(dataset)
+
+
 @dataclass(repr=False)
 class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
@@ -160,17 +161,23 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
         "significance": {"type": str},
     }
 
-    @property
-    def dict(self):
-        return {t.treatment: t.color for t in self}
-    
-    
+    def get_significance_palette(self):
+        return self._get_palette("significance")
+
+    def get_color_palette(self):
+        return self._get_palette("color")
+
+    def _get_palette(self, palette_type):
+        return {
+            row.treatment: row[palette_type]
+            for _, row in Palette(self.project).df.iterrows()
+        }
+
     def __contains__(self, value):
         return value in self.df.treatment
-    
+
     def __getitem__(self, treatment) -> pd.Series:
         return self.df.select(**{"treatment": treatment})
-    
 
 
 @dataclass(repr=False)
@@ -182,8 +189,9 @@ class ExperimentInformation(_ProjectSettings):
         "groups": ["1, 5, 3, 4"],
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],
-        "parametric": [True],        
-        "control_group_id": [1]
+        "parametric": [True],
+        "control_group_id": [1],
+        # "data_source": ["hplc, behavior"],
     }
     _template_types: ClassVar[dict] = {
         "label": {"type": str},
@@ -191,26 +199,28 @@ class ExperimentInformation(_ProjectSettings):
         "independant_variables": {"type": list, "subtype": str},
         "paired": {"type": bool},
         "parametric": {"type": bool},
-        "control_group_id": {"type": int}
-    }        
+        "control_group_id": {"type": int},
+        # "data_source": {"type": list, "subtype": str},
+    }
 
     def load(self):
         data = super().load()
-        treatment_information = TreatmentInformation(self.project).df
-        palette = Palette(self.project).dict
+        group_information = GroupInformation(self.project).df
+        palette = Palette(self.project).get_color_palette()
         full_experiment_info = []
         for _, experiment in data.iterrows():
             experiment["experiment"] = experiment.label
-            experiment["treatments"] = treatment_information.select(group_id=experiment.groups).label.to_list()
-            experiment["control_treatment"] = experiment.treatments[experiment.groups.index(experiment["control_group_id"])]
+            experiment["treatments"] = group_information.select(
+                group_id=experiment.groups
+            ).label.to_list()
             experiment["palette"] = {t: palette[t] for t in experiment.treatments}
             full_experiment_info.append(experiment)
         return SelectableDataFrame(full_experiment_info)
-    
-    
+
     @property
     def experiments(self):
         return list(self.df.label)
+
 
 def is_valid_file(file_path):
     if not os.path.isfile(file_path):
@@ -223,6 +233,7 @@ def is_valid_file(file_path):
 
     return True
 
+
 @dataclass(repr=False)
 class ProjectInformation(_ProjectSettings):
 
@@ -232,16 +243,23 @@ class ProjectInformation(_ProjectSettings):
         "outlier_test": ["grubbs"],
         "p_value_threshold": [0.05],
         "raw_data_filename": ["raw_data.csv"],
+        "subject_column": ["mouse_id"],
+        "group_column": ["group_id"],
+        "grouping_characteristic": ["treatment"],
     }
     _template_types: ClassVar[dict] = {
         "label": {"type": str},
         "outlier_test": {"type": str},
         "p_value_threshold": {"type": float},
         "raw_data_filename": {"type": str},
+        "subject_column": {"type": str},
+        "group_column": {"type": str},
+        "grouping_characteristic": {"type": str},
     }
-    
+
     def generate(self):
         from module.core.HPLC import OUTLIER_TESTS
+
         data = super().generate()
         data["label"] = self.project
         data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
@@ -283,14 +301,18 @@ class DatasetInformation(_ProjectSettings):
 
     filename: ClassVar[str] = "dataset_information"
     _template: ClassVar[dict] = {
-        "label": ["hplc", "tissue_weight"],
-        "grouping_variables": ["treatment, compound, region", "treatment, region"],
-        "independant_variables": ["TCB2, MDL", ""],
-        "raw_data_filename": ["raw_data.csv"],
+        "label": ["hplc", "tissue_weight", "behavior"],
+        "measurement_columns": ["compound, region", "region", "measure"],
+        "unit": ["ng/mg", "mg", ""],
+        "experiments": [
+            "agonist_antagonist, dose_response",
+            "agonist_antagonist, dose_response",
+            "",
+        ],
     }
     _template_types: ClassVar[dict] = {
         "label": {"type": str},
-        "outlier_test": {"type": str},
-        "p_value_threshold": {"type": float},
-        "raw_data_filename": {"type": str},
+        "measurement_columns": {"type": list, "subtype": str},
+        "unit": {"type": str},
+        "experiments": {"type": list, "subtype": str},
     }
