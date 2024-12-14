@@ -480,10 +480,6 @@ class Network(MatricesFigure):
 
     def generate(self):
         super().generate()
-        fig, axs = self.generate_figure()
-        for i, ax in enumerate(axs):
-            network = self.networks[i]
-            self.plot_degrees(ax, network)
 
     def plot_ax(self, i, custom_params=dict()):
         custom_params = {
@@ -614,51 +610,83 @@ class Network(MatricesFigure):
         ax.set_frame_on(False)
         ax.set_title(title, fontsize=28, pad=-10, y=1)
 
-    def plot_degrees(self, ax, network):
+
+@dataclass
+class NetworkDegrees(MatricesFigure):
+    figure_type: str = "network_degrees"
+
+    def define_filename(self):
         """
-        Plots histogram of node degrees from network with a standard distribution overlay
-        input:
-            network object
-            ax to plot
-        returns:
-            ax to plot
+        Define a filename specific to degree plots.
         """
+        super().define_filename()
+        self.filename = f"{self.filename}_degrees"
+
+    def setup_plotter_parameters(self):
+        """
+        Set up networks for degree plotting.
+        """
+        super().setup_plotter_parameters()
+        self.networks = parallel_process(
+            [NetworkModel(matrix) for matrix in self.matrices],
+            description="Creating networks for degree plots",
+        )
+
+    def generate(self):
+        """
+        Generate degree plots for each network and save the figure.
+        """
+        super().generate()
+
+    def plot_ax(self, i, custom_params=dict()):
+        """
+        Plot the degree distribution for the network at index `i` on the given axis.
+        """
+        custom_params = {
+            **self.custom_params,
+            **(custom_params if custom_params else {}),
+        }
+
+        ax = self.axs[i]
+        network = self.networks[i]
         title = f"{'->'.join([self.var1, self.var2]) if self.is_square else self.var1} in {network.matrix.grouping}"
         G = network.G  # Access the graph from the Network object
-        all_nodes = list(G.nodes())
-        degree_sequence = [d for n, d in G.degree()]
+        degree_sequence = [d for _, d in G.degree()]
         node_labels_with_degrees = [(n, d) for n, d in G.degree()]
 
         mean_degree = np.mean(degree_sequence)
         std_degree = np.std(degree_sequence)
 
-        # Use the max_node_degree property from the Network class
-        max_degree = network.max_degree
-        mean_degree = network.average_degree
+        common_max_degree = max([max([d for _, d in net.G.degree()]) for net in self.networks])
+        common_max_freq = max([max(np.histogram([d for _, d in net.G.degree()], bins=np.arange(common_max_degree + 2) - 0.5)[0]) for net in self.networks])
+        ax.set_xlim(-0.5, common_max_degree+0.5)
+        ax.set_ylim(0, common_max_freq)
 
-        x = np.linspace(0, max_degree, 100)
-        y = norm.pdf(x, mean_degree, std_degree)
-        ax.plot(x, y, "r-", lw=2, label=f"Standard Distribution std={std_degree:.2f}")
+        # Plot standard distribution
+        x = np.linspace(0, max(degree_sequence), 100)
+        # y = norm.pdf(x, mean_degree, std_degree) #normalise 0-1 for density SD
+        y = norm.pdf(x, mean_degree, std_degree) * len(degree_sequence) 
+        ax.plot(x, y, "r-", lw=2, label=f"SD = {std_degree:.2f}")
 
         # Create the histogram
+
         counts, bins, patches = ax.hist(
             degree_sequence,
-            bins=np.arange(max_degree + 2) - 0.5,
+            bins=np.arange(max(degree_sequence) + 2) - 0.5,
             edgecolor="black",
+            color = 'whitesmoke',
+            linewidth=2,
             alpha=0.8,
+            # density =True #normalise 0-1 for density SD
         )
-        # Check if the sum of counts matches the number of nodes
-        total_nodes = len(all_nodes)
-        total_counted = sum(counts)
-        if total_nodes != total_counted:
-            raise ValueError(
-                f"Total nodes ({total_nodes}) does not match total counted ({total_counted})"
-            )
 
-        # Annotate each bar with the corresponding node labels
+        # Annotate bars with node labels
+        # for degree, patch in zip(degree_sequence, ax.patches):
         for i, patch in enumerate(patches):
             bin_center = patch.get_x() + patch.get_width() / 2
-            labels = [n for n, d in node_labels_with_degrees if d == i]
+            # labels = [n for n, d in node_labels_with_degrees if d == degree]
+            labels = [n for n, d in node_labels_with_degrees if bins[i] <= d < bins[i+1]]
+
             if labels:
                 ax.text(
                     bin_center,
@@ -666,20 +694,19 @@ class Network(MatricesFigure):
                     ", ".join(labels),
                     ha="center",
                     va="bottom",
-                    fontsize=28,
+                    fontsize=26,
                     rotation=90,
                 )
 
-        ax.set_title(
-            title, fontsize=28, pad=20, y=1
-        )  # Use the get_title property from Network class
-        ax.set_xlabel("Degree", fontsize=22)
-        ax.set_ylabel("Frequency (n nodes)", fontsize=22)
+        # Configure plot appearance
+        ax.set_title(title, fontsize=22, pad=20)
+        ax.set_xlabel("Node Degree (number of correlations)", fontsize=24)
+        ax.set_ylabel("Node Count (number of regions)", fontsize=24)
+        ax.legend(fontsize=32,loc='upper left')
+        ax.tick_params(axis="x", labelsize=28)
+        ax.tick_params(axis="y", labelsize=28)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(fontsize=20)
-        ax.tick_params(axis="x", labelsize=20)  # Adjust x-axis tick label size
-        ax.tick_params(axis="y", labelsize=20)
 
         # HACKY PRINT
         title = network.get_title()
@@ -689,9 +716,6 @@ class Network(MatricesFigure):
             f"density = {network.density}, max degree = {network.max_degree}, average degree = {network.average_degree}",
             f"unweighted clustering co = {network.avg_clust_coeff_unweighted}",
         )
-
-        return ax
-
 
 @dataclass
 class Correlation(MatricesFigure):
