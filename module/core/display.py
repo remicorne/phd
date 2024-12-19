@@ -1,7 +1,7 @@
 import ipywidgets as widgets
 from IPython.display import display, clear_output
 from module.core.Metadata import (
-    TreatmentInformation,
+    GroupInformation,
     ExperimentInformation,
 )
 from module.core.FileSystem import FileSystem
@@ -26,7 +26,11 @@ class OrderedSelectMultipleWithAll(widgets.SelectMultiple):
 
     def __getattribute__(self, name: str) -> tuple:
         return (
-            [item for item in super().__getattribute__(name) if item != "Select/Deselect all"]
+            [
+                item
+                for item in super().__getattribute__(name)
+                if item != "Select/Deselect all"
+            ]
             if name == "value"
             else super().__getattribute__(name)
         )
@@ -42,8 +46,11 @@ class OrderedSelectMultipleWithAll(widgets.SelectMultiple):
                 self.value = tuple()
         else:
             added = new_values - old_values
-            new_value_ordered = [item for item in self.value_ordered if item in new_values]
+            new_value_ordered = [
+                item for item in self.value_ordered if item in new_values
+            ]
             self.value_ordered = [*new_value_ordered, *added]
+
 
 def get_data(**kwargs):
     kwargs.pop("from_scratch", None)
@@ -58,7 +65,9 @@ def get_stats(**kwargs):
 
 figure_mapping = {
     "correlogram": Correlogram,
-    "histogram": lambda **kwargs: Histogram(**{k: arg for k, arg in kwargs.items() if k != "treatment"}),
+    "histogram": lambda **kwargs: Histogram(
+        **{k: arg for k, arg in kwargs.items() if k != "treatment"}
+    ),
     "correlation": Correlation,
     "network": Network,
     "table": Table,
@@ -116,7 +125,7 @@ def playground():
     submit = widgets.Button(
         description="Submit", layout=widgets.Layout(width="auto", margin="10px")
     )
-    
+
     def display_interface():
         display(figure_dropdown)
         print(
@@ -148,25 +157,37 @@ def playground():
         display(widgets_vbox)
 
     display_interface()
-    
+
     def on_item_multiselect_updated(type, class_multiselect):
         classes_constant_mapping = class_constants_mappings[type]
+
         def update_selected_classes(item_multiselect):
             selected_classes = []
             for selected_class in class_multiselect.value:
-                if all(item in item_multiselect.new for item in classes_constant_mapping[selected_class]):
+                if all(
+                    item in item_multiselect.new
+                    for item in classes_constant_mapping[selected_class]
+                ):
                     selected_classes.append(selected_class)
-            class_multiselect.value = selected_classes 
+            class_multiselect.value = selected_classes
+
         return update_selected_classes
-    region_ordered_select_multiple.observe(on_item_multiselect_updated("regions", region_class_checkbox), names="value")
-    compound_ordered_select_multiple.observe(on_item_multiselect_updated("compounds", compound_class_checkbox), names="value")
-            
+
+    region_ordered_select_multiple.observe(
+        on_item_multiselect_updated("regions", region_class_checkbox), names="value"
+    )
+    compound_ordered_select_multiple.observe(
+        on_item_multiselect_updated("compounds", compound_class_checkbox), names="value"
+    )
 
     def on_class_multiselect_updated(type, item_multiselect):
         classes_constant_mapping = class_constants_mappings[type]
+
         def add_class_items_to_item_multiselect(class_multiselect):
             items_to_add = []
-            new_selected_classes = set(class_multiselect.new) - set(class_multiselect.old)
+            new_selected_classes = set(class_multiselect.new) - set(
+                class_multiselect.old
+            )
             for selected_class in new_selected_classes:
                 for element in classes_constant_mapping[selected_class]:
                     items_to_add.append(element)
@@ -175,18 +196,26 @@ def playground():
             removed_items = []
             for removed_class in removed_classes:
                 removed_items.extend(classes_constant_mapping[removed_class])
-            item_multiselect.value = [item for item in added_items if item not in removed_items]
-            
+            item_multiselect.value = [
+                item for item in added_items if item not in removed_items
+            ]
+
         return add_class_items_to_item_multiselect
 
-    region_class_checkbox.observe(on_class_multiselect_updated("regions", region_ordered_select_multiple), names="value")
-    compound_class_checkbox.observe(on_class_multiselect_updated("compounds", compound_ordered_select_multiple), names="value")
+    region_class_checkbox.observe(
+        on_class_multiselect_updated("regions", region_ordered_select_multiple),
+        names="value",
+    )
+    compound_class_checkbox.observe(
+        on_class_multiselect_updated("compounds", compound_ordered_select_multiple),
+        names="value",
+    )
 
     def update_project(_):
         project = project_dropdown.value
         print(f"PROJECT: {project}")
         data = HPLC(project).df
-        treatment_information = TreatmentInformation(project)
+        treatment_information = GroupInformation(project)
         experiment_information = ExperimentInformation(project)
 
         compounds_constant = COMPOUNDS.list
@@ -200,11 +229,11 @@ def playground():
         compound_ordered_select_multiple.options = [
             compound for compound in compounds_constant if compound in data_compounds
         ] + [
-            compound for compound in data_compounds if compound not in compounds_constant
+            compound
+            for compound in data_compounds
+            if compound not in compounds_constant
         ]
-        treatment_ordered_select_multiple.options = (
-            treatment_information.label.unique()
-        )
+        treatment_ordered_select_multiple.options = treatment_information.label.unique()
         experiment_dropdown.options = ["None"] + list(
             experiment_information.label.unique()
         )
@@ -233,7 +262,7 @@ def playground():
         )
 
     project_dropdown.observe(update_project, names="value")
-    
+
     def display_figure(_):
         clear_output(wait=True)
         display_interface()
@@ -242,7 +271,11 @@ def playground():
             project=project_dropdown.value,
             compound=compound_ordered_select_multiple.value_ordered,
             region=region_ordered_select_multiple.value,
-            experiment=None if experiment_dropdown.value == "None" else experiment_dropdown.value,
+            experiment=(
+                None
+                if experiment_dropdown.value == "None"
+                else experiment_dropdown.value
+            ),
             treatment=treatment_ordered_select_multiple.value_ordered,
             remove_outliers=outliers_dropdown.value,
         )
