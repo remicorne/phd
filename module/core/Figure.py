@@ -81,7 +81,7 @@ class Figure:
 
             def define_filename(self):
                 if self.request:
-                    self.filename = "testgfhj" or input_escape(
+                    self.filename = input_escape(
                         "Enter figure for filename"
                     )  # TODO remove before prod
                 else:

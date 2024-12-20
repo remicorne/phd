@@ -175,7 +175,7 @@ class Matrix:
         stack.columns = list(stack.columns[:-1]) + ["value"]
         stack = stack[stack.value.isna()]
         self.missing_overlap = stack[stack.value.isna()][self.pivot_columns].values
-        if self.missing_overlap:
+        if len(self.missing_overlap):
             print(f"{self.group} insuficient overlapp for {self.missing_overlap} pairs")
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
