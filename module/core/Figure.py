@@ -79,6 +79,15 @@ class Figure:
                 compound = compound if isinstance(compound, str) else ",".join(compound)
                 self.filename = f"{compound} in {region}"
 
+            # REMI i wanted this in DataSelection as it seems the most generic place to put it 
+            def sanitise_to_list(self, str_tuple):
+                if isinstance(str_tuple, str) and "-" in str_tuple:
+                    str_tuple = str_tuple.split("-")
+                elif isinstance(str_tuple, list):
+                    str_tuple = [item.split("-") if "-" in item else item for item in str_tuple]
+                    str_tuple = list(set([subitem for sublist in str_tuple for subitem in (sublist if isinstance(sublist, list) else [sublist])]))
+                return str_tuple
+
             def save(self):
                 self.fig.savefig(self.filepath)
                 print(f"SAVED {self.filepath}")
@@ -320,10 +329,8 @@ class MatricesFigure(Figure(DataSelection)):
     method: float = field(default="pearson")
 
     def __post_init__(self):
-        if self.compound and "-" in self.compound:
-            self.compound = self.compound.split("-")
-        if self.region and "-" in self.region:
-            self.region = self.region.split("-")
+        self.compound = self.sanitise_to_list(self.compound)
+        self.region = self.sanitise_to_list(self.region)
         super().__post_init__()
 
     def setup(self):
@@ -844,3 +851,136 @@ class StatisticsTable(Table):
         return SelectableDataFrame(
             pd.read_excel(self.filepath, index_col=0, header=[0, 1])
         )
+
+
+@dataclass
+class MatricesComparisonFigure(Figure(DataSelection)):
+    '''
+    The MatrixFigure for having multiple matricies in each treatment group. 
+
+
+    '''
+
+    n_minimum: float = field(default=5)
+    method: float = field(default="pearson")
+
+
+    def __post_init__(self):
+        self.matricies_compounds = self.compound # list of truples with compounds to correlate 
+        self.compound = self.sanitise_to_list(self.compound)
+        self.region = self.sanitise_to_list(self.region)
+        super().__post_init__()
+
+    
+#THIS BIT IF FUCKING ME 
+    def setup(self):
+        super().setup()
+        c_or_r = getattr(self, self.compound_or_region)
+        self.var1 = c_or_r[0] if isinstance(c_or_r, list) else c_or_r
+        self.var2 = c_or_r[-1] if isinstance(c_or_r, list) else c_or_r
+        self.is_square = self.var1 != self.var2
+
+    def is_compound(self):
+        return super().is_compound() or len(self.compound) == 2  #this I dont know how to handel for multiple matrixies..... because len of compounds if i use it for the inpul will not be 2
+
+    def setup_plotter_parameters(self):
+        self.build_matrices()
+        self.homogenize_matrices()
+
+    def build_matrices(self):
+        cases = [
+            Matrix(
+                self.data.select(treatment=treatment),
+                treatment,
+                self.compound_or_region,
+                self.var1,
+                self.var2,
+                self.to_plot,
+                self.order,
+                self.n_minimum,
+                self.method,
+                self.p_value_threshold,
+            )
+            for treatment in self.treatments #  and matrix in self.matrices_compounds
+        ]  # Setup multiprocessing pool
+        self.matrices = parallel_process(cases, description="Creating matrices")
+
+    def homogenize_matrices(self):
+        conserved_rows = set.intersection(
+            *(set(matrix.corr_masked.index) for matrix in self.matrices)
+        )
+        conserved_cols = set.intersection(
+            *(set(matrix.corr_masked.columns) for matrix in self.matrices)
+        )
+
+        for matrix in self.matrices:
+            rows_to_drop = [
+                row for row in matrix.corr_masked.index if row not in conserved_rows
+            ]
+            cols_to_drop = [
+                col for col in matrix.corr_masked.columns if col not in conserved_cols
+            ]
+            matrix.corr_masked = matrix.corr_masked.drop(
+                index=rows_to_drop, columns=cols_to_drop
+            )
+
+    def generate(self):
+        self.setup_plotter_parameters()
+        self.fig, self.axs = self.generate_figure()
+        for i in range(len(self.axs)):
+            self.plot_ax(i)
+
+    def generate_figure(self):
+        fig, ax = plt.figure()
+        return 
+
+    def plot_ax(self, i):
+        raise NotImplementedError("Must be implemented in subclass")
+
+
+@dataclass
+class NetworkComp(MatricesComparisonFigure):
+
+    figure_type: str = "network_summary"
+
+    def define_filename(self):
+        super().define_filename()
+        self.filename = f"{self.matricies_compounds} in {self.region}"
+
+        
+
+    def setup_plotter_parameters(self):
+        """
+        Set up networks for degree plotting.
+        """
+        super().setup_plotter_parameters()
+        self.networks = parallel_process(
+            [NetworkModel(matrix) for matrix in self.matrices],
+            description="Creating networks for degree plots",
+        )
+
+    def generate(self):
+        '''
+        extract parameter from each network to make a df with teh value for each network and its treatment 
+        
+        
+        colls = network_name ie truple from self.matricies_compounds , value ie Network.
+        
+        '''
+
+        agg_network_df = []
+        for network, correrated, treatment in zip(self.networks, self.matricies_compounds, self.matrices['treatment']):
+
+    
+            G = network.G  # Access the graph from the Network object
+            degree =  G.degree()
+
+            temp_df = pd.DataFrame({
+                'network_name': correrated,
+                'treatment': treatment,
+                'value': degree
+            })
+            agg_network_df.append(temp_df)
+            
+
+        #THEN I CAN JUST PLOT WHATEVER and save the df if i need 
