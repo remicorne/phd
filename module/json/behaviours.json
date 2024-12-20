@@ -1,0 +1,15 @@
+{
+  "white_floor": "% time on white",
+  "hessian_floor": "% time on hessian",
+  "red_floor": "% time on red",
+  "orange_floor": "% time on orange",
+  "distance_traveled": "distance traveled (mm)",
+  "climbing": "climbing time (seconds)",
+  "sniffing": "sniffing time (seconds)",
+  "huddle": "huddle time (seconds)",
+  "lookaround": "lookaround time (seconds)",
+  "HT_20": "Head twitch response (20 min)",
+  "HT_30": "Head twitch response (30 min)",
+  "HT_40": "Head twitch response (40 min)",
+  "HT_50": "Head twitch response (50 min)"
+}
