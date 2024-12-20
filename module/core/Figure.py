@@ -82,7 +82,7 @@ class Figure:
             def define_filename(self):
                 if self.request:
                     self.filename = input_escape(
-                        "Enter figure for filename"
+                        "Enter filename for figure"
                     )  # TODO remove before prod
                 else:
                     region = self._region or "all regions"
@@ -525,15 +525,15 @@ class Correlogram(MatricesFigure):
         )
         ax.set_xticklabels(
             ax.get_xticklabels(),
-            rotation=45,
+            rotation=90,
             ha="center",
-            fontsize=12,
+            fontsize=16,
         )
         ax.set_yticklabels(
             ax.get_yticklabels(),
-            rotation=45,
+            rotation=0,
             va="center",
-            fontsize=12,
+            fontsize=16,
         )
 
         ax.set_ylabel(matrix.var1, fontsize=28)
