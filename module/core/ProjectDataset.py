@@ -166,13 +166,14 @@ class ProjectDataset(PickleDataset):
 
     def calculate_outliers(self):
         project_information = ProjectInformation(self.project)
+        data = GroupInformation(self.project).extend_dataset(self.df)
         cases = [
             (
                 subset_df,
                 project_information.outlier_test,
                 project_information.p_value_threshold,
             )
-            for _, subset_df in self.df.groupby(
+            for _, subset_df in data.groupby(
                 [
                     self.project_information.group_column,
                     *self.dataset_information.measurement_columns,
@@ -182,7 +183,14 @@ class ProjectDataset(PickleDataset):
         results = parallel_process(
             cases, label_group_outliers, description="Calculating outliers"
         )
-        pd.concat(results).to_pickle(self.filepath.replace(".pkl", "_outliers.pkl"))
+        pd.concat(results)[
+            [
+                self.project_information.subject_column,
+                *self.dataset_information.measurement_columns,
+                "is_outlier",
+                "outlier_status",
+            ]
+        ].to_pickle(self.filepath.replace(".pkl", "_outliers.pkl"))
 
     def calculate_group_statistics(self):
         result_ls = []
