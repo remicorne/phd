@@ -43,6 +43,12 @@ class ProjectSelectableDataframe(SelectableDataFrame):
         if experiment:
             experiment = ExperimentInformation(self.project).select(label=experiment)
             selector["group_id"] = experiment.groups
+        remove_outliers = selector.pop("remove_outliers", None)
+        if remove_outliers:
+            if remove_outliers == "eliminated":
+                raise NotImplementedError("Havent had time to code this")
+            elif remove_outliers == "calculated":
+                selector["is_outlier"] = False
         data = SelectableDataFrame(self).select(**selector)
         return (
             ProjectSelectableDataframe(data, project=self.project)
