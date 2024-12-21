@@ -1,0 +1,16 @@
+{
+  "HTR": ["HTR_20", "HTR_30", "HTR_40", "HTR_50"],
+  "DeepOF_behavior": [
+    "distance_traveled",
+    "climbing",
+    "sniffing",
+    "huddle",
+    "lookaround"
+  ],
+  "flooring_preference": [
+    "white_floor",
+    "hessian_floor",
+    "red_floor",
+    "orange_floor"
+  ]
+}
