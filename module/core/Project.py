@@ -1,11 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from module.core.Dataset import SelectableDataFrame
+from dataclasses import dataclass, field
 from module.core.questions import yes_or_no
 from module.core.Metadata import (
     ExperimentInformation,
     GroupInformation,
     ProjectInformation,
+    DatasetInformation,
 )
 from module.core.HPLC import RawHPLC, HPLC, Outliers
 
@@ -43,24 +43,25 @@ class Project:
                          components like experiments, treatments, and statistical analyses.
     """
 
-    name: str
+    name: str = field(kw_only=True)
 
     def __post_init__(self):
-        self.location = f"{ROOT}/{self.name}"
-        if not os.path.exists(self.location):
-            if yes_or_no(f"INITIALIZE NEW PROJECT: '{self.name}' ?"):
-                os.mkdir(self.location)
-            else:
-                print(f"UNKNOWN PROJECT: {self.name}")
-                print(f"KNOW PROJECTS ARE: {Project.list()}")
-                exit(1)
         self.project_information = ProjectInformation(self.name)
         self.experiment_information = ExperimentInformation(self.name)
         self.treatment_information = GroupInformation(self.name)
-        self.raw_data = RawHPLC(self.name)
-        self.hplc = HPLC(self.name)
-        self.outliers = Outliers(self.name)
-        self.statistics = Statistics(self.name)
+        self.dataset_information = GroupInformation(self.name)
+        self.datasets = {
+            label: ProjectDataset(project=self.name, filename=label)
+            for label in self.dataset_information.label
+        }
+
+    def select(self, datasets=list(), experiments=list(), **selector):
+        datas = []
+        for dataset in datasets:
+            if dataset not in self.datasets:
+                print(f"Unknow dataset {dataset}")
+            else:
+                datas.append(self.datasets[dataset].select(experiments, selector))
 
     @property
     def data(self) -> SelectableDataFrame:

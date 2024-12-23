@@ -1,5 +1,4 @@
 from .FileSystem import FileSystem
-from .Dataset import ExcelDataset, PickleDataset
 from .Project import Project
 from .HPLC import HPLC
 from .Statistics import QuantitativeStatistic
@@ -10,7 +9,6 @@ from .Metadata import (
     Palette,
     GroupInformation,
 )
-from .Constants import COMPOUNDS, COMPOUND_CLASSES, REGIONS, REGION_CLASSES, CIRCUITS
 
 
 __all__ = [

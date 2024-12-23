@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import ClassVar
-from module.core.Constants import COMPOUNDS_AND_REGIONS_CLASSES
+from module.core.Constants import ConstantRegistry
 from module.core.Cacheable import Cacheable
 import pandas as pd
 from module.core.utils import is_array_like
@@ -40,10 +40,6 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
             if callable(value):
                 sub_selection = column.apply(value)
             else:
-                if key in COMPOUNDS_AND_REGIONS_CLASSES:
-                    value = handle_class_selectors(
-                        COMPOUNDS_AND_REGIONS_CLASSES[key], value
-                    )
                 if is_array_like(value):
                     sub_selection = column.isin(value)
                 else:
@@ -85,32 +81,32 @@ class SelectableDataFrame(pd.DataFrame):
         return sub_selection
 
     def extend(
-        self, df: "Dataset|SelectableDataFrame|pd.DataFrame"
+        self, other: "CachedDataFrame|SelectableDataFrame|pd.DataFrame"
     ) -> "SelectableDataFrame":
         """
         Extend the DataFrame with another DataFrame. Automatically selects common columns.
 
         Args:
-            df (_type_): the df to left join to self
+            other (_type_): the other to left join to self
 
         Returns:
             SelectableDataFrame:  Resulting DataFrame of left join
         """
-        if isinstance(df, Dataset):
-            df = df.df
-        common_columns = self.columns.intersection(df.columns).to_list()
-        return self.merge(df, on=common_columns)
+        if isinstance(other, CachedDataFrame):
+            other = other.df
+        common_columns = self.columns.intersection(other.columns).to_list()
+        return self.merge(other, on=common_columns)
 
 
-@dataclass
-class Dataset(Cacheable):
+@dataclass(repr=False)
+class CachedDataFrame(Cacheable):
     """
     Base class for datasets ie dataframes stored in Excel or Pickle files.
     Similar to JSONmapping interface for json/dict.
     Actual dataframe is accessed through the df property and read directly from the file.
 
     Returns:
-        Dataset: Wrapper for dataframes
+        CachedDataFrame: Wrapper for dataframes
     """
 
     def select(self, **selector) -> SelectableDataFrame:
@@ -136,10 +132,6 @@ class Dataset(Cacheable):
         """
         return self.df.extend(other)
 
-    def replace(self, column, mapping):
-        data = self.df
-        self.save(data.replace(mapping))
-
     def __contains__(self, column):
         return column in self.df
 
@@ -151,22 +143,11 @@ class Dataset(Cacheable):
         """
         return repr(self.df)
 
-    def _repr_html_(self) -> str:
-        """Called by jupyter notebook to display the dataframe as html (pretty)
-
-        Returns:
-            str: Pretty representation of the df
-        """
-        if self.is_saved:
-            return self.df._repr_html_()
-        else:
-            return repr(self)
-
 
 @dataclass
-class PickleDataset(Dataset):
+class PickleCachedDataFrame(CachedDataFrame):
     """
-    Dataset wrapper for pickle files
+    CachedDataFrame wrapper for pickle files
 
     """
 
@@ -180,9 +161,9 @@ class PickleDataset(Dataset):
 
 
 @dataclass
-class ExcelDataset(Dataset):
+class ExcelCachedDataFrame(CachedDataFrame):
     """
-    Dataset wrapper for excel files
+    CachedDataFrame wrapper for excel files
 
     """
 

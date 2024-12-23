@@ -1,13 +1,17 @@
+from typing import Any
 from module.core.JSON import JSONMapping
 from module.core.FileSystem import FileSystem
 import os, sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import difflib
 from module.core.questions import yes_or_no, select_one
-import json
+from typing import ClassVar
 
 
-@dataclass
+def singular(name):
+    return name[:-1] if name[-1] == "s" else name
+
+
 class ConstantRegistry(JSONMapping):
     """A JSON mapping for constants.
     Used for validation of predefined constants (regions, compounds, compound classes..)
@@ -19,12 +23,21 @@ class ConstantRegistry(JSONMapping):
         THe content of the JSON file as a dict.
     """
 
+    _instances: ClassVar[dict] = {}
+
+    from_scratch: bool = field(init=False, default=False)
     filepath: str
 
+    def __new__(cls, filepath: str, *args, **kwargs):
+        # Check if an instance for the given filepath already exists
+        if filepath not in cls._instances:
+            # Create and store the new instance
+            instance = super().__new__(cls)
+            cls._instances[filepath] = instance
+        return cls._instances[filepath]
+
     def generate(self):
-        raise NotImplementedError(
-            "Contant registries should be handled directly in the JSON"
-        )
+        raise FileNotFoundError(f"No constant registry at {self.filepath}")
 
     def detect(self, key):
         """Uses difflib to detect the closest match in the list.
@@ -80,34 +93,100 @@ class ConstantRegistry(JSONMapping):
         rest = [item for item in iterable if item not in ordered]
         return ordered + rest
 
+    def get_order(self, item):
+        return self.list.index(item) if item in self else None
+
+    @staticmethod
+    def get_filename_from_element_type(element_type):
+        return f"{element_type + 's'}"
+
     @classmethod
-    def get_registry(cls, name=None, element_type=None):
-        if name and element_type:
-            raise ValueError("Specify nam OR element type")
-        filename = f"{name or element_type + 's'}.{cls.extension}"
-        filepath = os.path.join(FileSystem.CONSTANTS, filename)
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Unknown ConstantRegistry: {filename}")
-        return cls(filepath=filepath)
+    def get_registry(cls, element_type=None, name=None):
+        filename = (
+            cls.get_filename_from_element_type(element_type) if element_type else name
+        )
+        filename += f".{cls.extension}"
+        return cls(filepath=os.path.join(FileSystem.CONSTANTS, filename))
+
+    @classmethod
+    def exists(cls, element_type=None, name=None):
+        try:
+            cls.get_registry(element_type=element_type, name=name)
+            return True
+        except FileNotFoundError:
+            return False
+
+    @classmethod
+    def list_registries(cls):
+        return {
+            singular(os.path.splitext(filename)[0]): cls(filepath=os.path.join(FileSystem.CONSTANTS, filename))  # type: ignorefilename)
+            for filename in os.listdir(FileSystem.CONSTANTS)
+            if os.path.splitext(filename)[1] == f".{cls.extension}"
+        }
 
 
 class ClassRegistry(ConstantRegistry):
 
     def get_item_classes(self, item):
-        return [klass for klass, constituents in self.items() if item in constituents]
+        return [klass for klass, elements in self.items() if item in elements]
+
+    @staticmethod
+    def get_filename_from_element_type(element_type):
+        return f"{element_type}_classes"
 
 
-REGIONS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "regions"))
-COMPOUNDS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "compounds"))
-COMPOUND_CLASSES = ClassRegistry(
-    filepath=os.path.join(FileSystem.CONSTANTS, "compound_classes")
-)
-REGION_CLASSES = ClassRegistry(
-    filepath=os.path.join(FileSystem.CONSTANTS, "region_classes")
-)
-REGION_CLASSES_POSITIONS = ConstantRegistry(
-    filepath=os.path.join(FileSystem.CONSTANTS, "region_classes_positions")
-)
-CIRCUITS = ConstantRegistry(filepath=os.path.join(FileSystem.CONSTANTS, "circuits"))
-COMPOUNDS_AND_REGIONS = {"region": REGIONS, "compound": COMPOUNDS}
-COMPOUNDS_AND_REGIONS_CLASSES = {"region": REGION_CLASSES, "compound": COMPOUND_CLASSES}
+REGISTRIES = ConstantRegistry.list_registries()
+
+
+def string_to_numerical(value):
+    return int("".join([str(ord(c)) for c in value]))
+
+
+@dataclass(frozen=True, eq=False)
+class Characteristic:
+    type: str
+    value: str
+    position: int = field(init=False)
+    classes: Any = field(init=False, default=None)
+
+    def __post_init__(self):
+        # Immutable assignment for calculated attributes
+        object.__setattr__(
+            self,
+            "position",
+            (
+                REGISTRIES[self.type].get_order(self.value)
+                if self.type in REGISTRIES
+                else string_to_numerical(self.value)
+            ),
+        )
+        if ClassRegistry.exists(element_type=self.type):
+            object.__setattr__(
+                self,
+                "classes",
+                ClassRegistry.get_registry(element_type=self.type).get_item_classes(
+                    self.value
+                ),
+            )
+
+    def __str__(self):
+        return f"{self.type}={self.value}"
+
+    def __lt__(self, other):
+        if isinstance(other, Characteristic):
+            return self.position < other.position
+        raise NotImplementedError("Cannot compare with non-Characteristic")
+
+    def __eq__(self, other):
+        if isinstance(other, Characteristic):
+            return self.type == other.type and self.value == other.value
+        elif isinstance(other, dict):
+            return all(self.dict.get(k) == v for k, v in other.items())
+        return False
+
+    def __hash__(self):
+        return hash((self.type, self.value))
+
+    @property
+    def dict(self):
+        return {self.type: self.value}

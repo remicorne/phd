@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 import os, platform, subprocess
 from module.core.FileSystem import FileSystem
+from module.core.questions import input_escape
 import re
 
 
@@ -57,6 +58,15 @@ class Cacheable:
         if not self.is_saved or self.from_scratch:
             self.initialize()
 
+    def get_location(self):
+        return FileSystem.get_location(**self.__dict__)
+
+    def get_filename(self):
+        return f"{sanitize_filename(self.filename or input_escape('Enter filename'))}.{self.extension}"
+
+    def get_filepath(self):
+        return self.filepath or os.path.join(self.get_location(), self.get_filename())
+
     def generate(self):
         raise NotImplementedError(
             "This method should be implemented for all custom Cacheables"
@@ -81,7 +91,7 @@ class Cacheable:
         )
 
     def delete(self):
-        os.remove(self.filepath)
+        os.remove(self.get_filepath())
 
     def open(self):
         if self.is_saved:

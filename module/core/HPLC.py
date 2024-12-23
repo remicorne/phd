@@ -3,14 +3,13 @@ from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import PickleDataset, SelectableDataFrame
+from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
 from module.core.Metadata import (
     ProjectInformation,
     ExperimentInformation,
     GroupInformation,
 )
 from module.core.questions import yes_or_no, input_escape
-from module.core.Constants import REGIONS, COMPOUNDS
 from tqdm import tqdm
 from outliers import smirnov_grubbs as grubbs
 from module.core.utils import parallel_process
@@ -35,7 +34,7 @@ def handle_raw_col_name(column):
 
 
 @dataclass(repr=False)
-class RawHPLC(PickleDataset):
+class RawHPLC(PickleCachedDataFrame):
 
     project: str
     filename: ClassVar[str] = "raw_hplc"
@@ -117,7 +116,7 @@ class ProjectSelectableDataframe(SelectableDataFrame):
 
 
 @dataclass(repr=False)
-class HPLC(PickleDataset):
+class HPLC(PickleCachedDataFrame):
 
     project: str
     filename: ClassVar[str] = "hplc"
@@ -228,7 +227,7 @@ OUTLIER_TESTS = {"grubbs": grubbs_test}
 
 
 @dataclass(repr=False)
-class Outliers(PickleDataset):
+class Outliers(PickleCachedDataFrame):
 
     project: str
     filename: ClassVar[str] = "outliers"
@@ -259,7 +258,7 @@ class Outliers(PickleDataset):
 
 
 @dataclass
-class TissueWeight(PickleDataset):
+class TissueWeight(PickleCachedDataFrame):
 
     project: str
     filename: ClassVar[str] = "tissue_weight"
@@ -288,7 +287,7 @@ class TissueWeight(PickleDataset):
 
 
 @dataclass
-class Groups(PickleDataset):
+class Groups(PickleCachedDataFrame):
 
     project: str
     filename: ClassVar[str] = "groups"

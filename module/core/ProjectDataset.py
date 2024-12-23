@@ -4,20 +4,26 @@ from typing import ClassVar, Any
 import pandas as pd
 import numpy as np
 import scipy
-from module.core.Dataset import PickleDataset, SelectableDataFrame
-from module.core.Constants import ConstantRegistry
+from itertools import chain
+from tqdm import tqdm
+
+from collections import namedtuple
+from outliers import smirnov_grubbs as grubbs
+from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
+from module.core.MeasuremenCharacteristics import MeasurementCharacteristics
+from module.core.Constants import ConstantRegistry, ClassRegistry
 from module.core.Metadata import (
     ProjectInformation,
     ExperimentInformation,
     GroupInformation,
     DatasetInformation,
+    Palette,
 )
-from module.core.questions import yes_or_no, input_escape
-from module.core.Constants import REGIONS, COMPOUNDS
-from tqdm import tqdm
-from outliers import smirnov_grubbs as grubbs
+from module.core.questions import input_escape
 from module.core.utils import parallel_process
-from module.core.Statistics import QuantitativeStatistic
+from module.core.Statistics import QuantitativeStatistic, QuantitativeStatisticBatch
+from module.core.Figure import Histogram, SummaryHistogram
+from module.core.FileSystem import FileSystem
 
 
 class ProjectSelectableDataframe(SelectableDataFrame):
@@ -43,13 +49,7 @@ class ProjectSelectableDataframe(SelectableDataFrame):
         if experiment:
             experiment = ExperimentInformation(self.project).select(label=experiment)
             selector["group_id"] = experiment.groups
-        remove_outliers = selector.pop("remove_outliers", None)
-        if remove_outliers:
-            if remove_outliers == "eliminated":
-                raise NotImplementedError("Havent had time to code this")
-            elif remove_outliers == "calculated":
-                selector["is_outlier"] = False
-        data = SelectableDataFrame(self).select(**selector)
+        data = SelectableDataFrame(self).select(**selector, value="notna")
         return (
             ProjectSelectableDataframe(data, project=self.project)
             if hasattr(self, "project")
@@ -84,18 +84,24 @@ OUTLIER_TESTS = {"grubbs": grubbs_test}
 
 
 @dataclass
-class ProjectDataset(PickleDataset):
+class Dataset(
+    PickleCachedDataFrame
+):  # TODO seems to me that there is a confusion between a dataset and its linked onfo (outliers, stats..)
 
     project: str = field(kw_only=True)
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
+    selector: dict = field(kw_only=True, default_factory=dict)  # ClassVar[str] = "base"
     with_validation: str = field(kw_only=True, default=True)
 
     def __post_init__(self):
-        self.dataset_information = DatasetInformation(self.project).select(
-            label=self.filename
+        self.dataset_information = (
+            DatasetInformation(self.project).select(label=self.filename).iloc[0]
         )
-        self.project_information = ProjectInformation(self.project)
-        self.experiment_information = ExperimentInformation(self.project)
+        self.measurement_columns = self.dataset_information.measurement_columns
+        self.project_information = ProjectInformation(self.project).df
+        self.experiment_information = ExperimentInformation(self.project).select(
+            experiment=self.dataset_information.experiments
+        )
         self.mandatory_columns = [
             self.project_information.subject_column,
             "value",
@@ -107,6 +113,11 @@ class ProjectDataset(PickleDataset):
             self.project_information.subject_column,
             "value",
         }
+
+        self.data = self.get_full_df()
+        self.statistics = []
+        self.statistics_table = []
+        self.is_generic = False
 
     def generate(self):
         filepath = input_escape(
@@ -120,11 +131,11 @@ class ProjectDataset(PickleDataset):
             raise ValueError(f"Unsupported file type: {filepath}")
         return df
 
-    def save(self, data):
-        if self.with_validation:
-            self.validate(data)
-        super().save(data)
-        print(f"Data saved to {self.filepath}")
+    # def save(self, data):
+    #     if self.with_validation:
+    #         self.validate(data)
+    #     super().save(data)
+    #     print(f"Data saved to {self.filepath}")
 
     def validate(self, df):
         """
@@ -137,7 +148,7 @@ class ProjectDataset(PickleDataset):
                 f"{self.mandatory_columns} columns are mandatory, modify file and retry"
             )
         valid_mouse_ids = (
-            ProjectDataset(filename="groups", project=self.project)
+            Dataset(filename="groups", project=self.project)
             .df[self.project_information.subject_column]
             .unique()
         )
@@ -166,40 +177,41 @@ class ProjectDataset(PickleDataset):
 
     def calculate_outliers(self):
         project_information = ProjectInformation(self.project)
-        data = GroupInformation(self.project).extend_dataset(self.df)
         cases = [
             (
                 subset_df,
                 project_information.outlier_test,
                 project_information.p_value_threshold,
             )
-            for _, subset_df in data.groupby(
+            for _, subset_df in self.df[
+                [
+                    self.project_information.subject_column,
+                    self.project_information.group_column,
+                    *self.measurement_columns,
+                    "value",
+                ]
+            ].groupby(
                 [
                     self.project_information.group_column,
-                    *self.dataset_information.measurement_columns,
+                    *self.measurement_columns,
                 ]
             )
         ]
         results = parallel_process(
             cases, label_group_outliers, description="Calculating outliers"
+        )  # TODO check what happens with nan
+        return pd.concat(results).drop(
+            columns=[self.project_information.group_column, "value"]
         )
-        pd.concat(results)[
-            [
-                self.project_information.subject_column,
-                *self.dataset_information.measurement_columns,
-                "is_outlier",
-                "outlier_status",
-            ]
-        ].to_pickle(self.filepath.replace(".pkl", "_outliers.pkl"))
 
     def calculate_group_statistics(self):
         result_ls = []
         group_columns = [
             self.project_information.group_column,
-            *self.dataset_information.measurement_columns,
+            *self.measurement_columns,
         ]
         for (group_column_values), groupby_df in tqdm(
-            self.full_df.select(value="notna", is_outlier=False).groupby(group_columns),
+            self.data.select(value="notna", is_outlier=False).groupby(group_columns),
             desc="Calculating group statistics",
         ):
 
@@ -230,7 +242,7 @@ class ProjectDataset(PickleDataset):
                     values,
                 ]
             )
-        pd.DataFrame(
+        return pd.DataFrame(
             result_ls,
             columns=[
                 *group_columns,
@@ -242,86 +254,44 @@ class ProjectDataset(PickleDataset):
                 "sem",
                 "values",
             ],
-        ).to_pickle(self.filepath.replace(".pkl", "_group_statistics.pkl"))
+        )
 
-    def calculate_experiment_statistics(self):
-        groupings = []
-        data = self.full_df
-        experiment_infos = (
-            [
-                self.experiment_information.select(experiment=experiment)
-                for experiment in self.dataset_information.experiments
-            ]
-            if self.dataset_information.experiments
-            else [
-                pd.Series(
-                    dict(
-                        independant_variables=["group_id"],
-                        group_column=self.project_information.group_column,
-                        groups=None,
-                        paired=False,
-                        parametric=True,
-                        label=self.dataset_information.label,
-                    )
+    def calculate_quantitative_statistics(self, p_value_threshold=None):
+
+        p_value_threshold = (
+            p_value_threshold or self.project_information.p_value_threshold
+        )
+        stats_batch = QuantitativeStatisticBatch()
+        measurement_cols = (
+            ["measurement"] if self.is_generic else self.measurement_columns
+        )
+        for measurement, data in self.data.groupby(measurement_cols):
+            metadata = dict(zip(measurement_cols, measurement))
+            for experiment in self.experiment_information.itertuples():
+                metadata["experiment"] = experiment.label
+                stats_batch.add(
+                    data,
+                    self.project_information.group_column,
+                    experiment,
+                    metadata,
+                    p_value_threshold,
                 )
-            ]
-        )
 
-        for experiment_info in experiment_infos:
-            group_selector = {
-                self.project_information.group_column: experiment_info.groups
-            }
-            groupings.extend(
-                [
-                    QuantitativeStatistic(
-                        data=group_data,
-                        group_column=self.project_information.group_column,
-                        independant_variables=experiment_info.independant_variables,
-                        is_paired=experiment_info.paired,
-                        is_parametric=experiment_info.parametric,
-                        p_value_threshold=self.project_information.p_value_threshold,
-                        delay_execution=True,
-                        metadata={
-                            "project": self.project,
-                            "experiment": experiment_info.label,
-                            **{
-                                name: value
-                                for name, value in zip(
-                                    self.dataset_information.measurement_columns,
-                                    measurement_columns,
-                                )
-                            },
-                        },
-                    )
-                    for measurement_columns, group_data in tqdm(
-                        data.select(**group_selector).groupby(
-                            self.dataset_information.measurement_columns,
-                        ),
-                        desc=f"Preparing statistical groupings for {experiment_info.label}",
-                    )
-                ]
-            )
+        self.statistics, self.statistics_table = stats_batch.compute()
 
-            statistics = parallel_process(
-                groupings, description="Calculating statistics"
-            )
+        return self
 
-        results = []
-        for statistic in statistics:
-            result = statistic.results
-            result["fully_significant"] = statistic.is_significant
-            results.append(result)
-
-        pd.concat(results).to_pickle(
-            self.filepath.replace(".pkl", "_experiment_statistics.pkl")
-        )
+    def calculate_full_quantitative_statistics(self):
+        self.calculate_quantitative_statistics()
+        return self.statistics_table
 
     def get_linked_data(self, linked_data_type):
         filepath = self.filepath.replace(
             self.filename, f"{self.filename}_{linked_data_type}"
         )
         if not os.path.isfile(filepath):
-            getattr(self, f"calculate_{linked_data_type}")()
+            data = getattr(self, f"calculate_{linked_data_type}")()
+            data.to_pickle(filepath)
         return ProjectSelectableDataframe(pd.read_pickle(filepath))
 
     @property
@@ -329,51 +299,185 @@ class ProjectDataset(PickleDataset):
         return self.get_linked_data("group_statistics")
 
     @property
-    def experiment_statistics(self):
+    def quantitative_statistics(self):
         return self.get_linked_data("experiment_statistics")
 
     @property
     def outliers(self):
         return self.get_linked_data("outliers")
 
+    def get_full_df(self):
+        return self.df.extend(self.outliers)
+
     @property
-    def full_df(self):
-        data = self.df.extend(self.outliers)
+    def df(self):
+        data = self.load()
+        data = GroupInformation(self.project).extend_dataset(data)
         if self.dataset_information.unit:
             data["unit"] = self.dataset_information.unit
-        data = GroupInformation(self.project).extend_dataset(data)
-        self.sort_values(data)
-        return ProjectSelectableDataframe(
-            data,
-            self.project,
-        )
+        # data = self.sort_values(data) #TODO check usefulness
+        return data
+
+    def select(self, **selector):
+        self.selector = {**self.selector, **selector}
+        if "experiment" in selector:
+            self.experiment_information = self.experiment_information.select(
+                label=selector.pop("experiment")
+            )
+            selector["group_id"] = self.experiment_information.iloc[0].groups
+        if "remove_outliers" in selector:
+            if selector["remove_outliers"] == "eliminated":
+                raise NotImplementedError
+            elif selector["remove_outliers"] == "calculated":
+                selector.update(
+                    is_outlier=lambda x: x is not True
+                )  # nan considered not outlier
+                del selector["remove_outliers"]
+        for col in filter(lambda col: col in selector, self.measurement_columns):
+            if ClassRegistry.exists(element_type=col):
+                registry = ClassRegistry.get_registry(element_type=col)
+                if selector[col] in registry:
+                    selector[col] = registry[selector[col]]
+        self.data = self.data.select(**selector)
+        if self.data.empty:
+            raise ValueError("No data left after selection")
+        return self
 
     def sort_values(self, df):
-        sort_columns = [
-            self.project_information.group_column,
-            *self.dataset_information.measurement_columns,
-        ]
-        for col in sort_columns:
-            try:
+        for col in self.measurement_columns:
+            if ConstantRegistry.exists(element_type=col):
                 registry = ConstantRegistry.get_registry(element_type=col)
-                order = registry.order(df[col].unique())
+                order = registry.keys()
                 df[col] = pd.Categorical(df[col], categories=order, ordered=True)
-            except FileNotFoundError:
+            else:
                 print(
                     f"No ConstantRegistry for element type '{col}', skipping validation"
                 )
-        return df.sort_values(by=sort_columns)
+        return df.sort_values(
+            by=[
+                self.project_information.group_column,
+                *self.measurement_columns,
+            ]
+        )
 
-    def to_generic_dataset(self, selector=dict()):
-        df = self.full_df
-        df = df.select(**selector)
-        df["dataset"] = self.filename
-        ordered_measurement = sorted(
-            self.dataset_information.measurement_columns,
-            key=lambda col: len(df[col].unique()),
+    def to_generic(self):
+        if not self.is_generic:
+            ordered_measurement = [
+                # "dataset",
+                *sorted(
+                    self.measurement_columns,
+                    key=lambda col: len(self.data[col].unique()),
+                ),
+            ]
+
+            # self.data["measurement"] = self.data[self.measurement_columns].apply(
+            #     MeasurementCharacteristics, axis=1
+            # )
+
+            self.data["measurement"] = self.data[self.measurement_columns].apply(
+                tuple, axis=1
+            )
+
+            self.data["measurement"] = pd.Categorical(
+                self.data["measurement"],
+                categories=self.data["measurement"].unique(),
+                ordered=True,
+            )
+            self.data["dataset"] = self.filename
+            self.data.measurement = self.data.measurement.astype(object)
+            self.data = self.data.drop(columns=ordered_measurement, axis=1)
+            self.is_generic = True
+        return self
+
+    def get_palette(self, palette_type):
+        palette = {}
+        for (group_id, group_name), _ in self.data.groupby(["group_id", "group_name"]):
+            palette[group_name] = (
+                Palette(self.project).select(group_id=group_id).iloc[0][palette_type]
+            )
+        return palette
+
+    def get_units(self):
+        return self.data["unit"].unique()
+
+    def get_selection_string(self):  # TODO: develop figure params classes
+        return " in ".join(
+            [
+                (
+                    (
+                        self.selector[col]
+                        if isinstance(self.selector[col], str)
+                        else ", ".join(self.selector[col])
+                    )
+                    if col in self.selector
+                    else f"all {col}s"
+                )
+                for col in self.measurement_columns
+            ]
         )
-        df["measurement"] = df[ordered_measurement].apply(tuple, axis=1)
-        df["measurement"] = pd.Categorical(
-            df["measurement"], categories=df["measurement"].unique(), ordered=True
+
+
+# class GenericProjectDataset(ProjectDataset):
+#     pass
+
+
+@dataclass
+class MergedDatasets:
+
+    datasets: list[Dataset]
+
+    def __post_init__(self):
+        self.datasets = [dataset.to_generic() for dataset in self.datasets]
+        self.selector = {}
+        self.statistics = []
+        self.statistics_table = []
+        self.measurement_columns = ["dataset", "measurement"]
+
+    def select(self, **selector):
+        self.selector = {**self.selector, **selector}
+        for dataset in self.datasets:
+            selector = {
+                col: val for col, val in selector.items() if col in dataset.columns
+            }
+            dataset.select(**selector)
+        return self
+
+    def calculate_quantitative_statistics(self):
+        for dataset in self.datasets:
+            dataset.calculate_quantitative_statistics()
+        self.statistics_table = pd.concat(
+            [dataset.statistics_table for dataset in self.datasets]
         )
-        return df.drop(columns=ordered_measurement, axis=1)
+        self.statistics = list(
+            chain.from_iterable([dataset.statistics for dataset in self.datasets])
+        )
+        return self
+
+    @property
+    def data(self):
+        data = pd.concat([dataset.data for dataset in self.datasets]).reset_index(
+            drop=True
+        )
+        data.measurement = pd.Categorical(
+            data.measurement,
+            categories=data.measurement.unique(),
+            ordered=True,
+        )
+        return data
+
+    def get_palette(self, palette_type):
+        palette = {}
+        for dataset in self.datasets:
+            palette.update(dataset.get_palette(palette_type))
+        return palette
+
+    def get_units(self):
+        units = []
+        for dataset in self.datasets:
+            units.extend(dataset.get_units())
+        return units
+
+    def get_selection_string(self):
+        return " and ".join(
+            [dataset.get_selection_string() for dataset in self.datasets]
+        )

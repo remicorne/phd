@@ -1,0 +1,7 @@
+numpy
+seaborn<0.13.0
+matplotlib
+pandas
+scipy
+statsmodels
+packaging

@@ -13,7 +13,11 @@ def is_array_like(value):
     Returns:
         bool: True if value is a non-string iterable
     """
-    return isinstance(value, Iterable) and not isinstance(value, str)
+    return (
+        isinstance(value, Iterable)
+        and not isinstance(value, str)
+        and not isinstance(value, dict)
+    )
 
 
 def call_case(case):
@@ -40,7 +44,11 @@ def parallel_process(cases, executor=call_case, description="Processing"):
     Returns:
         List of results from executor
     """
-    results = process_map(executor, cases, desc=description, chunksize=1) if not sys.gettrace() else [executor(case) for case in cases]
+    results = (
+        process_map(executor, cases, desc=description, chunksize=1)
+        if not sys.gettrace()
+        else [executor(case) for case in cases]
+    )
     return results
 
 

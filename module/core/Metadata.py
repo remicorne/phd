@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
-from module.core.Dataset import ExcelDataset, SelectableDataFrame
+from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
 from module.core.questions import select_one
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -11,12 +11,12 @@ from distutils.util import (
 
 
 @dataclass(repr=False)
-class _ProjectSettings(ExcelDataset):
+class _ProjectSettings(ExcelCachedDataFrame):
     """Base class for project settings.
     Handles loading, saving, and editing of project settings (excel files)
 
     Returns:
-        ExcelDataset: Dataset with project settings
+        ExcelCachedDataFrame: Dataset with project settings
     """
 
     project: str = field(default=None)
@@ -106,9 +106,12 @@ class _ProjectSettings(ExcelDataset):
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
 
-    def select(self, **selector) -> SelectableDataFrame:
-        df = super().select(**selector)
-        return df.iloc[0] if len(df) == 1 else df
+    # def select(self, **selector) -> SelectableDataFrame:
+    #     df = super().select(**selector)
+    #     return df.iloc[0] if len(df) == 1 else df
+
+    # def select_many(self, **selector) -> SelectableDataFrame:
+    #     return super().select(**selector)
 
 
 @dataclass(repr=False)
@@ -117,7 +120,7 @@ class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformatio
     filename: ClassVar[str] = "group_information"
     _template: ClassVar[dict] = {
         "group_id": [1, 5, 3, 4],
-        "label": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
+        "group_name": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
         "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
         "mouse_id": [
             "2, 5, 7, 9, 11, 17, 20, 28, 32, 59, 67",
@@ -128,7 +131,7 @@ class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformatio
     }
     _template_types: ClassVar[dict] = {
         "group_id": {"type": int},
-        "label": {"type": str},
+        "group_name": {"type": str},
         "independant_variables": {"type": list, "subtype": str},
         "mouse_id": {"type": list, "subtype": int},
     }
@@ -136,14 +139,14 @@ class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformatio
 
     @property
     def palette(self):
-        return {t.label: t.color for t in self}
+        return {t.group_name: t.color for t in self}
 
     @property
     def treatments(self):
-        return list(self.df.label)
+        return list(self.df.group_name)
 
     def extend_dataset(self, dataset):
-        return self.df.explode("mouse_id").extend(dataset)
+        return SelectableDataFrame(self.df.explode("mouse_id").extend(dataset))
 
 
 @dataclass(repr=False)
@@ -151,12 +154,12 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
     filename: ClassVar[str] = "palette"
     _template: ClassVar[dict] = {
-        "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
+        "group_id": [1, 2, 3, 4],
         "color": ["white", "pink", "orange", "red"],
         "significance": ["*", "", "$", ""],
     }
     _template_types: ClassVar[dict] = {
-        "treatment": {"type": str},
+        "group_id": {"type": int},
         "color": {"type": str},
         "significance": {"type": str},
     }
@@ -169,15 +172,15 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
     def _get_palette(self, palette_type):
         return {
-            row.treatment: row[palette_type]
+            row.group_id: row[palette_type]
             for _, row in Palette(self.project).df.iterrows()
         }
 
     def __contains__(self, value):
-        return value in self.df.treatment
+        return value in self.df.group_id
 
-    def __getitem__(self, treatment) -> pd.Series:
-        return self.df.select(**{"treatment": treatment})
+    def __getitem__(self, group_id) -> pd.Series:
+        return self.df.select(**{"group_id": group_id})
 
 
 @dataclass(repr=False)
@@ -212,14 +215,30 @@ class ExperimentInformation(_ProjectSettings):
             experiment["experiment"] = experiment.label
             experiment["treatments"] = group_information.select(
                 group_id=experiment.groups
-            ).label.to_list()
-            experiment["palette"] = {t: palette[t] for t in experiment.treatments}
+            ).group_name.to_list()
             full_experiment_info.append(experiment)
         return SelectableDataFrame(full_experiment_info)
 
     @property
     def experiments(self):
         return list(self.df.label)
+
+    def select(self, **selector):
+        if selector.get("experiment") == "default":
+            return [self.get_default_experiment()]
+        return super().select(**selector)
+
+    def get_default_experiment(self):
+        return pd.Series(
+            dict(
+                independant_variables=["group_id"],
+                group_column=ProjectInformation(project=self.project).group_column,
+                groups=GroupInformation(self.project).group_id.tolist(),
+                paired=False,
+                parametric=True,
+                label=None,
+            )
+        )
 
 
 def is_valid_file(file_path):
@@ -281,8 +300,7 @@ class ProjectInformation(_ProjectSettings):
 
     @property
     def df(self):
-        data = super().df
-        return data.iloc[0] if len(data) == 1 else data
+        return super().df.iloc[0]
 
     def _repr_html_(self) -> str:
         return f"""

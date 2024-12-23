@@ -14,19 +14,21 @@ class JSONMapping(Cacheable):
 
     extension: ClassVar[str] = "json"
 
-    def load(self) -> dict:
-        with open(self.filepath) as outfile:
-            mapping = json.load(outfile)
-        return mapping
+    def __post_init__(self):
+        super().__post_init__()
+        self.dict = self.load()
 
-    def save(self, mapping):
-        with open(self.filepath, "w") as json_file:
-            json.dump(mapping, json_file)
+    def load(self):
+        with open(self.filepath, "r", encoding="utf-8") as outfile:
+            return json.load(outfile)
+
+    def save(self, data):
+        with open(self.filepath, "w", encoding="utf-8") as json_file:
+            json.dump(data, json_file)
 
     def add(self, key, value):
-        mapping = self.load()
-        mapping[key] = value
-        self.save(mapping)
+        self.dict[key] = value
+        self.save(self.dict)
 
     def get(self, key, default=None):
         return self.dict.get(tuple(key) if is_array_like(key) else key, default)
@@ -36,14 +38,14 @@ class JSONMapping(Cacheable):
         values = []
         for subkey in key:
             if subkey in self:
-                values.extend(self[subkey]) 
+                values.extend(self[subkey])
         return values or default
 
     def values(self) -> list:
-        return self.dict.values()
+        return list(self.dict.values())
 
     def keys(self) -> list:
-        return self.dict.keys()
+        return list(self.dict.keys())
 
     def items(self) -> list:
         return self.dict.items()
@@ -59,11 +61,10 @@ class JSONMapping(Cacheable):
     def __setitem__(self, key, value):
         self.add(key, value)
 
-
     def __iter__(self):
         for item in self.list:
             yield item
-        
+
     def __repr__(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.items())
 
@@ -75,9 +76,5 @@ class JSONMapping(Cacheable):
         }
 
     @property
-    def dict(self) -> dict:
-        return self.load()
-
-    @property
     def list(self) -> list:
-        return list(self.dict.keys())
+        return list(self.keys())

@@ -1,0 +1,69 @@
+{
+  "name": "TCB-2",
+  "subject_type": "mouse",
+  "subject": ["treatment", "genotpye", "sex"],
+  "treatments": [
+    {
+      "group_id": 1,
+      "name": "vehicle"
+    },
+    {
+      "group_id": 2,
+      "name": "0,3mg/kg TCB"
+    },
+    {
+      "group_id": 3,
+      "name": "3mg/kg TCB"
+    },
+    {
+      "group_id": 4,
+      "name": "10mg/kg TCB"
+    },
+    {
+      "group_id": 5,
+      "name": "0,2mg/kg MDL"
+    },
+    {
+      "group_id": 6,
+      "name": "TCB2+MDL"
+    }
+  ],
+  "experiments": [
+    {
+      "name": "agonist_antagonist",
+      "group_variable": "treatment",
+      "members": [1, 3, 5, 6]
+    },
+    {
+      "name": "dose_response",
+      "group_variable": "treatment",
+      "members": [1, 2, 3, 4]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "hplc",
+      "unit": "ng/mg",
+      "index": "mouse_id",
+      "variables": ["coumpound", "region"]
+    },
+    {
+      "name": "tissue_weight",
+      "unit": "mg",
+      "index": "mouse_id",
+      "variables": ["region"]
+    },
+    {
+      "name": "behavior",
+      "unit_column": "unit",
+      "index": "mouse_id",
+      "variables": ["measure"]
+    },
+    {
+      "name": "ephys",
+      "unit_column": "unit",
+      "index": "mouse_id",
+      "variables": ["cell_type", "region", "measure"]
+    }
+  ]
+}

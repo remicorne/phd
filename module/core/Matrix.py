@@ -61,14 +61,13 @@ class Matrix:
     """
 
     data: pd.DataFrame
-    group: str  # TODO remove business logic
-    var1: str
-    var2: str
+    grouping: str
     pivot_columns: list[str]
-    order: list[str] = None
-    n_minimum: int = 5
-    method: str = "pearson"
-    pvalue_threshold: float = 0.05
+    # order: list[str] = None # TODO: use pdcategorical
+    between: dict = field(kw_only=True, default_factory=dict)
+    n_minimum: int = field(kw_only=True, default=5)
+    method: str = field(kw_only=True, default="pearson")
+    pvalue_threshold: float = field(kw_only=True, default=0.05)
     delay_execution: bool = field(default=True, kw_only=True)
 
     filtered_data: pd.DataFrame = field(init=False)
@@ -87,6 +86,12 @@ class Matrix:
         if self.delay_execution:
             self.delay_execution = False
         else:
+            if self.between:
+                between, (self.var1, self.var2) = next(iter(self.between.items()))
+                self.pivot_columns.remove(between)
+                self.pivot_columns.insert(0, between)
+            else:
+                self.var1 = self.var2 = self.data[self.pivot_columns[0]].unique()[0]
             self.is_square = self.var1 != self.var2
             self.filter_missing_values()
             self.pivot_data()
@@ -94,6 +99,7 @@ class Matrix:
             self.correlate()
             self.find_missing_overlap()
             self.process_triangle_correlogram()
+            self.title = self.get_title()
 
     def filter_missing_values(self):
         """
@@ -113,7 +119,7 @@ class Matrix:
         self.filtered_data = self.data.drop(indices_to_eliminate)
         if self.missing_values:
             print(
-                f"{self.group} missing data for {self.missing_values}, deleted from analysis"
+                f"{self.grouping}, {self.between} missing data for {self.missing_values}, deleted from analysis"
             )
 
     def pivot_data(self):
@@ -130,17 +136,17 @@ class Matrix:
         """
         Orders the columns of the pivot table based on the provided column list.
         """
-        columns = (
-            sorted(
-                self.pivot.columns,
-                key=lambda x: (
-                    self.order.index(x[1]) if x[1] in self.order else float("inf")
-                ),
-            )
-            if self.order
-            else self.pivot.columns
-        )
-        self.pivot = self.pivot[columns]
+        # columns = (
+        #     sorted(
+        #         self.pivot.columns,
+        #         key=lambda x: (
+        #             self.order.index(x[1]) if x[1] in self.order else float("inf")
+        #         ),
+        #     )
+        #     if self.order
+        #     else self.pivot.columns
+        # )
+        # self.pivot = self.pivot[columns]
 
     def correlate(self):
         """
@@ -161,9 +167,10 @@ class Matrix:
             pd.DataFrame: A DataFrame containing the requested correlation matrix.
         """
         method = get_correlation_callback(self.method, result_type)
-        return self.pivot.corr(method=method, min_periods=self.n_minimum).loc[
+        matrix = self.pivot.corr(method=method, min_periods=self.n_minimum)
+        return matrix.loc[
             self.var1, self.var2
-        ]
+        ]  # IMPROVE: use .corrwith to only caluclate necessary correlation for square corr
 
     def find_missing_overlap(self):
         """
@@ -176,7 +183,9 @@ class Matrix:
         stack = stack[stack.value.isna()]
         self.missing_overlap = stack[stack.value.isna()][self.pivot_columns].values
         if len(self.missing_overlap):
-            print(f"{self.group} insuficient overlapp for {self.missing_overlap} pairs")
+            print(
+                f"{self.grouping} {self.between} insuficient overlapp for {self.missing_overlap} pairs"
+            )
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
     def process_triangle_correlogram(self):
@@ -191,6 +200,9 @@ class Matrix:
     @property
     def significant_correlations(self):
         return self.corr_masked.stack().items()
+
+    def get_title(self):
+        return f"{self.var1 if self.var1 == self.var2 else '->'.join([self.var1, self.var2])} in {self.grouping}"
 
 
 @dataclass
@@ -222,6 +234,9 @@ class Network:
         if self.delay_execution:
             self.delay_execution = False
         else:
+            self.title = self.matrix.title
+            self.grouping = self.matrix.grouping
+            self.between = self.matrix.between
             self.is_directed = self.matrix.is_square
             self.G = nx.MultiDiGraph() if self.matrix.is_square else nx.Graph()
             # directed edge -  to_correlate[0] --> to_correlate[1]
@@ -243,14 +258,6 @@ class Network:
                     )
 
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
-
-            angles = np.linspace(
-                0, 2 * np.pi, len(self.matrix.corr_masked.columns), endpoint=False
-            )
-            self.pos = {
-                col: (np.cos(angles[i]), np.sin(angles[i]))
-                for i, col in enumerate(self.matrix.corr_masked.columns)
-            }
 
             self.total_edges, self.pos_edges, self.neg_edges = self.edge_count()
             self.density = self.calculate_graph_density()
@@ -413,3 +420,110 @@ class Network:
     #         avg_path_length_weighted = None
 
     #     return avg_path_length_unweighted, avg_path_length_weighted
+
+
+@dataclass
+class MatrixGroup:
+    """
+    Creates a collection of Matrix objects from a larger dataset. This class
+    helps in processing and analyzing data by grouping, selecting relevant variables,
+    and building individual matrices for further analysis.
+
+    Attributes:
+        data (pd.DataFrame): The original dataframe containing the data.
+        group_by (str): The column name in 'data' to group by (generally 'experiment').
+        between (str): The first variable to correlate (e.g., compound or region).
+        variables (str): The specific variables to correlate from 'between'.
+        accross (str): The second variable to correlate against 'between'.
+        sub_selector (str): Additional filtering criteria for sub-selecting the data.
+        columns (list[str]): Columns to select from the 'accross' column. Defaults to None.
+        n_minimum (int): Minimum number of occurrences for a valid correlation. Defaults to 5.
+        method (str): Correlation method, one of 'pearson', 'kendall', 'spearman'. Defaults to "pearson".
+        pvalue_threshold (float): P-value threshold for significance. Defaults to 0.05.
+
+    Returns:
+        matrices (list[Matrix]): A list of Matrix objects created from the grouped data.
+        var1 (str): The first variable derived from 'variables'.
+        var2 (str): The second variable derived from 'variables'.
+    """
+
+    data: pd.DataFrame
+    group_by: str
+    pivot_columns: list[str]
+    between: dict = field(kw_only=True, default_factory=dict)
+    # order: list[str] = None
+    n_minimum: int = field(kw_only=True, default=5)
+    method: str = field(kw_only=True, default="pearson")
+    pvalue_threshold: float = field(kw_only=True, default=0.05)
+
+    matrices: list[Matrix] = field(init=False)
+
+    def __post_init__(self):
+        self.build_matrices()
+        self.homogenize_datasets()
+
+    def build_matrices(self):
+        batch = []
+        col, cases = next(iter(self.between.items()))
+        for group, group_df in self.data.groupby(by=self.group_by, sort=False):
+            for between in cases:
+                batch.append(
+                    Matrix(
+                        group_df.select(**{col: between}),
+                        group,
+                        self.pivot_columns,
+                        between={col: tuple(between)},
+                        n_minimum=self.n_minimum,
+                        method=self.method,
+                        pvalue_threshold=self.pvalue_threshold,
+                    )
+                )  # TODO: Setup multiprocessing pool
+        self.matrices = parallel_process(batch)
+
+    def homogenize_datasets(self):
+        conserved_rows = set.intersection(
+            *(set(matrix.corr_masked.index) for matrix in self.matrices)
+        )
+        conserved_cols = set.intersection(
+            *(set(matrix.corr_masked.columns) for matrix in self.matrices)
+        )
+
+        for matrix in self.matrices:
+            rows_to_drop = [
+                row for row in matrix.corr_masked.index if row not in conserved_rows
+            ]
+            cols_to_drop = [
+                col for col in matrix.corr_masked.columns if col not in conserved_cols
+            ]
+            matrix.corr_masked = matrix.corr_masked.drop(
+                index=rows_to_drop, columns=cols_to_drop
+            )
+
+    def __iter__(self):
+        for matrix in self.matrices:
+            yield matrix
+
+
+@dataclass
+class NetworkGroup:
+
+    matrix_group: MatrixGroup
+
+    def __post_init__(self):
+        self.networks = parallel_process(
+            [Network(matrix) for matrix in self.matrix_group],
+            description="Creating networks",
+        )
+
+    def get_summary_df(self):
+        data = []
+        for network in self.networks:
+            row = {self.matrix_group.group_by: network.grouping, **network.between}
+            for variable in [
+                "average_degree",
+                "max_degree",
+            ]:  # JASMINE: add the stuf you want here
+                row["measuremnt"] = variable
+                row["value"] = getattr(network, variable)
+                data.append(row)
+        return pd.DataFrame(data)

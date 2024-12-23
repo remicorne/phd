@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 import pandas as pd
 import numpy as np
-from module.core.Dataset import PickleDataset, SelectableDataFrame
+from typing import List, Tuple
+from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
 
 # from module.core.HPLC import HPLC
 from module.core.Metadata import (
@@ -63,7 +64,7 @@ class QuantitativeStatistic:
     data: pd.DataFrame
     independant_variables: list[str]
     is_paired: bool
-    is_parametric: bool
+    is_parametric: bool  ## TODO : aggregate stats/calculate (infer if None?)
     p_value_threshold: float
     group_column: str = field(default="treatment", kw_only=True)
     delay_execution: bool = field(default=False, kw_only=True)
@@ -113,7 +114,11 @@ class QuantitativeStatistic:
                     ]
                 )
             for key, val in self.metadata.items():
-                self.results[key] = val
+                self.results[key] = (
+                    [val for i in range(len(self.results))]
+                    if is_array_like(val)
+                    else val
+                )
             self.is_significant = self.results.is_significant.all()
 
     @staticmethod
@@ -169,6 +174,42 @@ class QuantitativeStatistic:
             )
 
         statistics = parallel_process(groupings, description="Calculating statistics")
+
+        results = []
+        for statistic in statistics:
+            result = statistic.results
+            result["fully_significant"] = statistic.is_significant
+            results.append(result)
+
+        return statistics, SelectableDataFrame(pd.concat(results))
+
+    @classmethod
+    def calculate_batch(
+        data_groupings: list[Tuple[List, pd.DataFrame]],
+        experiments,
+        group_column,
+        p_value_threshold=0.05,
+    ):
+        batch = []
+        for group, data in data_groupings:
+            for experiment in experiments:
+                batch.append(
+                    QuantitativeStatistic(
+                        data=data,
+                        group_column=group_column,
+                        independant_variables=experiment.independant_variables,
+                        is_paired=experiment.paired,
+                        is_parametric=experiment.parametric,
+                        p_value_threshold=p_value_threshold,
+                        delay_execution=True,
+                        metadata={
+                            "experiment": experiment.label,
+                            **{col: val for col, val in zip(group_by, group)},
+                        },
+                    )
+                )
+
+        statistics = parallel_process(batch, description="Calculating statistics")
 
         results = []
         for statistic in statistics:
@@ -305,3 +346,39 @@ class QuantitativeStatistic:
             "result": results,
             "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else '' }",
         }
+
+
+class QuantitativeStatisticBatch:
+
+    def __init__(self):
+        self.statistics = []
+        self.statistics_table = None
+
+    def add(
+        self, data, group_column, experiment, metadata=dict(), p_value_threshold=0.05
+    ):
+        self.statistics.append(
+            QuantitativeStatistic(
+                data=data,
+                group_column=group_column,
+                independant_variables=experiment.independant_variables,
+                is_paired=experiment.paired,
+                is_parametric=experiment.parametric,
+                p_value_threshold=p_value_threshold,
+                delay_execution=True,
+                metadata=metadata,
+            )
+        )
+
+    def compute(self):
+        statistics = parallel_process(
+            self.statistics, description="Calculating statistics"
+        )
+
+        results = []
+        for statistic in statistics:
+            result = statistic.results
+            result["fully_significant"] = statistic.is_significant
+            results.append(result)
+
+        return statistics, SelectableDataFrame(pd.concat(results))
