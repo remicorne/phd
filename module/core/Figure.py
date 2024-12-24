@@ -529,6 +529,7 @@ class NetworkDegreesFigure(MultiAxFigure):
 
 
         x = np.linspace(0, max(degree_sequence), 100)
+        # y = norm.pdf(x, mean_degree, std_degree) #normalise 0-1 for density SD
         y = norm.pdf(x, mean_degree, std_degree) * len(degree_sequence)
         ax.plot(x, y, "r-", lw=2, label=f"SD = {std_degree:.2f}")
 
