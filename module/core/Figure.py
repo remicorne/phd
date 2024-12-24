@@ -521,17 +521,27 @@ class NetworkDegreesFigure(MultiAxFigure):
         max_degree = network.max_degree
         mean_degree = network.average_degree
 
-        x = np.linspace(0, max_degree, 100)
-        y = norm.pdf(x, mean_degree, std_degree)
-        ax.plot(x, y, "r-", lw=2, label=f"Standard Distribution std={std_degree:.2f}")
+        # Set axis limits 
+        common_max_degree = max([max([d for _, d in net.G.degree()]) for net in self.networks])
+        common_max_freq = max([max(np.histogram([d for _, d in net.G.degree()], bins=np.arange(common_max_degree + 2) - 0.5)[0]) for net in self.networks])
+        ax.set_xlim(-0.5, common_max_degree + 0.5)
+        ax.set_ylim(0, common_max_freq)
+
+
+        x = np.linspace(0, max(degree_sequence), 100)
+        y = norm.pdf(x, mean_degree, std_degree) * len(degree_sequence)
+        ax.plot(x, y, "r-", lw=2, label=f"SD = {std_degree:.2f}")
 
         # Create the histogram
         counts, bins, patches = ax.hist(
             degree_sequence,
             bins=np.arange(max_degree + 2) - 0.5,
             edgecolor="black",
+            color="whitesmoke",
+            linewidth=2,
             alpha=0.8,
         )
+
         # Check if the sum of counts matches the number of nodes
         total_nodes = len(all_nodes)
         total_counted = sum(counts)
@@ -556,13 +566,13 @@ class NetworkDegreesFigure(MultiAxFigure):
                 )
 
         ax.set_title(network.title, fontsize=28, pad=20, y=1)
-        ax.set_xlabel("Degree", fontsize=22)
+        ax.set_xlabel("Node Degree (n correlations)", fontsize=22)
         ax.set_ylabel("Frequency (n nodes)", fontsize=22)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(fontsize=20)
-        ax.tick_params(axis="x", labelsize=20)  # Adjust x-axis tick label size
-        ax.tick_params(axis="y", labelsize=20)
+        ax.legend(fontsize=32, loc="upper left")
+        ax.tick_params(axis="x", labelsize=28) 
+        ax.tick_params(axis="y", labelsize=28)
 
         # HACKY PRINT
         print(network.grouping)
