@@ -146,7 +146,9 @@ class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformatio
         return list(self.df.group_name)
 
     def extend_dataset(self, dataset):
-        return SelectableDataFrame(self.df.explode("mouse_id").extend(dataset))
+        data = self.df.explode("mouse_id")
+        data.mouse_id = data.mouse_id.astype(int)
+        return SelectableDataFrame(data.extend(dataset))
 
 
 @dataclass(repr=False)

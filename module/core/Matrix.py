@@ -4,6 +4,7 @@ import scipy
 import pandas as pd
 import numpy as np
 from module.core.utils import parallel_process
+from module.core.Dataset import SelectableDataFrame
 
 
 def calculate_correlation(method, x, y):
@@ -523,7 +524,10 @@ class NetworkGroup:
                 "average_degree",
                 "max_degree",
             ]:  # JASMINE: add the stuf you want here
-                row["measuremnt"] = variable
-                row["value"] = getattr(network, variable)
+                row = {
+                    **row,
+                    "measurement": variable,
+                    "value": getattr(network, variable),
+                }
                 data.append(row)
-        return pd.DataFrame(data)
+        return SelectableDataFrame(data)

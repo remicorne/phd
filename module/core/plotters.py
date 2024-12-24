@@ -11,6 +11,7 @@ from module.core.FileSystem import FileSystem
 from module.core.Metadata import GroupInformation
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
+from module.core.questions import input_escape
 
 
 def get_dataset(project, request):
@@ -49,7 +50,7 @@ def histogram(project, request, custom_params=None):
             "experiment": dataset.selector.get("experiment", "project"),
         }
     )
-    filepath = os.path.join(location, title)
+    filepath = os.path.join(location, "histogram", title)
     if "experiment" in dataset.selector:
         dataset.calculate_quantitative_statistics()
         statistic = dataset.statistics[0]
@@ -100,7 +101,7 @@ def summary_histogram(project, request, custom_params=dict()):
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    filepath = os.path.join(location, title)
+    filepath = os.path.join(location, "summary_histogram", title)
     if "experiment" in dataset.selector:
         dataset.calculate_quantitative_statistics()
         statistics = dataset.statistics
@@ -131,7 +132,7 @@ def correlogram(project, request, between, custom_params=None):
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    filepath = os.path.join(location, title)
+    filepath = os.path.join(location, "correlogram", title)
     Correlogram(title, filepath, matrices.matrices, custom_params=custom_params)
     return dataset
 
@@ -151,7 +152,7 @@ def network(project, request, between, custom_params=None):
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    filepath = os.path.join(location, title)
+    filepath = os.path.join(location, "network", title)
     positions = ConstantRegistry.get_registry(name="region_classes_positions").get(
         dataset.selector.get("region")
     )
@@ -175,12 +176,12 @@ def network_degrees(project, request, between, custom_params=None):
         between=between,
     )
     networks = NetworkGroup(matrices).networks
-    title = dataset.get_selection_string()
+    title = input_escape("ENter figure title/filename")
 
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    filepath = os.path.join(location, title)
+    filepath = os.path.join(location, "network_degrees", title)
     NetworkDegreesFigure(
         title,
         filepath,
@@ -190,26 +191,77 @@ def network_degrees(project, request, between, custom_params=None):
     return dataset
 
 
-def network_summary(project, request, between, custom_params=None):
+def network_summary(project, request, between, measurement: str, custom_params=None):
     custom_params = custom_params or {}
     custom_params["plot_bar"] = False
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
         dataset.data, "group_name", dataset.measurement_columns, between=between
     )
-    network_summary_df = NetworkGroup(
-        matrices,
-    ).get_summary_df()
-    title = dataset.get_selection_string()
+    network_summary_df = (
+        NetworkGroup(
+            matrices,
+        )
+        .get_summary_df()
+        .select(measurement=measurement)
+    )
     x = hue = custom_params.get("x", "group_name")
+
+    location = FileSystem.get_location(  # IMPROVE
+        **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
+    )
+    custom_params["ylabel"] = "AU"
+    custom_params["swarm_hue"] = next(iter(between.keys()))
+    title = input_escape("ENter figure title/filename")
+    filepath = os.path.join(location, "network_summary", title)
+    Histogram(
+        None,
+        filepath,
+        network_summary_df,
+        x,
+        hue,
+        custom_params=custom_params,
+    )
+    return network_summary_df
+
+
+def summary_network_summary(
+    project, request, between, measurement: list[str] = None, custom_params=dict()
+):
+    custom_params = custom_params or {}
+    custom_params["plot_bar"] = False
+    custom_params["plot_swarm"] = True
+    dataset = get_dataset(project, request)
+    matrices = MatrixGroup(
+        dataset.data, "group_name", dataset.measurement_columns, between=between
+    )
+    network_summary_df = (
+        NetworkGroup(
+            matrices,
+        )
+        .get_summary_df()
+        .select(measurement=measurement)
+    )
+    title = input_escape("ENter figure title/filename")
+    hue = custom_params.get("x", "group_name")
+    x = "measurement"
 
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    custom_params["swarm_palette"] = "coolwarm"
     custom_params["swarm_hue"] = next(iter(between.keys()))
     filepath = os.path.join(location, title)
-    Histogram(
+
+    custom_params["significance_palette"] = custom_params.get(
+        "palette", dataset.get_palette("significance")
+    )
+    custom_params["ylabel"] = "AU"
+    custom_params["hue_order"] = dataset.data.group_name.unique()
+    location = FileSystem.get_location(
+        **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
+    )
+    filepath = os.path.join(location, "summary_network_summary", title)
+    SummaryHistogram(
         title,
         filepath,
         network_summary_df,
@@ -217,4 +269,4 @@ def network_summary(project, request, between, custom_params=None):
         hue,
         custom_params=custom_params,
     )
-    return dataset
+    return network_summary_df

@@ -131,7 +131,7 @@ class Dataset(
             raise ValueError(f"Unsupported file type: {filepath}")
         return df
 
-    # def save(self, data):
+    # def save(self, data): #TODO restore validation
     #     if self.with_validation:
     #         self.validate(data)
     #     super().save(data)
@@ -310,9 +310,13 @@ class Dataset(
         return self.df.extend(self.outliers)
 
     @property
-    def df(self):
+    def df(
+        self,
+    ):  # TODO clear up with full df, also, derived datasets should be able to be projectDatasets (network df)
         data = self.load()
-        data = GroupInformation(self.project).extend_dataset(data)
+        data = GroupInformation(self.project).extend_dataset(
+            data
+        )  # TODO should be groups.pkl here
         if self.dataset_information.unit:
             data["unit"] = self.dataset_information.unit
         # data = self.sort_values(data) #TODO check usefulness
@@ -415,6 +419,9 @@ class Dataset(
                 for col in self.measurement_columns
             ]
         )
+
+    def __repr__(self):
+        return self.data.__repr__()
 
 
 # class GenericProjectDataset(ProjectDataset):

@@ -130,7 +130,7 @@ class Histogram(Figure):
                 data=self.data,
                 x=self.x,
                 y="value",
-                order=self.hue_order,
+                order=self.custom_params.get("hue_order"),
             )
             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
             annotator.set_pvalues_and_annotate(p_values)
@@ -166,23 +166,46 @@ class SummaryHistogram(Histogram):
         self.fig, self.ax = plt.subplots(figsize=(self.fig_width, 10))
 
     def plot(self):
-        sns.barplot(
-            data=self.data,
-            x=self.x,
-            y="value",
-            hue=self.hue,
-            palette=self.custom_params.get("palette"),
-            errorbar=self.custom_params.get("errorbar", "sd"),
-            edgecolor=self.custom_params.get("edgecolor", ".2"),
-            errcolor=self.custom_params.get("errcolor", ".2"),
-            capsize=self.custom_params.get("capsize", 0.1),
-            alpha=self.custom_params.get("alpha", 0.8),
-            order=self.custom_params.get("x_order"),
-            hue_order=self.custom_params.get("hue_order"),
-            errwidth=self.custom_params.get("errwidth", 1),
-            dodge=self.custom_params.get("dodge", True),
-            width=self.custom_params.get("bar_width", 0.8),
-        )
+        if self.custom_params.get("plot_bar", True):
+            sns.barplot(
+                data=self.data,
+                x=self.x,
+                y="value",
+                hue=self.hue,
+                palette=self.custom_params.get("palette"),
+                errorbar=self.custom_params.get("errorbar", "sd"),
+                edgecolor=self.custom_params.get("edgecolor", ".2"),
+                errcolor=self.custom_params.get("errcolor", ".2"),
+                capsize=self.custom_params.get("capsize", 0.1),
+                alpha=self.custom_params.get("alpha", 0.8),
+                order=self.custom_params.get("x_order"),
+                hue_order=self.custom_params.get("hue_order"),
+                errwidth=self.custom_params.get("errwidth", 1),
+                dodge=self.custom_params.get("dodge", True),
+                width=self.custom_params.get("bar_width", 0.8),
+            )
+        if self.custom_params.get("plot_swarm", False):
+            sns.swarmplot(
+                data=self.data,
+                x=self.x,
+                y="value",
+                hue=self.custom_params.get("swarm_hue", self.hue),
+                hue_order=self.custom_params.get("hue_order"),
+                palette=self.custom_params.get("palette"),
+                errorbar=self.custom_params.get("errorbar", "sd"),
+                errcolor=self.custom_params.get("errcolor", ".2"),
+                capsize=self.custom_params.get("capsize", 0.1),
+                alpha=self.custom_params.get("alpha", 0.8),
+                order=self.custom_params.get("x_order"),
+                errwidth=self.custom_params.get("errwidth", 1),
+                width=self.custom_params.get("bar_width", 0.8),
+                legend=False if self.custom_params.get("plot_bar") else "auto",
+                edgecolor=self.custom_params.get("edgecolor", "k"),
+                linewidth=self.custom_params.get("linewidth", 1),
+                linestyle=self.custom_params.get("linestyle", "-"),
+                dodge=self.custom_params.get("dodge", False),
+            )
+
         self.ax.tick_params(labelsize=20)
         self.ax.set_ylabel(
             self.custom_params.get("ylabel"),
@@ -537,7 +560,7 @@ class NetworkDegreesFigure(MultiAxFigure):
                     rotation=90,
                 )
 
-        ax.set_title(network.name, fontsize=28, pad=20, y=1)
+        ax.set_title(network.title, fontsize=28, pad=20, y=1)
         ax.set_xlabel("Degree", fontsize=22)
         ax.set_ylabel("Frequency (n nodes)", fontsize=22)
         ax.spines["top"].set_visible(False)
