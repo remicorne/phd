@@ -77,7 +77,7 @@ class QuantitativeStatistic:
         else:
             self.filtered_data = self.data.select(value="notna")
             # check enough data
-            self.has_enough_data = all(
+            self.has_enough_data = not self.filtered_data.empty and all(
                 [
                     group_data.value.count() >= 5
                     for _, group_data in self.filtered_data.groupby(self.group_column)
@@ -91,7 +91,6 @@ class QuantitativeStatistic:
             )
             self.statistical_test = self.pipeline[0]
             self.post_hoc_test = self.pipeline[-1]
-            self.filtered_data = self.data.select(value="notna")
             if self.has_enough_data:
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
                 self.significant_pairs = (

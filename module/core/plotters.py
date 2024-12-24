@@ -66,7 +66,7 @@ def histogram(project, request, custom_params=None):
     return dataset
 
 
-def summary_histogram(project, request, custom_params=None):
+def summary_histogram(project, request, invert_hue=False, custom_params=None):
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     if isinstance(dataset, MergedDatasets):
@@ -85,26 +85,32 @@ def summary_histogram(project, request, custom_params=None):
             x = "measurement"
 
     hue = custom_params.get("hue", "group_name")
-    custom_params["palette"] = custom_params.get(
-        "palette", dataset.get_palette("color")
-    )
-    custom_params["significance_palette"] = custom_params.get(
-        "significance_palette", dataset.get_palette("significance")
-    )
+    if invert_hue:
+        hue, x = x, hue
+        statistics = []
+    else:
+        custom_params["palette"] = custom_params.get(
+            "palette", dataset.get_palette("color")
+        )
+        custom_params["significance_palette"] = custom_params.get(
+            "significance_palette", dataset.get_palette("significance")
+        )
+        if "experiment" in dataset.selector:
+            dataset.calculate_quantitative_statistics()
+            statistics = dataset.statistics
+        else:
+            statistics = []
+
+    custom_params["order"] = list(dataset.data[x].unique())
+    custom_params["hue_order"] = list(dataset.data[hue].unique())
+
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["order"] = list(dataset.data[x].unique())
-    custom_params["hue_order"] = list(dataset.data.group_name.unique())
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
     filepath = os.path.join(location, "summary_histogram", title)
-    if "experiment" in dataset.selector:
-        dataset.calculate_quantitative_statistics()
-        statistics = dataset.statistics
-    else:
-        statistics = []
     SummaryHistogram(
         title,
         filepath,
