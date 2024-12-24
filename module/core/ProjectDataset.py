@@ -325,7 +325,7 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         if "experiment" in selector:
-            self.experiment_information = self.experiment_information.select(
+            self.experiment_information = ExperimentInformation(self.project).select(
                 label=selector.pop("experiment")
             )
             selector["group_id"] = self.experiment_information.iloc[0].groups

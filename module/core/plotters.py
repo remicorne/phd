@@ -38,7 +38,7 @@ def histogram(project, request, custom_params=None):
     )
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["x_order"] = GroupInformation(project).select(
+    custom_params["order"] = GroupInformation(project).select(
         group_id=dataset.data.group_id.unique()
     )[x]
     title = dataset.get_selection_string()
@@ -66,7 +66,7 @@ def histogram(project, request, custom_params=None):
     return dataset
 
 
-def summary_histogram(project, request, custom_params=dict()):
+def summary_histogram(project, request, custom_params=None):
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     if isinstance(dataset, MergedDatasets):
@@ -89,12 +89,12 @@ def summary_histogram(project, request, custom_params=dict()):
         "palette", dataset.get_palette("color")
     )
     custom_params["significance_palette"] = custom_params.get(
-        "palette", dataset.get_palette("significance")
+        "significance_palette", dataset.get_palette("significance")
     )
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["order"] = dataset.data[x].unique()
-    custom_params["hue_order"] = dataset.data.group_name.unique()
+    custom_params["order"] = list(dataset.data[x].unique())
+    custom_params["hue_order"] = list(dataset.data.group_name.unique())
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}

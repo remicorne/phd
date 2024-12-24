@@ -211,7 +211,6 @@ class ExperimentInformation(_ProjectSettings):
     def load(self):
         data = super().load()
         group_information = GroupInformation(self.project).df
-        palette = Palette(self.project).get_color_palette()
         full_experiment_info = []
         for _, experiment in data.iterrows():
             experiment["experiment"] = experiment.label
@@ -226,20 +225,22 @@ class ExperimentInformation(_ProjectSettings):
         return list(self.df.label)
 
     def select(self, **selector):
-        if selector.get("experiment") == "default":
-            return [self.get_default_experiment()]
+        if selector.get("label") == "default":
+            return self.get_default_experiment()
         return super().select(**selector)
 
     def get_default_experiment(self):
-        return pd.Series(
-            dict(
-                independant_variables=["group_id"],
-                group_column=ProjectInformation(project=self.project).group_column,
-                groups=GroupInformation(self.project).group_id.tolist(),
-                paired=False,
-                parametric=True,
-                label=None,
-            )
+        return pd.DataFrame(
+            [
+                dict(
+                    independant_variables=["group_id"],
+                    group_column=ProjectInformation(project=self.project).group_column,
+                    groups=GroupInformation(self.project).group_id.tolist(),
+                    paired=False,
+                    parametric=True,
+                    label="default",
+                )
+            ]
         )
 
 

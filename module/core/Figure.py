@@ -76,7 +76,7 @@ class Histogram(Figure):
 
     def plot(self):
         if self.custom_params.get("plot_bar", True):
-            ax = sns.barplot(
+            sns.barplot(
                 data=self.data,
                 x=self.x,
                 y="value",
@@ -87,11 +87,11 @@ class Histogram(Figure):
                 errcolor=self.custom_params.get("errcolor", ".2"),
                 capsize=self.custom_params.get("capsize", 0.1),
                 alpha=self.custom_params.get("alpha", 0.8),
-                order=self.custom_params.get("x_order"),
+                order=self.custom_params.get("order"),
                 dodge=self.custom_params.get("dodge", False),
             )
         if self.custom_params.get("plot_swarm", True):
-            ax = sns.swarmplot(
+            sns.swarmplot(
                 data=self.data,
                 x=self.x,
                 y="value",
@@ -99,22 +99,22 @@ class Histogram(Figure):
                 size=self.custom_params.get("size", 5),
                 palette=self.custom_params.get("palette"),
                 # legend=False if self.custom_params.get("plot_bar") else "auto",
-                order=self.custom_params.get("x_order"),
+                order=self.custom_params.get("order"),
                 edgecolor=self.custom_params.get("edgecolor", "k"),
                 linewidth=self.custom_params.get("linewidth", 1),
                 linestyle=self.custom_params.get("linestyle", "-"),
                 dodge=self.custom_params.get("dodge", False),
             )
 
-        ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
-        ax.set_ylabel(
+        self.ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
+        self.ax.set_ylabel(
             self.custom_params.get("ylabel"),
             fontsize=self.custom_params.get("ylabel_fontsize", 24),
         )
-        ax.set_xlabel(
+        self.ax.set_xlabel(
             " ", fontsize=self.custom_params.get("xlabel_fontsize", 20)
         )  # treatments
-        ax.set_title(
+        self.ax.set_title(
             self.title,
             y=self.custom_params.get("y", 1.04),
             fontsize=self.custom_params.get("fontsize", 34),
@@ -138,7 +138,7 @@ class Histogram(Figure):
 
 
 @dataclass
-class SummaryHistogram(Histogram):
+class SummaryHistogram(Figure):
     """
     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
     If multiple compounds or regions are specified, a summary histogram is generated.
@@ -151,18 +151,9 @@ class SummaryHistogram(Histogram):
     hue: str
     statistics: list[QuantitativeStatistic] = field(default_factory=list)
 
-    def __post_init__(self):
-        self.custom_params["x_order"] = self.custom_params.get(
-            "x_order", self.data[self.x].unique()
-        )
-        self.custom_params["hue_order"] = self.custom_params.get(
-            "hue_order", self.data[self.hue].unique()
-        )
-        super().__post_init__()
-
     def generate_figure(self):
         self.fig_width = self.custom_params.get(
-            "fig_width", 1 + 4 * len(self.custom_params.get("x_order"))
+            "fig_width", 1 + 4 * len(self.custom_params.get("order"))
         )
         self.fig, self.ax = plt.subplots(figsize=(self.fig_width, 10))
 
@@ -179,7 +170,7 @@ class SummaryHistogram(Histogram):
                 errcolor=self.custom_params.get("errcolor", ".2"),
                 capsize=self.custom_params.get("capsize", 0.1),
                 alpha=self.custom_params.get("alpha", 0.8),
-                order=self.custom_params.get("x_order"),
+                order=self.custom_params.get("order"),
                 hue_order=self.custom_params.get("hue_order"),
                 errwidth=self.custom_params.get("errwidth", 1),
                 dodge=self.custom_params.get("dodge", True),
@@ -197,7 +188,7 @@ class SummaryHistogram(Histogram):
                 errcolor=self.custom_params.get("errcolor", ".2"),
                 capsize=self.custom_params.get("capsize", 0.1),
                 alpha=self.custom_params.get("alpha", 0.8),
-                order=self.custom_params.get("x_order"),
+                order=self.custom_params.get("order"),
                 errwidth=self.custom_params.get("errwidth", 1),
                 width=self.custom_params.get("bar_width", 0.8),
                 legend=False if self.custom_params.get("plot_bar") else "auto",
@@ -222,6 +213,7 @@ class SummaryHistogram(Histogram):
         self.ax.spines["top"].set_visible(False)
         self.ax.spines["right"].set_visible(False)
         plt.tight_layout()
+        self.label_summary_stats()
 
     def label_summary_stats(self):
         for statistics in self.statistics:
@@ -231,7 +223,7 @@ class SummaryHistogram(Histogram):
                 scaling_factor = 0.2
                 dynamic_font_size = max(
                     base_font_size
-                    - (scaling_factor * len(self.custom_params.get("x_order"))),
+                    - (scaling_factor * len(self.custom_params.get("order"))),
                     6,
                 )
                 for pair in statistics.significant_pairs[0]:
@@ -242,12 +234,14 @@ class SummaryHistogram(Histogram):
                             hue = pair[
                                 pair.index(treatment) - 1
                             ]  # work because only two elements 0 -> -1, 1 -> 0
-                            x_index = self.custom_params.get("x_order").index(
-                                statistics.metadata.measurement
+                            x_index = self.custom_params.get("order").index(
+                                statistics.metadata[
+                                    self.x
+                                ]  # TODO too much knowledge of internal objects
                             )  # Statistics metadata stores grouping info
                             hue_index = self.custom_params.get("hue_order").index(hue)
                             bar = self.ax.patches[
-                                hue_index * len(self.custom_params.get("x_order"))
+                                hue_index * len(self.custom_params.get("order"))
                                 + x_index
                             ]
                             self.ax.text(
