@@ -161,9 +161,9 @@ class SummaryHistogram(Figure):
         if self.custom_params.get("plot_bar", True):
             sns.barplot(
                 data=self.data,
-                x=self.x,
+                x=self.custom_params.get("x", self.x),
                 y="value",
-                hue=self.hue,
+                hue=self.custom_params.get("hue", self.hue),
                 palette=self.custom_params.get("palette"),
                 errorbar=self.custom_params.get("errorbar", "sd"),
                 edgecolor=self.custom_params.get("edgecolor", ".2"),
@@ -179,9 +179,11 @@ class SummaryHistogram(Figure):
         if self.custom_params.get("plot_swarm", False):
             sns.swarmplot(
                 data=self.data,
-                x=self.x,
+                x=self.custom_params.get("x", self.x),
                 y="value",
-                hue=self.custom_params.get("swarm_hue", self.hue),
+                hue=self.custom_params.get(
+                    "swarm_hue", self.custom_params.get("hue", self.hue)
+                ),
                 hue_order=self.custom_params.get("hue_order"),
                 palette=self.custom_params.get("palette"),
                 errorbar=self.custom_params.get("errorbar", "sd"),
@@ -234,12 +236,30 @@ class SummaryHistogram(Figure):
                             hue = pair[
                                 pair.index(treatment) - 1
                             ]  # work because only two elements 0 -> -1, 1 -> 0
-                            x_index = self.custom_params.get("order").index(
-                                statistics.metadata[
-                                    self.x
-                                ]  # TODO too much knowledge of internal objects
-                            )  # Statistics metadata stores grouping info
-                            hue_index = self.custom_params.get("hue_order").index(hue)
+                            stats_key = list(
+                                filter(
+                                    lambda x: x in statistics.metadata,
+                                    [self.hue, self.x],
+                                )
+                            )
+                            if len(stats_key) != 1:
+                                raise ValueError("Could not infer hue or x in metadata")
+                            if self.custom_params.get("inverted"):
+                                x_index = self.custom_params.get("order").index(
+                                    statistics.metadata[
+                                        self.x
+                                    ]  # TODO too much knowledge of internal objects
+                                )  # Statistics metadata stores grouping info
+                                hue_index = self.custom_params.get("hue_order").index(
+                                    hue
+                                )
+                            else:
+                                hue_index = self.custom_params.get("hue_order").index(
+                                    statistics.metadata[
+                                        self.hue
+                                    ]  # TODO too much knowledge of internal objects
+                                )  # Statistics metadata stores grouping info
+                                x_index = self.custom_params.get("order").index(hue)
                             bar = self.ax.patches[
                                 hue_index * len(self.custom_params.get("order"))
                                 + x_index
@@ -521,12 +541,23 @@ class NetworkDegreesFigure(MultiAxFigure):
         max_degree = network.max_degree
         mean_degree = network.average_degree
 
-        # Set axis limits 
-        common_max_degree = max([max([d for _, d in net.G.degree()]) for net in self.networks])
-        common_max_freq = max([max(np.histogram([d for _, d in net.G.degree()], bins=np.arange(common_max_degree + 2) - 0.5)[0]) for net in self.networks])
+        # Set axis limits
+        common_max_degree = max(
+            [max([d for _, d in net.G.degree()]) for net in self.networks]
+        )
+        common_max_freq = max(
+            [
+                max(
+                    np.histogram(
+                        [d for _, d in net.G.degree()],
+                        bins=np.arange(common_max_degree + 2) - 0.5,
+                    )[0]
+                )
+                for net in self.networks
+            ]
+        )
         ax.set_xlim(-0.5, common_max_degree + 0.5)
         ax.set_ylim(0, common_max_freq)
-
 
         x = np.linspace(0, max(degree_sequence), 100)
         # y = norm.pdf(x, mean_degree, std_degree) #normalise 0-1 for density SD
@@ -572,7 +603,7 @@ class NetworkDegreesFigure(MultiAxFigure):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.legend(fontsize=32, loc="upper left")
-        ax.tick_params(axis="x", labelsize=28) 
+        ax.tick_params(axis="x", labelsize=28)
         ax.tick_params(axis="y", labelsize=28)
 
         # HACKY PRINT

@@ -87,19 +87,19 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
     hue = custom_params.get("hue", "group_name")
     if invert_hue:
         hue, x = x, hue
-        statistics = []
+        custom_params["inverted_hue"] = True
     else:
         custom_params["palette"] = custom_params.get(
             "palette", dataset.get_palette("color")
         )
-        custom_params["significance_palette"] = custom_params.get(
-            "significance_palette", dataset.get_palette("significance")
-        )
-        if "experiment" in dataset.selector:
-            dataset.calculate_quantitative_statistics()
-            statistics = dataset.statistics
-        else:
-            statistics = []
+    custom_params["significance_palette"] = custom_params.get(
+        "significance_palette", dataset.get_palette("significance")
+    )
+    if "experiment" in dataset.selector:
+        dataset.calculate_quantitative_statistics()
+        statistics = dataset.statistics
+    else:
+        statistics = []
 
     custom_params["order"] = list(dataset.data[x].unique())
     custom_params["hue_order"] = list(dataset.data[hue].unique())
