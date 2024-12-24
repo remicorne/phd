@@ -83,15 +83,15 @@ class QuantitativeStatistic:
                     for _, group_data in self.filtered_data.groupby(self.group_column)
                 ]
             )
-            self.pipeline = self.pipeline or get_quantitative_statistics_pipeline(
-                len(self.independant_variables) >= 2,
-                len(self.data[self.group_column].unique()) >= 2,
-                self.is_paired,
-                self.is_parametric,
-            )
-            self.statistical_test = self.pipeline[0]
-            self.post_hoc_test = self.pipeline[-1]
             if self.has_enough_data:
+                self.pipeline = self.pipeline or get_quantitative_statistics_pipeline(
+                    len(self.independant_variables) >= 2,
+                    len(self.data[self.group_column].unique()) >= 2,
+                    self.is_paired,
+                    self.is_parametric,
+                )
+                self.statistical_test = self.pipeline[0]
+                self.post_hoc_test = self.pipeline[-1]
                 self.results = SelectableDataFrame(self.execute_stats_pipeline())
                 self.significant_pairs = (
                     self.results.select(test=self.post_hoc_test).iloc[0, :].p_value
@@ -102,14 +102,13 @@ class QuantitativeStatistic:
                 self.results = SelectableDataFrame(
                     [
                         {
-                            "test": test,
+                            "test": "validation",
                             "is_significant": False,
                             "result": "Not enough data",
                             "result_string": "n/a",
                             "p_value_threshold": self.p_value_threshold,
                             "p_value": np.nan,
                         }
-                        for test in self.pipeline + ["validation"]
                     ]
                 )
             for key, val in self.metadata.items():
