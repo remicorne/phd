@@ -51,6 +51,7 @@ class Figure:
 
     def save(self):
         filepath, _ = os.path.splitext(self.filepath)
+        os.makedirs(filepath, exist_ok=True)
         self.fig.savefig(f"{filepath}.svg")
         self.fig.savefig(f"{filepath}.png")
         print(f"SAVED {filepath}")
@@ -86,7 +87,7 @@ class Histogram(Figure):
                 errcolor=self.custom_params.get("errcolor", ".2"),
                 capsize=self.custom_params.get("capsize", 0.1),
                 alpha=self.custom_params.get("alpha", 0.8),
-                order=self.custom_params.get("hue_order"),
+                order=self.custom_params.get("x_order"),
                 dodge=self.custom_params.get("dodge", False),
             )
         if self.custom_params.get("plot_swarm", True):
@@ -98,7 +99,7 @@ class Histogram(Figure):
                 size=self.custom_params.get("size", 5),
                 palette=self.custom_params.get("palette"),
                 # legend=False if self.custom_params.get("plot_bar") else "auto",
-                order=self.custom_params.get("hue_order"),
+                order=self.custom_params.get("x_order"),
                 edgecolor=self.custom_params.get("edgecolor", "k"),
                 linewidth=self.custom_params.get("linewidth", 1),
                 linestyle=self.custom_params.get("linestyle", "-"),

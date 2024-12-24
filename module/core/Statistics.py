@@ -115,7 +115,7 @@ class QuantitativeStatistic:
                 )
             for key, val in self.metadata.items():
                 self.results[key] = (
-                    [val for i in range(len(self.results))]
+                    [val for _ in range(len(self.results))]
                     if is_array_like(val)
                     else val
                 )

@@ -62,7 +62,7 @@ def label_group_outliers(df__test__p_value_threshold):
     df, test, p_value_threshold = df__test__p_value_threshold
     only_values = df[df.value != 0].dropna()
     if only_values.value.count() < 3:
-        df["outlier_status"] = False
+        df["outlier_status"] = "Not enough data"
         return df
     outlier_test = OUTLIER_TESTS[test]
     normal_values = outlier_test(only_values.value.tolist(), p_value_threshold)
@@ -271,7 +271,7 @@ class Dataset(
                 metadata["experiment"] = experiment.label
                 stats_batch.add(
                     data,
-                    self.project_information.group_column,
+                    "group_name",
                     experiment,
                     metadata,
                     p_value_threshold,

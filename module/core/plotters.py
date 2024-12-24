@@ -38,11 +38,9 @@ def histogram(project, request, custom_params=None):
     )
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["x_order"] = (
-        GroupInformation(project)
-        .select(group_id=dataset.data.group_id.unique())
-        .group_name
-    )
+    custom_params["x_order"] = GroupInformation(project).select(
+        group_id=dataset.data.group_id.unique()
+    )[x]
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
         **{
@@ -56,7 +54,7 @@ def histogram(project, request, custom_params=None):
         statistic = dataset.statistics[0]
     else:
         statistic = []
-    SummaryHistogram(
+    Histogram(
         title,
         filepath,
         dataset.data,
