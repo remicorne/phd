@@ -307,7 +307,7 @@ class Dataset(
         return self.get_linked_data("outliers")
 
     def get_full_df(self):
-        return self.df.extend(self.outliers)
+        return self.sort_values(self.df.extend(self.outliers))
 
     @property
     def df(
@@ -320,7 +320,7 @@ class Dataset(
         if self.dataset_information.unit:
             data["unit"] = self.dataset_information.unit
         # data = self.sort_values(data) #TODO check usefulness
-        return data
+        return self.sort_values(data)
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
