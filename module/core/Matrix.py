@@ -107,21 +107,17 @@ class Matrix:
         Filters out variables with occurrences less than n_minimum and updates missing_values list.
         """
         self.missing_values = []
-        indices_to_eliminate = []
-        for measurment_col_values, df in self.data.groupby(by=self.pivot_columns):
+        data = []
+        for measurement_characteristics, df in self.data.groupby(by=self.pivot_columns):
             if df.value.notna().sum() < self.n_minimum:
-                self.missing_values.append(measurment_col_values)
-            indices_to_eliminate = self.data.select(
-                **{
-                    col: val
-                    for col, val in zip(self.pivot_columns, measurment_col_values)
-                }
-            ).index
-        self.filtered_data = self.data.drop(indices_to_eliminate)
+                self.missing_values.append(measurement_characteristics)
+            else:
+                data.append(df)
         if self.missing_values:
             print(
                 f"{self.grouping}, {self.between} missing data for {self.missing_values}, deleted from analysis"
             )
+        self.filtered_data = pd.concat(data)
 
     def pivot_data(self):
         """

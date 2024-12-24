@@ -138,7 +138,7 @@ def correlogram(project, request, between, custom_params=None):
     )
     filepath = os.path.join(location, "correlogram", title)
     Correlogram(title, filepath, matrices.matrices, custom_params=custom_params)
-    return dataset
+    return matrices
 
 
 def network(project, request, between, custom_params=None):
