@@ -77,7 +77,12 @@ class SelectableDataFrame(pd.DataFrame):
             SelectableDataFrame: Filtered DataFrame that also includes the select method.
             Series: if selection conditions result in a single row
         """
+        catgorical_cols = [col for col in selector if self[col].dtype == "category"]
         sub_selection = sub_select(self, selector)
+        for col in catgorical_cols:
+            sub_selection.loc[:, col] = sub_selection[
+                col
+            ].cat.remove_unused_categories()
         return sub_selection
 
     def extend(
