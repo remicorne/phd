@@ -13,6 +13,10 @@ from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
 from module.core.questions import input_escape
 
+# REMI CLEAN ME - for normalising hue into network_summary
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def get_dataset(project, request):
     datasets = request["datasets"]
@@ -210,11 +214,17 @@ def network_summary(project, request, between, measurement: str, custom_params=N
         .select(measurement=measurement)
     )
     x = hue = custom_params.get("x", "group_name")
+    
+    # REMI CLEAN ME - probably belongs as a custom pram in Histogram() for plorring scatterplots
+    vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']['value'] #HARD CODE 
+    norm = plt.Normalize(vehicle_values.min(), vehicle_values.max())
+    cmap = plt.cm.hsv  # custom_pram .color_map
+    custom_params["palette"] = sns.color_palette(cmap(norm(vehicle_values)))
 
     location = FileSystem.get_location(  # IMPROVE
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
-    custom_params["ylabel"] = "AU"
+    custom_params["ylabel"] = measurement
     custom_params["swarm_hue"] = next(iter(between.keys()))
     title = input_escape("ENter figure title/filename")
     filepath = os.path.join(location, "network_summary", title)
