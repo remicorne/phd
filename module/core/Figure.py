@@ -72,7 +72,8 @@ class Histogram(Figure):
     statistic: QuantitativeStatistic = field(default=None)
 
     def generate_figure(self):
-        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+
+        self.fig, self.ax = plt.subplots(figsize=(self.custom_params.get("width",20),self.custom_params.get("height",10)))
 
     def plot(self):
         if self.custom_params.get("plot_bar", True):
