@@ -216,10 +216,12 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     x = hue = custom_params.get("x", "group_name")
     
     # REMI CLEAN ME - probably belongs as a custom pram in Histogram() for plorring scatterplots
+    cmap = plt.cm.viridis  # custom_pram .color_map
     vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']['value'] #HARD CODE 
-    norm = plt.Normalize(vehicle_values.min(), vehicle_values.max())
-    cmap = plt.cm.hsv  # custom_pram .color_map
+    norm = plt.Normalize(vehicle_values.min(), vehicle_values.max()) 
     custom_params["palette"] = sns.color_palette(cmap(norm(vehicle_values)))
+
+
 
     location = FileSystem.get_location(  # IMPROVE
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
