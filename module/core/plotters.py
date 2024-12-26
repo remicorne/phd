@@ -1,4 +1,7 @@
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+
 from module.core.ProjectDataset import Dataset, MergedDatasets
 from module.core.Figure import (
     Histogram,
@@ -12,10 +15,6 @@ from module.core.Metadata import GroupInformation
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
 from module.core.questions import input_escape
-
-# REMI CLEAN ME - for normalising hue into network_summary
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 def get_dataset(project, request):
@@ -215,12 +214,13 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     )
     x = hue = custom_params.get("x", "group_name")
     
-    # REMI CLEAN ME - probably belongs as a custom pram in Histogram() for plorring scatterplots
-    cmap = plt.cm.viridis  # custom_pram .color_map
-    vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']['value'] #HARD CODE 
-    norm = plt.Normalize(vehicle_values.min(), vehicle_values.max()) 
-    custom_params["palette"] = sns.color_palette(cmap(norm(vehicle_values)))
-
+    # colormapping by vehicle rank #REMI CLEAN ME
+    cmap = plt.cm.viridis  
+    vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']#HARD CODE 
+    compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
+    sorted_compound_value = {k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])}
+    colors = cmap(np.linspace(0, 1, len(sorted_compound_value))) 
+    custom_params["palette"]  = {compound: color for compound, color in zip(sorted_compound_value.keys(), colors)}
 
 
     location = FileSystem.get_location(  # IMPROVE
