@@ -328,11 +328,12 @@ class Correlogram(MultiAxFigure):
 
         ax = self.axs[i]
         matrix = self.matrices[i]
+        title = self.matrices[i].grouping
 
         colormap = self.custom_params.get("colormap", "coolwarm")
 
         ax.set_title(
-            self.title, fontsize=28, pad=20, y=1
+            title, fontsize=28, pad=20, y=1
         )  # Adjust the y position of the title manually for square correlogram
 
         sns.heatmap(
