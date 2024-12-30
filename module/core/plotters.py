@@ -87,7 +87,7 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
     hue = custom_params.get("hue", "group_name")
     if invert_hue:
         hue, x = x, hue
-        custom_params["inverted_hue"] = True
+        custom_params["invert_hue"] = True
     else:
         custom_params["palette"] = custom_params.get(
             "palette", dataset.get_palette("color")

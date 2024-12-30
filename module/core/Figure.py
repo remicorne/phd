@@ -244,7 +244,14 @@ class SummaryHistogram(Figure):
                             )
                             if len(stats_key) != 1:
                                 raise ValueError("Could not infer hue or x in metadata")
-                            if self.custom_params.get("inverted"):
+                            if self.custom_params.get("invert_hue"):
+                                hue_index = self.custom_params.get("hue_order").index(
+                                    statistics.metadata[
+                                        self.hue
+                                    ]  # TODO too much knowledge of internal objects
+                                )  # Statistics metadata stores grouping info
+                                x_index = self.custom_params.get("order").index(hue)
+                            else:
                                 x_index = self.custom_params.get("order").index(
                                     statistics.metadata[
                                         self.x
@@ -253,13 +260,6 @@ class SummaryHistogram(Figure):
                                 hue_index = self.custom_params.get("hue_order").index(
                                     hue
                                 )
-                            else:
-                                hue_index = self.custom_params.get("hue_order").index(
-                                    statistics.metadata[
-                                        self.hue
-                                    ]  # TODO too much knowledge of internal objects
-                                )  # Statistics metadata stores grouping info
-                                x_index = self.custom_params.get("order").index(hue)
                             bar = self.ax.patches[
                                 hue_index * len(self.custom_params.get("order"))
                                 + x_index
@@ -663,6 +663,82 @@ class Correlation(Figure):
 
         plt.tight_layout()
         plt.show()
+
+
+@dataclass
+class Violin(Figure):
+    """
+    Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
+    If multiple compounds or regions are specified, a summary histogram is generated.
+    """
+
+    figure_type: ClassVar[str] = "histogram"
+
+    data: pd.DataFrame
+    x: str
+    hue: str
+    statistic: QuantitativeStatistic = field(default=None)
+
+    def generate_figure(self):
+        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+
+    def plot(self):
+        sns.violinplot(
+            data=data,
+            x=x,
+            y="value",
+            hue=hue,
+            split=True if hue else False,
+            inner=None,  # Removes inner elements (like quartiles) for cleaner overlay
+            palette="muted",
+        )
+
+        for i, group in enumerate(data[x].unique()):
+            group_data = data[data[x] == group]
+            y_values = group_data[measurement].values
+            jittered_x = np.random.normal(loc=i, scale=0.1, size=len(y_values))
+            colors = plt.cm.viridis(norm(y_values))  # Use Viridis colormap
+
+            plt.scatter(
+                jittered_x,
+                y_values,
+                color=colors,
+                marker="+",
+                s=100,
+                edgecolor="black",
+                linewidth=0.5,
+                label=None,  # Prevent duplicate legend entries for scatter
+            )
+
+        self.ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
+        self.ax.set_ylabel(
+            self.custom_params.get("ylabel"),
+            fontsize=self.custom_params.get("ylabel_fontsize", 24),
+        )
+        self.ax.set_xlabel(
+            " ", fontsize=self.custom_params.get("xlabel_fontsize", 20)
+        )  # treatments
+        self.ax.set_title(
+            self.title,
+            y=self.custom_params.get("y", 1.04),
+            fontsize=self.custom_params.get("fontsize", 34),
+        )
+        sns.despine(left=False)
+        self.label_histogram_stats()
+
+    def label_histogram_stats(self):
+        if self.statistic and self.statistic.is_significant:
+            pairs, p_values = self.statistic.significant_pairs
+            annotator = Annotator(
+                self.ax,
+                pairs,
+                data=self.data,
+                x=self.x,
+                y="value",
+                order=self.custom_params.get("hue_order"),
+            )
+            annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+            annotator.set_pvalues_and_annotate(p_values)
 
 
 @dataclass
