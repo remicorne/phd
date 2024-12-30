@@ -72,7 +72,8 @@ class Histogram(Figure):
     statistic: QuantitativeStatistic = field(default=None)
 
     def generate_figure(self):
-        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+
+        self.fig, self.ax = plt.subplots(figsize=(self.custom_params.get("width",20),self.custom_params.get("height",10)))
 
     def plot(self):
         if self.custom_params.get("plot_bar", True):
@@ -153,7 +154,7 @@ class SummaryHistogram(Figure):
 
     def generate_figure(self):
         self.fig_width = self.custom_params.get(
-            "fig_width", 1 + 4 * len(self.custom_params.get("order"))
+            "fig_width", 1 + 4 * len(self.custom_params.get("order")) # inconsistent shoudl be width everywher TODO 
         )
         self.fig, self.ax = plt.subplots(figsize=(self.fig_width, 10))
 
@@ -327,11 +328,12 @@ class Correlogram(MultiAxFigure):
 
         ax = self.axs[i]
         matrix = self.matrices[i]
+        title = self.matrices[i].grouping
 
         colormap = self.custom_params.get("colormap", "coolwarm")
 
         ax.set_title(
-            self.title, fontsize=28, pad=20, y=1
+            title, fontsize=28, pad=20, y=1
         )  # Adjust the y position of the title manually for square correlogram
 
         sns.heatmap(
@@ -383,10 +385,14 @@ class NetworkFigure(MultiAxFigure):
 
         ax = self.axs[i]
         network = self.networks[i]
-        if not self.positions:
+
+        if not self.positions:  #default should be circle and you have to get from custom prams "node_position" : "sagital_node_pos"
             self.positions = self.get_default_positions(network.matrix)
             ax.set_xlim(0, 27)
             ax.set_ylim(0, 15)
+
+        if self.custom_params.get("node_position", "") == "circle":
+            self.positions = nx.circular_layout(network.G)
 
         nx.draw_networkx_nodes(
             network.G,
@@ -611,7 +617,7 @@ class NetworkDegreesFigure(MultiAxFigure):
         print(
             f"edges = {network.total_edges}, pos = {network.pos_edges}, neg = {network.neg_edges}",
             f"density = {network.density}, max degree = {network.max_degree}, average degree = {network.average_degree}",
-            f"unweighted clustering co = {network.avg_clust_coeff_unweighted}",
+            f"unweighted clustering co = {network.clust_coeff_unweighted}",
         )
 
 
