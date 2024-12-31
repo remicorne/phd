@@ -15,6 +15,7 @@ from module.core.Metadata import GroupInformation
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
 from module.core.questions import input_escape
+from module.core.Statistics import QuantitativeStatistic
 
 
 def get_dataset(project, request):
@@ -212,16 +213,34 @@ def network_summary(project, request, between, measurement: str, custom_params=N
         .get_summary_df()
         .select(measurement=measurement)
     )
+    # TODO generalize stats logic + dataset logic for when mouse_id not there
+    experiment_information = dataset.experiment_information.iloc[0, :]
+    network_summary_df = GroupInformation(project).extend(network_summary_df)
+    statistic = QuantitativeStatistic(
+        data=network_summary_df,
+        group_column="group_name",
+        independant_variables=experiment_information.independant_variables,
+        is_paired=experiment_information.paired,
+        is_parametric=experiment_information.parametric,
+        p_value_threshold=0.05,
+        delay_execution=False,
+        metadata=dict(measurement=measurement),
+    )
     x = hue = custom_params.get("x", "group_name")
-    
-    # colormapping by vehicle rank #REMI CLEAN ME
-    cmap = plt.cm.viridis  
-    vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']#HARD CODE 
-    compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
-    sorted_compound_value = {k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])}
-    colors = cmap(np.linspace(0, 1, len(sorted_compound_value))) 
-    custom_params["palette"]  = {compound: color for compound, color in zip(sorted_compound_value.keys(), colors)}
 
+    # colormapping by vehicle rank #REMI CLEAN ME
+    cmap = plt.cm.viridis
+    vehicle_values = network_summary_df[
+        network_summary_df[hue] == "vehicles"
+    ]  # HARD CODE
+    compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
+    sorted_compound_value = {
+        k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])
+    }
+    colors = cmap(np.linspace(0, 1, len(sorted_compound_value)))
+    custom_params["palette"] = {
+        compound: color for compound, color in zip(sorted_compound_value.keys(), colors)
+    }
 
     location = FileSystem.get_location(  # IMPROVE
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
@@ -236,6 +255,7 @@ def network_summary(project, request, between, measurement: str, custom_params=N
         network_summary_df,
         x,
         hue,
+        statistic,
         custom_params=custom_params,
     )
     return network_summary_df
