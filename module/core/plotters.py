@@ -227,9 +227,9 @@ def network_summary(project, request, between, measurement: str, custom_params=N
         metadata=dict(measurement=measurement),
     )
     x = hue = custom_params.get("x", "group_name")
-    
+
     # colormapping by vehicle rank #REMI CLEAN ME
-    if not custom_params["palette"]:
+    if "palette" not in custom_params.keys():
         cmap = plt.cm.viridis  
         vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']#HARD CODE 
         compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
