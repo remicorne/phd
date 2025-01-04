@@ -216,16 +216,20 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     # TODO generalize stats logic + dataset logic for when mouse_id not there
     experiment_information = dataset.experiment_information.iloc[0, :]
     network_summary_df = GroupInformation(project).extend(network_summary_df)
-    statistic = QuantitativeStatistic(
-        data=network_summary_df,
-        group_column="group_name",
-        independant_variables=experiment_information.independant_variables,
-        is_paired=experiment_information.paired,
-        is_parametric=experiment_information.parametric,
-        p_value_threshold=0.05,
-        delay_execution=False,
-        metadata=dict(measurement=measurement),
-    )
+    statistic = (
+        QuantitativeStatistic(
+            data=network_summary_df,
+            group_column="group_name",
+            independant_variables=experiment_information.independant_variables,
+            is_paired=experiment_information.paired,
+            is_parametric=experiment_information.parametric,
+            p_value_threshold=0.05,
+            delay_execution=False,
+            metadata=dict(measurement=measurement),
+        )
+        if "experiment" in request.get("selector", {})
+        else None
+    )  # TODO fix by generalizing concept of dataset further DerivedDataset?
     x = hue = custom_params.get("x", "group_name")
 
     # colormapping by vehicle rank #REMI CLEAN ME

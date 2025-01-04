@@ -73,7 +73,12 @@ class Histogram(Figure):
 
     def generate_figure(self):
 
-        self.fig, self.ax = plt.subplots(figsize=(self.custom_params.get("width",20),self.custom_params.get("height",10)))
+        self.fig, self.ax = plt.subplots(
+            figsize=(
+                self.custom_params.get("width", 20),
+                self.custom_params.get("height", 10),
+            )
+        )
 
     def plot(self):
         if self.custom_params.get("plot_bar", True):
@@ -154,7 +159,12 @@ class SummaryHistogram(Figure):
 
     def generate_figure(self):
         self.fig_width = self.custom_params.get(
-            "fig_width", 1 + 4 * len(self.custom_params.get("order")) # inconsistent shoudl be width everywher TODO 
+            "fig_width",
+            1
+            + 4
+            * len(
+                self.data[self.x].unique()
+            ),  # inconsistent shoudl be width everywher TODO # JASMINE "TODO" should be at the begining of comments + comments should be incredibly clear instead of dding to the confusion: i have no idea what this means. also TODO is reserved for things that MUST be done, otherwise use IMPROVE
         )
         self.fig, self.ax = plt.subplots(figsize=(self.fig_width, 10))
 
@@ -386,7 +396,9 @@ class NetworkFigure(MultiAxFigure):
         ax = self.axs[i]
         network = self.networks[i]
 
-        if not self.positions:  #default should be circle and you have to get from custom prams "node_position" : "sagital_node_pos"
+        if (
+            not self.positions
+        ):  # default should be circle and you have to get from custom prams "node_position" : "sagital_node_pos"
             self.positions = self.get_default_positions(network.matrix)
             ax.set_xlim(0, 27)
             ax.set_ylim(0, 15)
