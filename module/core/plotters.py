@@ -233,18 +233,15 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     x = hue = custom_params.get("x", "group_name")
 
     # colormapping by vehicle rank #REMI CLEAN ME
-    cmap = plt.cm.viridis
-    vehicle_values = network_summary_df[
-        network_summary_df[hue] == "vehicles"
-    ]  # HARD CODE
-    compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
-    sorted_compound_value = {
-        k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])
-    }
-    colors = cmap(np.linspace(0, 1, len(sorted_compound_value)))
-    custom_params["palette"] = {
-        compound: color for compound, color in zip(sorted_compound_value.keys(), colors)
-    }
+    if "palette" not in custom_params.keys():
+        cmap = plt.cm.viridis  
+        vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']#HARD CODE 
+        compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
+        sorted_compound_value = {k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])}
+        colors = cmap(np.linspace(0, 1, len(sorted_compound_value))) 
+        custom_params["palette"]  = {compound: color for compound, color in zip(sorted_compound_value.keys(), colors)}
+
+
 
     location = FileSystem.get_location(  # IMPROVE
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
@@ -253,6 +250,7 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     custom_params["swarm_hue"] = next(iter(between.keys()))
     title = input_escape("ENter figure title/filename")
     filepath = os.path.join(location, "network_summary", title)
+
     Histogram(
         None,
         filepath,
