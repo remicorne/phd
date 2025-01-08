@@ -64,8 +64,6 @@ class Histogram(Figure):
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
 
-    figure_type: ClassVar[str] = "histogram"
-
     data: pd.DataFrame
     x: str
     hue: str
@@ -149,8 +147,6 @@ class SummaryHistogram(Figure):
     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
     If multiple compounds or regions are specified, a summary histogram is generated.
     """
-
-    figure_type: ClassVar[str] = "summary_histogram"
 
     data: pd.DataFrame
     x: str
@@ -326,8 +322,6 @@ class MultiAxFigure(Figure):
 @dataclass
 class Correlogram(MultiAxFigure):
 
-    figure_type: ClassVar[str] = "correlogram"
-
     matrices: list[Matrix]
 
     @property
@@ -376,8 +370,6 @@ class Correlogram(MultiAxFigure):
 
 @dataclass
 class NetworkFigure(MultiAxFigure):
-
-    figure_type: ClassVar[str] = "network"
 
     networks: list[Network]
     positions: dict = field(kw_only=True, default=None)
@@ -526,8 +518,6 @@ class NetworkFigure(MultiAxFigure):
 @dataclass
 class NetworkDegreesFigure(MultiAxFigure):
 
-    figure_type: ClassVar[str] = "network_degrees"
-
     networks: list[Network]
 
     @property
@@ -636,46 +626,46 @@ class NetworkDegreesFigure(MultiAxFigure):
 @dataclass
 class Correlation(Figure):
 
-    figure_type: ClassVar[str] = "correlation"
+    x: dict
+    y: dict
 
-    def define_filename(self):
-        self.filename = f"{self.compound} in {self.region}"
+    def generate_figure(self):
+        self.fig, self.ax = plt.subplots()
 
-    def generate(self):
-        compound = self.compound if isinstance(self.compound, list) else [self.compound]
-        region = self.region if isinstance(self.region, list) else [self.region]
-
-        x_data = self.data.select(compound=compound[0], region=region[0])
-        y_data = self.data.select(compound=compound[-1], region=region[-1])
-        common_mouse_ids = list(set(x_data.mouse_id).intersection(set(y_data.mouse_id)))
-        x_data = x_data.set_index("mouse_id").loc[common_mouse_ids].value.values
-        y_data = y_data.set_index("mouse_id").loc[common_mouse_ids].value.values
-
-        x_label = f"{compound[0]} in {region[0]} (ng/mg)"
-        y_label = f"{compound[-1]} in {region[-1]} (ng/mg)"
-        pearson_r, p_value = stats.pearsonr(x_data, y_data)
-        color = "red" if pearson_r > 0 else "blue"
-
+    def plot(self):
         # Create the plot
-        self.fig, ax = plt.subplots()
-        sns.scatterplot(x=x_data, y=y_data, ax=ax, marker="o", s=30, color="black")
+        pearson_r, p_value = stats.pearsonr(self.x["data"], self.y["data"])
+        color = "red" if pearson_r > 0 else "blue"
+        sns.scatterplot(
+            x=self.x["data"],
+            y=self.y["data"],
+            ax=self.ax,
+            marker="o",
+            s=30,
+            color="black",
+        )
         sns.regplot(
-            x=x_data, y=y_data, ci=95, ax=ax, scatter=False, line_kws={"color": color}
+            x=self.x["data"],
+            y=self.y["data"],
+            ci=95,
+            ax=self.ax,
+            scatter=False,
+            line_kws={"color": color},
         )
 
-        ax.set_xlabel(x_label, fontsize=22)
-        ax.set_ylabel(y_label, fontsize=22)
-        ax.spines[["right", "top"]].set_visible(False)
-        ax.set_title(self.treatment)
+        self.ax.set_xlabel(self.x["label"], fontsize=22)
+        self.ax.set_ylabel(self.y["label"], fontsize=22)
+        self.ax.spines[["right", "top"]].set_visible(False)
+        self.ax.set_title(self.title)
 
         # Add correlation values as text
         p_value_annotation = f"{p_value:.1e}" if p_value < 0.0001 else f"{p_value:.4f}"
         labels = f"Pearson R: {pearson_r:.2f}\np-value: {p_value_annotation}"
-        ax.text(
+        self.ax.text(
             0.05,
             0.9,
             labels,
-            transform=ax.transAxes,
+            transform=self.ax.transAxes,
             bbox=dict(facecolor="white", edgecolor="white", boxstyle="round"),
         )
 
@@ -684,7 +674,7 @@ class Correlation(Figure):
 
 
 @dataclass
-class Violin(Figure):
+class Violin(Figure):  # TODO make work? JASMINE: still necessary?
     """
     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
     If multiple compounds or regions are specified, a summary histogram is generated.

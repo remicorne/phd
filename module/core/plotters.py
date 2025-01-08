@@ -9,6 +9,7 @@ from module.core.Figure import (
     Correlogram,
     NetworkFigure,
     NetworkDegreesFigure,
+    Correlation,
 )
 from module.core.FileSystem import FileSystem
 from module.core.Metadata import GroupInformation
@@ -234,14 +235,22 @@ def network_summary(project, request, between, measurement: str, custom_params=N
 
     # colormapping by vehicle rank #REMI CLEAN ME
     if "palette" not in custom_params.keys():
-        cmap = plt.cm.viridis  
-        vehicle_values = network_summary_df[network_summary_df[hue]=='vehicles']#HARD CODE 
-        compound_value_dict = dict(zip(vehicle_values["compound"], vehicle_values["value"]))
-        sorted_compound_value = {k: v for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])}
-        colors = cmap(np.linspace(0, 1, len(sorted_compound_value))) 
-        custom_params["palette"]  = {compound: color for compound, color in zip(sorted_compound_value.keys(), colors)}
-
-
+        cmap = plt.cm.viridis
+        vehicle_values = network_summary_df[
+            network_summary_df[hue] == "vehicles"
+        ]  # HARD CODE
+        compound_value_dict = dict(
+            zip(vehicle_values["compound"], vehicle_values["value"])
+        )
+        sorted_compound_value = {
+            k: v
+            for k, v in sorted(compound_value_dict.items(), key=lambda item: item[1])
+        }
+        colors = cmap(np.linspace(0, 1, len(sorted_compound_value)))
+        custom_params["palette"] = {
+            compound: color
+            for compound, color in zip(sorted_compound_value.keys(), colors)
+        }
 
     location = FileSystem.get_location(  # IMPROVE
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
@@ -308,3 +317,47 @@ def summary_network_summary(
         custom_params=custom_params,
     )
     return network_summary_df
+
+
+def correlation(project, x, y, grouper, custom_params=None):
+    custom_params = custom_params or {}
+
+    data = []
+    for variable in [x, y]:
+        dataset = Dataset(project=project, filename=variable["dataset"])
+        selector = {col: variable[col] for col in dataset.measurement_columns}
+        dataset.select(**selector, **grouper)
+        data.append(dataset)
+
+    common_mouse_ids = list(
+        set(data[0].data[data[0].project_information.subject_column]).intersection(
+            set(data[1].data[data[1].project_information.subject_column])
+        )
+    )
+    x_data = (
+        data[0]
+        .data.set_index(data[0].project_information.subject_column)
+        .loc[common_mouse_ids]
+        .value.values
+    )
+    y_data = (
+        data[1]
+        .data.set_index(data[1].project_information.subject_column)
+        .loc[common_mouse_ids]
+        .value.values
+    )
+
+    x_label = data[0].get_selection_string() + " " + ", ".join(data[0].get_units())
+    y_label = data[1].get_selection_string() + " " + ", ".join(data[1].get_units())
+
+    title = next(iter(grouper.values()))
+    location = FileSystem.get_location(
+        **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
+    )
+    filepath = os.path.join(location, "correlation", title)
+    Correlation(
+        title,
+        filepath,
+        {"data": x_data, "label": x_label},
+        {"data": y_data, "label": y_label},
+    )
