@@ -193,18 +193,12 @@ class SummaryHistogram(Figure):
                 ),
                 hue_order=self.custom_params.get("hue_order"),
                 palette=self.custom_params.get("palette"),
-                errorbar=self.custom_params.get("errorbar", "sd"),
-                errcolor=self.custom_params.get("errcolor", ".2"),
-                capsize=self.custom_params.get("capsize", 0.1),
                 alpha=self.custom_params.get("alpha", 0.8),
                 order=self.custom_params.get("order"),
-                errwidth=self.custom_params.get("errwidth", 1),
-                width=self.custom_params.get("bar_width", 0.8),
                 legend=False if self.custom_params.get("plot_bar") else "auto",
                 edgecolor=self.custom_params.get("edgecolor", "k"),
                 linewidth=self.custom_params.get("linewidth", 1),
-                linestyle=self.custom_params.get("linestyle", "-"),
-                dodge=self.custom_params.get("dodge", False),
+                dodge=self.custom_params.get("dodge", True),
             )
 
         self.ax.tick_params(labelsize=20)
