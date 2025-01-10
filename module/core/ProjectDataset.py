@@ -61,6 +61,7 @@ def label_group_outliers(df__test__p_value_threshold):
     # if standar variation is 0, we can't calculate outliers
     df, test, p_value_threshold = df__test__p_value_threshold
     only_values = df[df.value != 0].dropna()
+    df["test"] = test
     if only_values.value.count() < 3:
         df["outlier_status"] = "Not enough data"
         return df
@@ -80,7 +81,18 @@ def grubbs_test(values, p_value_threshold):
     return grubbs.test(values, alpha=float(p_value_threshold))
 
 
-OUTLIER_TESTS = {"grubbs": grubbs_test}
+def iqr_test(values, p_value_threshold):
+    k = {0.05: 1.5, 0.01: 2, 0.001: 3}[p_value_threshold]
+    q1 = np.percentile(values, 25)
+    q3 = np.percentile(values, 75)
+    iqr = q3 - q1
+    lower_bound = q1 - k * iqr
+    upper_bound = q3 + k * iqr
+    normal_values = [x for x in values if lower_bound <= x <= upper_bound]
+    return normal_values
+
+
+OUTLIER_TESTS = {"grubbs": grubbs_test, "iqr": iqr_test}
 
 
 @dataclass
@@ -177,26 +189,28 @@ class Dataset(
 
     def calculate_outliers(self):
         project_information = ProjectInformation(self.project)
-        cases = [
-            (
-                subset_df,
-                project_information.outlier_test,
-                project_information.p_value_threshold,
-            )
-            for _, subset_df in self.df[
-                [
-                    self.project_information.subject_column,
-                    self.project_information.group_column,
-                    *self.measurement_columns,
-                    "value",
-                ]
-            ].groupby(
-                [
-                    self.project_information.group_column,
-                    *self.measurement_columns,
-                ]
-            )
-        ]
+        cases = []
+        for _, subset_df in self.df[
+            [
+                self.project_information.subject_column,
+                self.project_information.group_column,
+                *self.measurement_columns,
+                "value",
+            ]
+        ].groupby(
+            [
+                self.project_information.group_column,
+                *self.measurement_columns,
+            ]
+        ):
+            for test in OUTLIER_TESTS:
+                cases.append(
+                    (
+                        subset_df,
+                        test,
+                        project_information.p_value_threshold,
+                    )
+                )
         results = parallel_process(
             cases, label_group_outliers, description="Calculating outliers"
         )  # TODO check what happens with nan
@@ -292,7 +306,7 @@ class Dataset(
         if not os.path.isfile(filepath):
             data = getattr(self, f"calculate_{linked_data_type}")()
             data.to_pickle(filepath)
-        return ProjectSelectableDataframe(pd.read_pickle(filepath))
+        return SelectableDataFrame(pd.read_pickle(filepath))
 
     @property
     def group_statistics(self):
@@ -307,7 +321,7 @@ class Dataset(
         return self.get_linked_data("outliers")
 
     def get_full_df(self):
-        return self.sort_values(self.df.extend(self.outliers))
+        return self.sort_values(self.df)
 
     @property
     def df(
@@ -330,9 +344,11 @@ class Dataset(
             )
             selector["group_id"] = self.experiment_information.iloc[0].groups
         if "remove_outliers" in selector:
-            if selector["remove_outliers"] == "eliminated":
+            test, remove_outliers = next(iter(selector["remove_outliers"].items()))
+            self.data = self.data.extend(self.outliers.select(test=test))
+            if remove_outliers == "eliminated":
                 raise NotImplementedError
-            elif selector["remove_outliers"] == "calculated":
+            elif remove_outliers == "calculated":
                 selector.update(
                     is_outlier=lambda x: x is not True
                 )  # nan considered not outlier
