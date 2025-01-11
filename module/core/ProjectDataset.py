@@ -49,7 +49,7 @@ class ProjectSelectableDataframe(SelectableDataFrame):
         if experiment:
             experiment = ExperimentInformation(self.project).select(label=experiment)
             selector["group_id"] = experiment.groups
-        data = SelectableDataFrame(self).select(**selector, value="notna")
+        data = SelectableDataFrame(self).select(**selector)
         return (
             ProjectSelectableDataframe(data, project=self.project)
             if hasattr(self, "project")
@@ -126,7 +126,7 @@ class Dataset(
             "value",
         }
 
-        self.data = self.get_full_df()
+        self.data = self.df
         self.statistics = []
         self.statistics_table = []
         self.is_generic = False
@@ -310,18 +310,15 @@ class Dataset(
 
     @property
     def group_statistics(self):
-        return self.get_linked_data("group_statistics")
+        return self.sort_values(self.get_linked_data("group_statistics"))
 
     @property
     def quantitative_statistics(self):
-        return self.get_linked_data("experiment_statistics")
+        return self.sort_values(self.get_linked_data("experiment_statistics"))
 
     @property
     def outliers(self):
-        return self.get_linked_data("outliers")
-
-    def get_full_df(self):
-        return self.sort_values(self.df)
+        return self.sort_values(self.get_linked_data("outliers"))
 
     @property
     def df(
@@ -333,7 +330,6 @@ class Dataset(
         )  # TODO should be groups.pkl here
         if self.dataset_information.unit:
             data["unit"] = self.dataset_information.unit
-        # data = self.sort_values(data) #TODO check usefulness
         return self.sort_values(data)
 
     def select(self, **selector):
@@ -358,7 +354,7 @@ class Dataset(
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selector[col] in registry:
                     selector[col] = registry[selector[col]]
-        self.data = self.data.select(**selector)
+        self.data = self.sort_values(self.data.select(**selector))
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
@@ -368,16 +364,15 @@ class Dataset(
             if ConstantRegistry.exists(element_type=col):
                 registry = ConstantRegistry.get_registry(element_type=col)
                 order = registry.keys()
-                df[col] = pd.Categorical(df[col], categories=order, ordered=True)
+                df.loc[:, col] = pd.Categorical(
+                    df[col], categories=order, ordered=True
+                ).remove_unused_categories()
             else:
                 print(
                     f"No ConstantRegistry for element type '{col}', skipping validation"
                 )
         return df.sort_values(
-            by=[
-                self.project_information.group_column,
-                *self.measurement_columns,
-            ]
+            by=self.measurement_columns,
         )
 
     def to_generic(self):

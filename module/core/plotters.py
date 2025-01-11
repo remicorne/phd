@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from module.core.ProjectDataset import Dataset, MergedDatasets
@@ -363,3 +364,49 @@ def correlation(project, x, y, grouper, custom_params=None):
         {"data": x_data, "label": x_label},
         {"data": y_data, "label": y_label},
     )
+
+
+def statistics_table(project, request):
+    if len(request["datasets"]) > 1:
+        raise NotImplementedError("Multiple datasets not supported")
+    dataset = get_dataset(project, request)
+    if "experiment" in dataset.selector:
+        dataset.calculate_quantitative_statistics()
+        statistics = dataset.statistics
+    else:
+        statistics = []
+
+    results = []
+    for statistic in statistics:
+        data = statistic.results
+        data = data[data["test"] == statistic.statistical_test][
+            ["test", *dataset.measurement_columns, "result_string"]
+        ]
+        results.append(data)
+    results = pd.concat(results)
+
+    index, *column = sorted(
+        dataset.measurement_columns,
+        key=lambda col: dataset.data[col].unique().size,
+        reverse=True,
+    )
+    results = results.pivot_table(
+        index=index,
+        columns=["test", *column],
+        values="result_string",
+        aggfunc="first",
+    )
+
+    title = dataset.get_selection_string()
+    location = FileSystem.get_location(
+        **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
+    )
+    filepath = os.path.join(location, "statistics_table", title + ".xlsx")
+    # results.index = pd.Categorical(results.index, categories=self.order, ordered=True)
+    results = results.sort_index()
+
+    dirpath, _ = os.path.split(filepath)
+    os.makedirs(dirpath, exist_ok=True)
+    results.to_excel(filepath)
+    print(f"Saved {filepath}")
+    return results

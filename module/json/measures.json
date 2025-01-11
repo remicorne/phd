@@ -8,8 +8,8 @@
   "sniffing": "sniffing time (seconds)",
   "huddle": "huddle time (seconds)",
   "lookaround": "lookaround time (seconds)",
-  "HT_20": "Head twitch response (20 min)",
-  "HT_30": "Head twitch response (30 min)",
-  "HT_40": "Head twitch response (40 min)",
-  "HT_50": "Head twitch response (50 min)"
+  "HTR_20": "Head twitch response (20 min)",
+  "HTR_30": "Head twitch response (30 min)",
+  "HTR_40": "Head twitch response (40 min)",
+  "HTR_50": "Head twitch response (50 min)"
 }

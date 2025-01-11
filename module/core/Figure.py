@@ -50,11 +50,11 @@ class Figure:
         raise NotImplementedError
 
     def save(self):
-        filepath, _ = os.path.splitext(self.filepath)
-        os.makedirs(filepath, exist_ok=True)
-        self.fig.savefig(f"{filepath}.svg")
-        self.fig.savefig(f"{filepath}.png")
-        print(f"SAVED {filepath}")
+        dirpath, _ = os.path.split(self.filepath)
+        os.makedirs(dirpath, exist_ok=True)
+        self.fig.savefig(f"{self.filepath}.svg")
+        self.fig.savefig(f"{self.filepath}.png")
+        print(f"SAVED {self.filepath}")
 
 
 @dataclass
