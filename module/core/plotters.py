@@ -77,17 +77,19 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
     if isinstance(dataset, MergedDatasets):
         x = "measurement"
     else:
-        distinct_measurement_columns = list(
+        multiple_measurement_columns = list(
             filter(
                 lambda col: len(dataset.data[col].unique()) > 1,
                 dataset.measurement_columns,
             )
         )
-        if len(distinct_measurement_columns) == 1:
-            x = next(iter(distinct_measurement_columns))
-        else:
+        if len(multiple_measurement_columns) > 1:
             dataset.to_generic()
             x = "measurement"
+        elif len(multiple_measurement_columns) == 1:
+            x = next(iter(multiple_measurement_columns))
+        else:
+            x = dataset.measurement_columns[0]
 
     hue = custom_params.get("hue", "group_name")
     if invert_hue:
