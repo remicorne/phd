@@ -57,17 +57,27 @@ class ProjectSelectableDataframe(SelectableDataFrame):
         )
 
 
-def label_group_outliers(df__test__p_value_threshold):
+def label_group_outliers(df__test__p_value_threshold__max_outliers):
     # if standar variation is 0, we can't calculate outliers
-    df, test, p_value_threshold = df__test__p_value_threshold
+    df, test, p_value_threshold, max_outliers = (
+        df__test__p_value_threshold__max_outliers
+    )
     only_values = df[df.value != 0].dropna()
     df["test"] = test
     if only_values.value.count() < 3:
         df["outlier_status"] = "Not enough data"
         return df
     outlier_test = OUTLIER_TESTS[test]
-    normal_values = outlier_test(only_values.value.tolist(), p_value_threshold)
-    df["is_outlier"] = df.value.apply(lambda value: value not in normal_values)
+    outliers = outlier_test(only_values.value.tolist(), p_value_threshold)
+    if len(outliers) > max_outliers:
+        identifying_values = {
+            col: df[col].unique()[0] for col in df.columns if df[col].unique().size == 1
+        }
+        print(
+            f"{test} found {len(outliers)} outliers for {identifying_values}, eliminating top {max_outliers}"
+        )
+        outliers = outliers[:max_outliers]
+    df["is_outlier"] = df.value.apply(lambda value: value in outliers)
     df["outlier_status"] = df.is_outlier.apply(
         lambda is_outlier: "suspected" if is_outlier else "normal"
     )
@@ -78,7 +88,7 @@ def grubbs_test(values, p_value_threshold):
     """
     Takes a list of values on which to perform the test and returns normal values
     """
-    return grubbs.test(values, alpha=float(p_value_threshold))
+    return grubbs.two_sided_test_outliers(values, alpha=p_value_threshold)
 
 
 def iqr_test(values, p_value_threshold):
@@ -88,8 +98,11 @@ def iqr_test(values, p_value_threshold):
     iqr = q3 - q1
     lower_bound = q1 - k * iqr
     upper_bound = q3 + k * iqr
-    normal_values = [x for x in values if lower_bound <= x <= upper_bound]
-    return normal_values
+    outliers = [x for x in values if x < lower_bound or x > upper_bound]
+    outliers = sorted(
+        outliers, key=lambda x: abs(x - (q1 if x < lower_bound else q3)), reverse=True
+    )
+    return outliers
 
 
 OUTLIER_TESTS = {"grubbs": grubbs_test, "iqr": iqr_test}
@@ -206,9 +219,10 @@ class Dataset(
             for test in OUTLIER_TESTS:
                 cases.append(
                     (
-                        subset_df,
+                        subset_df.copy(),
                         test,
                         project_information.p_value_threshold,
+                        project_information.max_outliers,
                     )
                 )
         results = parallel_process(

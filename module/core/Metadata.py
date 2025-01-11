@@ -268,6 +268,7 @@ class ProjectInformation(_ProjectSettings):
         "subject_column": ["mouse_id"],
         "group_column": ["group_id"],
         "grouping_characteristic": ["treatment"],
+        "max_outliers": [2],
     }
     _template_types: ClassVar[dict] = {
         "label": {"type": str},
@@ -277,6 +278,7 @@ class ProjectInformation(_ProjectSettings):
         "subject_column": {"type": str},
         "group_column": {"type": str},
         "grouping_characteristic": {"type": str},
+        "max_outliers": {"type": int},
     }
 
     def generate(self):
