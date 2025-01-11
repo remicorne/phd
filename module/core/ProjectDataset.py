@@ -225,7 +225,7 @@ class Dataset(
             *self.measurement_columns,
         ]
         for (group_column_values), groupby_df in tqdm(
-            self.data.select(value="notna", is_outlier=False).groupby(group_columns),
+            self.data.select(value="notna").groupby(group_columns),
             desc="Calculating group statistics",
         ):
 
