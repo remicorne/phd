@@ -368,7 +368,7 @@ class Dataset(
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selector[col] in registry:
                     selector[col] = registry[selector[col]]
-        self.data = self.sort_values(self.data.select(**selector))
+        self.data = self.data.select(**selector)
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
@@ -378,7 +378,7 @@ class Dataset(
             if ConstantRegistry.exists(element_type=col):
                 registry = ConstantRegistry.get_registry(element_type=col)
                 order = registry.keys()
-                df.loc[:, col] = pd.Categorical(
+                df[col] = pd.Categorical(
                     df[col], categories=order, ordered=True
                 ).remove_unused_categories()
             else:
