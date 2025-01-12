@@ -386,7 +386,11 @@ class Dataset(
                     f"No ConstantRegistry for element type '{col}', skipping validation"
                 )
         return df.sort_values(
-            by=self.measurement_columns,
+            by=list(
+                set(
+                    [self.project_information.group_column, *self.measurement_columns]
+                ).intersection(df.columns)
+            ),
         )
 
     def to_generic(self):
