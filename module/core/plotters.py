@@ -375,37 +375,37 @@ def statistics_table(project, request):
     else:
         statistics = []
 
-    results = []
+    stats_results = []
     for statistic in statistics:
         data = statistic.results
         data = data[data["test"] == statistic.statistical_test][
             ["test", *dataset.measurement_columns, "result_string"]
         ]
-        results.append(data)
-    results = pd.concat(results)
+        stats_results.append(data)
+    stats_results = dataset.sort_values(pd.concat(stats_results))
 
     index, *column = sorted(
         dataset.measurement_columns,
         key=lambda col: dataset.data[col].unique().size,
         reverse=True,
     )
-    results = results.pivot_table(
+    stats_table = stats_results.pivot_table(
         index=index,
         columns=["test", *column],
         values="result_string",
         aggfunc="first",
     )
 
+    stats_table = stats_table.sort_index()
+
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
     filepath = os.path.join(location, "statistics_table", title + ".xlsx")
-    # results.index = pd.Categorical(results.index, categories=self.order, ordered=True)
-    results = results.sort_index()
 
     dirpath, _ = os.path.split(filepath)
     os.makedirs(dirpath, exist_ok=True)
-    results.to_excel(filepath)
+    stats_table.to_excel(filepath)
     print(f"Saved {filepath}")
-    return results
+    return stats_table
