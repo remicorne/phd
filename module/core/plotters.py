@@ -326,9 +326,8 @@ def correlation(project, x, y, grouper, custom_params=None):
     custom_params = custom_params or {}
 
     data = []
-    for variable in [x, y]:
-        dataset = Dataset(project=project, filename=variable["dataset"])
-        selector = {col: variable[col] for col in dataset.measurement_columns}
+    for selector in [x, y]:
+        dataset = Dataset(project=project, filename=selector.pop("dataset"))
         dataset.select(**selector, **grouper)
         data.append(dataset)
 
