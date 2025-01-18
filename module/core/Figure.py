@@ -175,7 +175,7 @@ class SummaryHistogram(Figure):
                 errorbar=self.custom_params.get("errorbar", "sd"),
                 edgecolor=self.custom_params.get("edgecolor", ".2"),
                 errcolor=self.custom_params.get("errcolor", ".2"),
-                capsize=self.custom_params.get("capsize", 0.1),
+                capsize=self.custom_params.get("capsize", 0), #0.1
                 alpha=self.custom_params.get("alpha", 0.8),
                 order=self.custom_params.get("order"),
                 hue_order=self.custom_params.get("hue_order"),
@@ -339,11 +339,13 @@ class Correlogram(MultiAxFigure):
             vmin=-1,
             vmax=1,
             square=True,
-            # annot=True, #R value annotations
+            annot=self.custom_params.get("annot", False), #R value annotations
             cmap=colormap,
             annot_kws={"size": 8},
             ax=ax,
             cbar_kws={"shrink": 0.7},  # adj color bar size
+            linewidths=self.custom_params.get("linewidths", None),  
+            linecolor=self.custom_params.get("linecolor", "black")  
         )
         ax.set_xticklabels(
             ax.get_xticklabels(),
