@@ -631,7 +631,10 @@ class Correlation(Figure):
     def plot(self):
         # Create the plot
         pearson_r, p_value = stats.pearsonr(self.x["data"], self.y["data"])
-        color = "red" if pearson_r > 0 else "blue"
+        if p_value < 0.05: #HARDCODE HOW DO I ACCESS P VALUE?
+            color = "red" if pearson_r > 0 else "blue"
+        else:
+            color = "lightgrey"
         sns.scatterplot(
             x=self.x["data"],
             y=self.y["data"],
