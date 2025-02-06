@@ -25,7 +25,7 @@ from module.core.utils import parallel_process
 from statannotations.Annotator import Annotator
 from module.core.Statistics import QuantitativeStatistic
 from typing import ClassVar
-
+from module.core.Metadata import ProjectInformation
 
 @dataclass
 class Figure:
@@ -110,14 +110,14 @@ class Histogram(Figure):
                 dodge=self.custom_params.get("dodge", False),
             )
 
-        self.ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
+
         self.ax.set_ylabel(
             self.custom_params.get("ylabel"),
             fontsize=self.custom_params.get("ylabel_fontsize", 24),
         )
         self.ax.set_xlabel(
             " ", fontsize=self.custom_params.get("xlabel_fontsize", 20)
-        )  # treatments
+        )  
         self.ax.set_title(
             self.title,
             y=self.custom_params.get("y", 1.04),
@@ -160,9 +160,11 @@ class SummaryHistogram(Figure):
             + 4
             * len(
                 self.data[self.x].unique()
-            ),  # inconsistent shoudl be width everywher TODO # JASMINE "TODO" should be at the begining of comments + comments should be incredibly clear instead of dding to the confusion: i have no idea what this means. also TODO is reserved for things that MUST be done, otherwise use IMPROVE
+            ),  
         )
-        self.fig, self.ax = plt.subplots(figsize=(self.fig_width, 10))
+        self.fig_height = self.custom_params.get("fig_height", 10)
+        self.fig, self.ax = plt.subplots(figsize=(self.fig_width, self.fig_height))
+
 
     def plot(self):
         if self.custom_params.get("plot_bar", True):
@@ -195,24 +197,31 @@ class SummaryHistogram(Figure):
                 palette=self.custom_params.get("palette"),
                 alpha=self.custom_params.get("alpha", 0.8),
                 order=self.custom_params.get("order"),
-                legend=False if self.custom_params.get("plot_bar") else "auto",
+                legend=self.custom_params.get("scatter_legend", False), # "scatter_legend":"auto"
                 edgecolor=self.custom_params.get("edgecolor", "k"),
                 linewidth=self.custom_params.get("linewidth", 1),
                 dodge=self.custom_params.get("dodge", True),
+                size=self.custom_params.get("swarm_size", 5)
             )
 
-        self.ax.tick_params(labelsize=20)
+        if "y_axis_height" in self.custom_params:
+            self.ax.set_ylim(bottom=0, top=self.custom_params["y_axis_height"])
+            
+        self.ax.tick_params(axis='y', labelsize=self.custom_params.get("y_labelsize", 36))  # y-ticks size
+        self.ax.tick_params(axis='x', labelsize=self.custom_params.get("x_labelsize", 56))  # x-ticks size
+
+
         self.ax.set_ylabel(
             self.custom_params.get("ylabel"),
-            fontsize=20,
+            fontsize=24,
             labelpad=self.custom_params.get("labelpad", 100),
         )
         self.ax.yaxis.set_label_coords(
             self.custom_params.get("ylabel_x", -0.5 / self.fig_width), 0.5
         )
-        self.ax.set_xlabel(" ", fontsize=15)  # remove x title
+        self.ax.set_xlabel(" ", fontsize=15)  
         self.ax.set_title(self.custom_params.get("title"), y=1.04, fontsize=34)
-        self.ax.legend(loc="upper right")  # , bbox_to_anchor=(0.1, 1))
+        self.ax.legend(loc="upper right", fontsize = self.custom_params.get("legend_fontsize", 10))  # , bbox_to_anchor=(0.1, 1))
         self.ax.spines["top"].set_visible(False)
         self.ax.spines["right"].set_visible(False)
         plt.tight_layout()
@@ -222,7 +231,7 @@ class SummaryHistogram(Figure):
         for statistics in self.statistics:
             if statistics.is_significant:
                 # Font Scaling # HARDCODE JJB TODO - also add significance pairs!
-                base_font_size = 48
+                base_font_size = 88
                 scaling_factor = 0.2
                 dynamic_font_size = max(
                     base_font_size
@@ -384,9 +393,7 @@ class NetworkFigure(MultiAxFigure):
         ax = self.axs[i]
         network = self.networks[i]
 
-        if (
-            not self.positions
-        ):  # default should be circle and you have to get from custom prams "node_position" : "sagital_node_pos"
+        if not self.positions:  # If positions are not already set, use default
             self.positions = self.get_default_positions(network.matrix)
             ax.set_xlim(0, 27)
             ax.set_ylim(0, 15)
@@ -631,10 +638,11 @@ class Correlation(Figure):
     def plot(self):
         # Create the plot
         pearson_r, p_value = stats.pearsonr(self.x["data"], self.y["data"])
-        if p_value < 0.05: #HARDCODE HOW DO I ACCESS P VALUE?
+        # if p_value < ProjectInformation.p_value_threshold: # REMI NOT WORKING 
+        if p_value< 0.05:
             color = "red" if pearson_r > 0 else "blue"
         else:
-            color = "lightgrey"
+            color = "grey"
         sns.scatterplot(
             x=self.x["data"],
             y=self.y["data"],
@@ -655,17 +663,18 @@ class Correlation(Figure):
         self.ax.set_xlabel(self.x["label"], fontsize=22)
         self.ax.set_ylabel(self.y["label"], fontsize=22)
         self.ax.spines[["right", "top"]].set_visible(False)
-        self.ax.set_title(self.title)
+        self.ax.set_title(self.title, fontsize=16)
 
         # Add correlation values as text
         p_value_annotation = f"{p_value:.1e}" if p_value < 0.0001 else f"{p_value:.4f}"
-        labels = f"Pearson R: {pearson_r:.2f}\np-value: {p_value_annotation}"
+        labels = f"R = {pearson_r:.2f}\np = {p_value_annotation}"
         self.ax.text(
             0.05,
             0.9,
             labels,
             transform=self.ax.transAxes,
             bbox=dict(facecolor="white", edgecolor="white", boxstyle="round"),
+            fontsize= 20
         )
 
         plt.tight_layout()
