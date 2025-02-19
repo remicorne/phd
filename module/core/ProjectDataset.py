@@ -20,41 +20,10 @@ from module.core.Metadata import (
     Palette,
 )
 from module.core.questions import input_escape
-from module.core.utils import parallel_process
+from module.core.utils import parallel_process, is_array_like
 from module.core.Statistics import QuantitativeStatistic, QuantitativeStatisticBatch
 from module.core.Figure import Histogram, SummaryHistogram
 from module.core.FileSystem import FileSystem
-
-
-class ProjectSelectableDataframe(SelectableDataFrame):
-    """
-    Shameful hack.
-    TODO: Eliminate asap
-    """
-
-    def __init__(self, data=None, project=None, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
-        self.project = project
-
-    @property
-    def _constructor(self):
-        return lambda *args, **kwargs: (
-            ProjectSelectableDataframe(*args, project=self.project, **kwargs)
-            if hasattr(self, "project")
-            else SelectableDataFrame(*args, **kwargs)
-        )
-
-    def select(self, **selector) -> SelectableDataFrame:
-        experiment = selector.pop("experiment", None)
-        if experiment:
-            experiment = ExperimentInformation(self.project).select(label=experiment)
-            selector["group_id"] = experiment.groups
-        data = SelectableDataFrame(self).select(**selector)
-        return (
-            ProjectSelectableDataframe(data, project=self.project)
-            if hasattr(self, "project")
-            else data
-        )
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -115,8 +84,6 @@ class Dataset(
 
     project: str = field(kw_only=True)
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
-    selector: dict = field(kw_only=True, default_factory=dict)  # ClassVar[str] = "base"
-    with_validation: str = field(kw_only=True, default=True)
 
     def __post_init__(self):
         self.dataset_information = (
@@ -124,11 +91,13 @@ class Dataset(
         )
         self.measurement_columns = self.dataset_information.measurement_columns
         self.project_information = ProjectInformation(self.project).df
+        self.subject_column = self.project_information.subject_column
+        self.group_column = self.project_information.group_column
         self.experiment_information = ExperimentInformation(self.project).select(
             experiment=self.dataset_information.experiments
         )
         self.mandatory_columns = [
-            self.project_information.subject_column,
+            self.subject_column,
             "value",
         ]
         super().__post_init__()
@@ -138,7 +107,7 @@ class Dataset(
             self.project_information.subject_column,
             "value",
         }
-
+        self.selector = {}
         self.data = self.df
         self.statistics = []
         self.statistics_table = []
@@ -149,18 +118,16 @@ class Dataset(
             f"Enter {self.filename} filepath for {self.project} project"
         )
         if filepath.endswith(".xlsx"):
-            df = pd.read_excel(filepath)
+            df = pd.read_excel(filepath, keep_default_na=False)
         elif filepath.endswith(".pkl"):
             df = pd.read_pickle(filepath)
         else:
             raise ValueError(f"Unsupported file type: {filepath}")
+        print(f"replacing 0 with nan for {len(df[df['value'] == 0])} values")
+        df["value"] = df["value"].replace({0: np.nan, "NA": np.nan})
+        self.validate(df)
+        df = pd.concat([df, self.calculate_ratios(df)])
         return df
-
-    # def save(self, data): #TODO restore validation
-    #     if self.with_validation:
-    #         self.validate(data)
-    #     super().save(data)
-    #     print(f"Data saved to {self.filepath}")
 
     def validate(self, df):
         """
@@ -172,19 +139,15 @@ class Dataset(
             raise ValueError(
                 f"{self.mandatory_columns} columns are mandatory, modify file and retry"
             )
-        valid_mouse_ids = (
-            Dataset(filename="groups", project=self.project)
-            .df[self.project_information.subject_column]
-            .unique()
-        )
-        df_mouse_ids = df[self.project_information.subject_column].unique()
+        valid_mouse_ids = GroupInformation(self.project).mouse_id.explode()
+        df_mouse_ids = df[self.subject_column].unique()
         invalid_mouse_ids = set(df_mouse_ids) - set(valid_mouse_ids)
         if invalid_mouse_ids:
             raise ValueError(
                 f"Invalid mouse ids: {invalid_mouse_ids}, modify file and retry"
             )
         for col_name in df_columns:
-            try:
+            if ConstantRegistry.exists(element_type=col_name):
                 registry = ConstantRegistry.get_registry(element_type=col_name)
                 unique_values = df[col_name].unique()
                 invalid_values = set(unique_values) - set(registry)
@@ -194,7 +157,7 @@ class Dataset(
                         for value in unique_values
                     }
                     df[col_name].apply(correction_mapper.get)
-            except FileNotFoundError:
+            else:
                 print(
                     f"No ConstantRegistry for element type '{col_name}', skipping validation"
                 )
@@ -324,15 +287,18 @@ class Dataset(
 
     @property
     def group_statistics(self):
-        return self.sort_values(self.get_linked_data("group_statistics"))
+        return self.get_linked_data("group_statistics")
+        # return self._sort_values(self.get_linked_data("group_statistics"))
 
     @property
     def quantitative_statistics(self):
-        return self.sort_values(self.get_linked_data("experiment_statistics"))
+        return self.get_linked_data("experiment_statistics")
+        # return self._sort_values(self.get_linked_data("experiment_statistics"))
 
     @property
     def outliers(self):
-        return self.sort_values(self.get_linked_data("outliers"))
+        return self.get_linked_data("outliers")
+        # return self._sort_values(self.get_linked_data("outliers"))
 
     @property
     def df(
@@ -344,7 +310,8 @@ class Dataset(
         )  # TODO should be groups.pkl here
         if self.dataset_information.unit:
             data["unit"] = self.dataset_information.unit
-        return self.sort_values(data)
+        return data
+        # return self._sort_values(data)
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
@@ -373,25 +340,25 @@ class Dataset(
             raise ValueError("No data left after selection")
         return self
 
-    def sort_values(self, df):
-        for col in self.measurement_columns:
-            if ConstantRegistry.exists(element_type=col):
-                registry = ConstantRegistry.get_registry(element_type=col)
-                order = registry.keys()
-                df[col] = pd.Categorical(
-                    df[col], categories=order, ordered=True
-                ).remove_unused_categories()
-            else:
-                print(
-                    f"No ConstantRegistry for element type '{col}', skipping validation"
-                )
-        return df.sort_values(
-            by=list(
-                set(
-                    [self.project_information.group_column, *self.measurement_columns]
-                ).intersection(df.columns)
-            ),
-        )
+    # def _sort_values(self, df):
+    #     for col in self.measurement_columns:
+    #         if ConstantRegistry.exists(element_type=col):
+    #             registry = ConstantRegistry.get_registry(element_type=col)
+    #             order = registry.keys()
+    #             df[col] = pd.Categorical(
+    #                 df[col], categories=order, ordered=True
+    #             ).remove_unused_categories()
+    #         else:
+    #             print(
+    #                 f"No ConstantRegistry for element type '{col}', skipping validation"
+    #             )
+    #     return df.sort_values(
+    #         by=list(
+    #             set(
+    #                 [self.project_information.group_column, *self.measurement_columns]
+    #             ).intersection(df.columns)
+    #         ),
+    #     )
 
     def to_generic(self):
         if not self.is_generic:
@@ -448,6 +415,32 @@ class Dataset(
                 for col in self.measurement_columns
             ]
         )
+
+    def calculate_ratios(self, df):
+        print(f"Calculating ratios for {len(df)} values")
+        df_ratios = df.merge(
+            df, on=[self.subject_column, "region"], suffixes=("_num", "_den")
+        )  # TODO dirty for jasmine, remove to generalize
+        df_ratios["value"] = df_ratios["value_num"] / df_ratios["value_den"]
+
+        categorical_cols = [
+            col
+            for col in df.columns
+            if col not in ["value", "region", self.subject_column]
+        ]
+        for col in categorical_cols:
+            df_ratios[col] = df_ratios[f"{col}_num"] + "/" + df_ratios[f"{col}_den"]
+
+        if "unit" in categorical_cols:
+            df_ratios.loc[df_ratios["unit_num"] == df_ratios["unit_den"], "unit"] = ""
+
+        drop_cols = [f"{col}_num" for col in categorical_cols] + [
+            f"{col}_den" for col in categorical_cols
+        ]
+
+        df_ratios.drop(columns=drop_cols, inplace=True)
+        print(f"{len(df_ratios)} ratios calculated")
+        return df_ratios
 
     def __repr__(self):
         return self.data.__repr__()

@@ -2,6 +2,7 @@ import sys
 from tqdm.contrib.concurrent import process_map
 import itertools
 from collections.abc import Iterable
+from tqdm import tqdm
 
 
 def is_array_like(value):
@@ -47,7 +48,7 @@ def parallel_process(cases, executor=call_case, description="Processing"):
     results = (
         process_map(executor, cases, desc=description, chunksize=1)
         if not sys.gettrace()
-        else [executor(case) for case in cases]
+        else [executor(case) for case in tqdm(cases, desc="Calculating outliers")]
     )
     return results
 
