@@ -336,11 +336,12 @@ class Dataset(
                 if selector[col] in registry:
                     selector[col] = registry[selector[col]]
         self.data = self.data.select(**selector)
-        for col in selector:
+        for col, values in selector.items():
             if self.data[col].dtype not in (int, float):
                 self.data[col] = pd.Categorical(
-                    self.data[col], categories=selector[col], ordered=True
+                    self.data[col], categories=values, ordered=True
                 )
+        self.data.sort_values(by=list(selector))
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
