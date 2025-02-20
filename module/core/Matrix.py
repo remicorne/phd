@@ -280,7 +280,7 @@ class Network:
                 neg_edges += 1
 
         if pos_edges>0 and neg_edges>0:
-            neg_pos_edge_ratio=neg_edges/pos_edges
+            neg_pos_edge_ratio=neg_edges/total_edges
         else:
             neg_pos_edge_ratio=0
 
