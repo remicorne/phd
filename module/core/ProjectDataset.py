@@ -156,7 +156,7 @@ class Dataset(
                         value: registry.choose_valid_value(value)
                         for value in unique_values
                     }
-                    df[col_name].apply(correction_mapper.get)
+                    df[col_name] = df[col_name].apply(correction_mapper.get)
             else:
                 print(
                     f"No ConstantRegistry for element type '{col_name}', skipping validation"
@@ -365,7 +365,7 @@ class Dataset(
         selector = {col: values for col, values in self.selector.items() if col in data}
         for col, values in selector.items():
             if not col == "is_outlier":
-                if data[col].dtype not in (int, float):
+                if data[col].dtype not in (int, float) and not isinstance(values, str):
                     data[col] = pd.Categorical(
                         data[col], categories=values, ordered=True
                     )
