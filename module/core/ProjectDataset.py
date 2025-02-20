@@ -364,8 +364,11 @@ class Dataset(
     def sort_values(self, data):
         selector = {col: values for col, values in self.selector.items() if col in data}
         for col, values in selector.items():
-            if data[col].dtype not in (int, float):
-                data[col] = pd.Categorical(data[col], categories=values, ordered=True)
+            if not col == "is_outlier":
+                if data[col].dtype not in (int, float):
+                    data[col] = pd.Categorical(
+                        data[col], categories=values, ordered=True
+                    )
         return data.sort_values(by=list(selector))
 
     def to_generic(self):
