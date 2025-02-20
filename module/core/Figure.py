@@ -9,7 +9,6 @@ from matplotlib.cm import ScalarMappable
 from module.core.Dataset import SelectableDataFrame, ExcelCachedDataFrame
 from module.core.questions import input_escape
 from IPython.display import display
-import ipywidgets as widgets
 
 from module.core.Matrix import Matrix, Network
 from module.core.Matrix import Network as NetworkModel

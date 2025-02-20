@@ -48,12 +48,12 @@ class _ProjectSettings(ExcelCachedDataFrame):
         while not user_finished:
             input(question)
             try:
-                self.validate(self.load())
+                self.load()
                 user_finished = True
             except SystemExit:
                 self.delete()
                 print("System interuption, deleting file")
-            except:
+            except Exception as e:
                 question = "Error reading file. Press any key and ENTER when done correcting file"
                 user_finished = False
 
@@ -106,12 +106,17 @@ class _ProjectSettings(ExcelCachedDataFrame):
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
 
+    
+    def explode(self, col):
+        col_template = self._template_types[col]
+        col_type = col_template.get("subtype", col_template.get("type"))
+        return self.df[col].explode(col).astype(col_type)
     # def select(self, **selector) -> SelectableDataFrame:
     #     df = super().select(**selector)
     #     return df.iloc[0] if len(df) == 1 else df
 
     # def select_many(self, **selector) -> SelectableDataFrame:
-    #     return super().select(**selector)
+    #     return super().select(**selector)valid_mouse_ids
 
 
 @dataclass(repr=False)
@@ -329,8 +334,8 @@ class DatasetInformation(_ProjectSettings):
         "unit": ["ng/mg", "mg", ""],
         "experiments": [
             "agonist_antagonist, dose_response",
-            "agonist_antagonist, dose_response",
             "",
+            "agonist_antagonist, dose_response",
         ],
     }
     _template_types: ClassVar[dict] = {
