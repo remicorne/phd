@@ -48,7 +48,7 @@ def parallel_process(cases, executor=call_case, description="Processing"):
     results = (
         process_map(executor, cases, desc=description, chunksize=1)
         if not sys.gettrace()
-        else [executor(case) for case in tqdm(cases, desc="Calculating outliers")]
+        else [executor(case) for case in tqdm(cases, desc=description)]
     )
     return results
 

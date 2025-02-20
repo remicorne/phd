@@ -314,10 +314,10 @@ class Dataset(
         # return self._sort_values(data)
 
     def select(self, **selector):
-        self.selector = {**self.selector, **selector}
         if "experiment" in selector:
+            self.selector["experiment"] = selector.pop("experiment")
             self.experiment_information = ExperimentInformation(self.project).select(
-                label=selector.pop("experiment")
+                label=self.selector["experiment"]
             )
             selector["group_id"] = self.experiment_information.iloc[0].groups
         if "remove_outliers" in selector:
@@ -335,13 +335,8 @@ class Dataset(
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selector[col] in registry:
                     selector[col] = registry[selector[col]]
-        self.data = self.data.select(**selector)
-        for col, values in selector.items():
-            if self.data[col].dtype not in (int, float):
-                self.data[col] = pd.Categorical(
-                    self.data[col], categories=values, ordered=True
-                )
-        self.data.sort_values(by=list(selector))
+        self.data = self.sort_values(self.data.select(**selector))
+        self.selector = {**self.selector, **selector}
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
@@ -365,6 +360,13 @@ class Dataset(
     #             ).intersection(df.columns)
     #         ),
     #     )
+
+    def sort_values(self, data):
+        selector = {col: values for col, values in self.selector.items() if col in data}
+        for col, values in selector.items():
+            if data[col].dtype not in (int, float):
+                data[col] = pd.Categorical(data[col], categories=values, ordered=True)
+        return data.sort_values(by=list(selector))
 
     def to_generic(self):
         if not self.is_generic:
