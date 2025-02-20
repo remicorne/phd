@@ -139,8 +139,8 @@ class Dataset(
             raise ValueError(
                 f"{self.mandatory_columns} columns are mandatory, modify file and retry"
             )
-        valid_mouse_ids = GroupInformation(self.project).mouse_id.explode()
-        df_mouse_ids = df[self.subject_column].unique()
+        valid_mouse_ids = GroupInformation(self.project).explode("mouse_id")
+        df_mouse_ids = df[self.subject_column].astype(valid_mouse_ids.dtype).unique()
         invalid_mouse_ids = set(df_mouse_ids) - set(valid_mouse_ids)
         if invalid_mouse_ids:
             raise ValueError(
