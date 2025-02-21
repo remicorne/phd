@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Type
 from module.core.JSON import JSONMapping
 from module.core.FileSystem import FileSystem
 import os, sys
@@ -101,7 +101,7 @@ class ConstantRegistry(JSONMapping):
         return f"{element_type + 's'}"
 
     @classmethod
-    def get_registry(cls, element_type=None, name=None):
+    def get_registry(cls, element_type=None, name=None) -> Type["ConstantRegistry"]:
         filename = (
             cls.get_filename_from_element_type(element_type) if element_type else name
         )
