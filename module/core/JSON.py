@@ -68,12 +68,14 @@ class JSONMapping(Cacheable):
     def __repr__(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.items())
 
-    @property
-    def reversed(self):
+    def get_key(self, value_to_find, default=None):
         return {
             tuple(value) if is_array_like(value) else value: key
             for key, value in self.items()
-        }
+        }.get(
+            tuple(value_to_find) if is_array_like(value_to_find) else value_to_find,
+            default,
+        )
 
     @property
     def list(self) -> list:
