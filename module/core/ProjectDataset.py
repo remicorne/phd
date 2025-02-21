@@ -366,7 +366,7 @@ class Dataset(
         for col, values in selector.items():
             if not col == "is_outlier":
                 if data[col].dtype not in (int, float) and not isinstance(values, str):
-                    data[col] = pd.Categorical(
+                    data.loc[:, col] = pd.Categorical(
                         data[col], categories=values, ordered=True
                     )
         return data.sort_values(by=list(selector))
