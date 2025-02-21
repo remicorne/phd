@@ -352,8 +352,8 @@ class Correlogram(MultiAxFigure):
             annot_kws={"size": 8},
             ax=ax,
             cbar_kws={"shrink": 0.7},  # adj color bar size
-            linewidths=self.custom_params.get("linewidths", None),
-            linecolor=self.custom_params.get("linecolor", "black"),
+            linewidths=self.custom_params.get("linewidths", 0),
+            linecolor=self.custom_params.get("linecolor", "lightgrey"),
         )
         ax.set_xticklabels(
             ax.get_xticklabels(),
