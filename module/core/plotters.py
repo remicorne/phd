@@ -165,11 +165,7 @@ def network(project, request, between, custom_params=None):
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
     filepath = os.path.join(location, "network", title)
-    region_class = dataset.selector.get("region")
-    if region_class not in ConstantRegistry.get_registry(name="region_classes"):
-        region_class = ConstantRegistry.get_registry(name="region_classes").get_key(
-            region_class
-        )
+    region_class = request["datasets"].get("hplc", {}).get("region")
     positions = ConstantRegistry.get_registry(name="region_classes_positions").get(
         region_class
     )
