@@ -369,7 +369,9 @@ class Dataset(
             if col in data and isinstance(values, list)
         }
         for col, values in categoricals.items():
-            data[col] = pd.Categorical(data[col], categories=values, ordered=True)
+            data[col] = pd.Categorical(
+                data[col], categories=values, ordered=True
+            )  # Necessary, .loc assignment doesnt work
         return data.sort_values(by=list(categoricals))
 
     def to_generic(self):

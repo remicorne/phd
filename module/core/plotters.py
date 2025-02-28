@@ -139,6 +139,7 @@ def correlogram(project, request, between, custom_params=None):
         "group_name",
         dataset.measurement_columns,
         between=between,
+        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
     )
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
@@ -157,6 +158,7 @@ def network(project, request, between, custom_params=None):
         "group_name",
         dataset.measurement_columns,
         between=between,
+        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
     )
     networks = NetworkGroup(matrices).networks
     title = dataset.get_selection_string()
@@ -209,7 +211,11 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     custom_params["plot_bar"] = False
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
-        dataset.data, "group_name", dataset.measurement_columns, between=between
+        dataset.data,
+        "group_name",
+        dataset.measurement_columns,
+        between=between,
+        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
     )
     network_summary_df = (
         NetworkGroup(
