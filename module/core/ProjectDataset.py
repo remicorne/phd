@@ -314,6 +314,7 @@ class Dataset(
         # return self._sort_values(data)
 
     def select(self, **selector):
+        self.selector = {**selector}
         if "experiment" in selector:
             self.selector["experiment"] = selector.pop("experiment")
             self.experiment_information = ExperimentInformation(self.project).select(
@@ -335,7 +336,7 @@ class Dataset(
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selector[col] in registry:
                     selector[col] = registry[selector[col]]
-        self.data = self.sort_values(self.data.select(**selector))
+        self.data = self.sort_values(self.data.select(**selector), selector)
         self.selector = {**self.selector, **selector}
         if self.data.empty:
             raise ValueError("No data left after selection")
@@ -361,15 +362,15 @@ class Dataset(
     #         ),
     #     )
 
-    def sort_values(self, data):
-        selector = {col: values for col, values in self.selector.items() if col in data}
-        for col, values in selector.items():
-            if not col == "is_outlier":
-                if data[col].dtype not in (int, float) and not isinstance(values, str):
-                    data.loc[:, col] = pd.Categorical(
-                        data[col], categories=values, ordered=True
-                    )
-        return data.sort_values(by=list(selector))
+    def sort_values(self, data, categoricals):
+        categoricals = {
+            col: values
+            for col, values in categoricals.items()
+            if col in data and isinstance(values, list)
+        }
+        for col, values in categoricals.items():
+            data[col] = pd.Categorical(data[col], categories=values, ordered=True)
+        return data.sort_values(by=list(categoricals))
 
     def to_generic(self):
         if not self.is_generic:
