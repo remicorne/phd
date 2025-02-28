@@ -252,7 +252,7 @@ class Network:
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
             self.density = self.calculate_graph_density()
-            self.total_edges, self.pos_edges, self.neg_edges, self.neg_pos_edge_ratio = self.calculate_edge_count()
+            self.total_edges, self.pos_edges, self.neg_edges, self.neg_pos_edge_ratio, self.neg_edge_density = self.calculate_edge_count()
 
             self.max_degree, self.average_degree, self.min_degree = self.calculate_node_degree()
             self.SD_node_degree = self.calculate_SD_node_degree()
@@ -270,6 +270,8 @@ class Network:
     
     def calculate_edge_count(self):
         total_edges = self.G.number_of_edges()
+        total_nodes = self.G.number_of_nodes()
+
         pos_edges = 0
         neg_edges = 0
         for u, v, data in self.G.edges(data=True):
@@ -283,8 +285,10 @@ class Network:
             neg_pos_edge_ratio=neg_edges/total_edges
         else:
             neg_pos_edge_ratio=0
+        
+        neg_edge_density = neg_edges / (total_nodes * (total_nodes - 1))
 
-        return total_edges, pos_edges, neg_edges, neg_pos_edge_ratio
+        return total_edges, pos_edges, neg_edges, neg_pos_edge_ratio, neg_edge_density
 
     def calculate_node_degree(self):
         degrees = dict(self.G.degree())
@@ -499,6 +503,7 @@ class NetworkGroup:
             row = {self.matrix_group.group_by: network.grouping, **network.between}
             for variable in [
                 "density",
+                'neg_edge_density',
                 "total_edges",
                 "pos_edges",
                 "neg_edges",
