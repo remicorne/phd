@@ -85,6 +85,9 @@ class SelectableDataFrame(pd.DataFrame):
             ].cat.remove_unused_categories()
         return sub_selection
 
+    def select_one(self, **selector):
+        return self.select(**selector).iloc[0]
+
     def extend(
         self, other: "CachedDataFrame|SelectableDataFrame|pd.DataFrame"
     ) -> "SelectableDataFrame":
@@ -116,6 +119,9 @@ class CachedDataFrame(Cacheable):
 
     def select(self, **selector) -> SelectableDataFrame:
         return self.df.select(**selector)
+
+    def select_one(self, **selector):
+        return self.df.select_one(**selector)
 
     @property
     def list(self):

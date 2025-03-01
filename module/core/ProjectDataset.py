@@ -316,11 +316,16 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**selector}
         if "experiment" in selector:
-            self.selector["experiment"] = selector.pop("experiment")
-            self.experiment_information = ExperimentInformation(self.project).select(
-                label=self.selector["experiment"]
+            experiment = selector.pop("experiment")
+            groups = (
+                ExperimentInformation(self.project).select_one(label=experiment).groups
             )
-            selector["group_id"] = self.experiment_information.iloc[0].groups
+            groups = (
+                GroupInformation(self.project).select(group_id=groups).group_name.values
+            )
+        else:
+            groups = GroupInformation(self.project).df.group_name.values
+        selector["group_name"] = groups
         if "remove_outliers" in selector:
             test, remove_outliers = next(iter(selector["remove_outliers"].items()))
             self.data = self.data.extend(self.outliers.select(test=test))
@@ -366,7 +371,7 @@ class Dataset(
         categoricals = {
             col: values
             for col, values in categoricals.items()
-            if col in data and isinstance(values, list)
+            if col in data and is_array_like(values)
         }
         for col, values in categoricals.items():
             data[col] = pd.Categorical(

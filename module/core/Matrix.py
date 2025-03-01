@@ -239,7 +239,7 @@ class Network:
             # directed edge -  to_correlate[0] --> to_correlate[1]
             self.G.clear()
 
-            self.G.add_nodes_from(self.matrix.corr_masked.columns.tolist())  
+            self.G.add_nodes_from(self.matrix.corr_masked.columns.tolist())
             self.edge_labels = {}
             for (row, col), correlation in self.matrix.significant_correlations:
                 if not (row == col and not self.is_directed):
@@ -248,18 +248,28 @@ class Network:
                         col,
                         weight=correlation,
                         color="red" if correlation > 0 else "blue",
-                        )
+                    )
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
             self.density = self.calculate_graph_density()
-            self.total_edges, self.pos_edges, self.neg_edges, self.neg_pos_edge_ratio, self.neg_edge_density = self.calculate_edge_count()
+            (
+                self.total_edges,
+                self.pos_edges,
+                self.neg_edges,
+                self.neg_pos_edge_ratio,
+                self.neg_edge_density,
+            ) = self.calculate_edge_count()
 
-            self.max_degree, self.average_degree, self.min_degree = self.calculate_node_degree()
+            self.max_degree, self.average_degree, self.min_degree = (
+                self.calculate_node_degree()
+            )
             self.SD_node_degree = self.calculate_SD_node_degree()
 
-            self.clust_coeff_unweighted, self.clust_coeff_weighted = self.calculate_clustering_coefficient()
-            self.global_efficiency = self.calculate_global_efficiency() #unweighted
-            self.local_efficiency = self.calculate_global_efficiency() #unweighted 
+            self.clust_coeff_unweighted, self.clust_coeff_weighted = (
+                self.calculate_clustering_coefficient()
+            )
+            self.global_efficiency = self.calculate_global_efficiency()  # unweighted
+            self.local_efficiency = self.calculate_global_efficiency()  # unweighted
 
     def calculate_SD_node_degree(self):
         """
@@ -267,7 +277,7 @@ class Network:
         """
         degrees = dict(self.G.degree())
         return np.std(list(degrees.values()))
-    
+
     def calculate_edge_count(self):
         total_edges = self.G.number_of_edges()
         total_nodes = self.G.number_of_nodes()
@@ -281,11 +291,11 @@ class Network:
             elif color == "blue":
                 neg_edges += 1
 
-        if pos_edges>0 and neg_edges>0:
-            neg_pos_edge_ratio=neg_edges/total_edges
+        if pos_edges > 0 and neg_edges > 0:
+            neg_pos_edge_ratio = neg_edges / total_edges
         else:
-            neg_pos_edge_ratio=0
-        
+            neg_pos_edge_ratio = 0
+
         neg_edge_density = neg_edges / (total_nodes * (total_nodes - 1))
 
         return total_edges, pos_edges, neg_edges, neg_pos_edge_ratio, neg_edge_density
@@ -293,13 +303,13 @@ class Network:
     def calculate_node_degree(self):
         degrees = dict(self.G.degree())
         max_degree = max(degrees.values())
-        min_degree =  min(degrees.values())
+        min_degree = min(degrees.values())
         average_degree = np.mean(list(degrees.values()))
         return max_degree, average_degree, min_degree
 
     def calculate_graph_density(self):
         """
-           graph_density (float) ie edges/all_possible_edges
+        graph_density (float) ie edges/all_possible_edges
         """
         num_edges = self.G.number_of_edges()
         num_nodes = self.G.number_of_nodes()
@@ -313,35 +323,59 @@ class Network:
         """
         Calculates the average clustering coefficient for both directed and undirected graphs.
         Handles both weighted and unweighted cases.
-        
+
         Returns:
             avg_clust_coeff_unweighted (float): Average unweighted clustering coefficient for the graph.
             avg_clust_coeff_weighted (float): Average weighted clustering coefficient for the graph.
         """
         # For undirected graphs (Graph), we can directly use NetworkX's clustering function
         if not self.is_directed:
-            clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted clustering coefficient
-            clust_coeff_weighted = nx.clustering(self.G, weight="weight")  # Weighted clustering coefficient
+            clust_coeff_unweighted = nx.clustering(
+                self.G
+            )  # Unweighted clustering coefficient
+            clust_coeff_weighted = nx.clustering(
+                self.G, weight="weight"
+            )  # Weighted clustering coefficient
         else:
             # For directed graphs (MultiDiGraph), clustering calculation requires special handling
             if isinstance(self.G, nx.MultiDiGraph):
                 # Convert MultiDiGraph to DiGraph, as NetworkX doesn't support clustering on MultiDiGraph directly
                 # Here we take the first edge between each pair of nodes (if multiple edges exist)
-                simple_directed_G = nx.DiGraph()  # Create a simple DiGraph from the MultiDiGraph
+                simple_directed_G = (
+                    nx.DiGraph()
+                )  # Create a simple DiGraph from the MultiDiGraph
                 for u, v, data in self.G.edges(data=True):
-                    if not simple_directed_G.has_edge(u, v):  # Only add the first edge between nodes
-                        simple_directed_G.add_edge(u, v, weight=data['weight'])
-                
-                clust_coeff_unweighted = nx.clustering(simple_directed_G)  # Unweighted clustering coefficient
-                clust_coeff_weighted = nx.clustering(simple_directed_G, weight="weight")  # Weighted clustering coefficient
+                    if not simple_directed_G.has_edge(
+                        u, v
+                    ):  # Only add the first edge between nodes
+                        simple_directed_G.add_edge(u, v, weight=data["weight"])
+
+                clust_coeff_unweighted = nx.clustering(
+                    simple_directed_G
+                )  # Unweighted clustering coefficient
+                clust_coeff_weighted = nx.clustering(
+                    simple_directed_G, weight="weight"
+                )  # Weighted clustering coefficient
             else:
                 # For standard directed graphs (DiGraph), just use the regular directed clustering method
-                clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted clustering coefficient
-                clust_coeff_weighted = nx.clustering(self.G, weight="weight")  # Weighted clustering coefficient
+                clust_coeff_unweighted = nx.clustering(
+                    self.G
+                )  # Unweighted clustering coefficient
+                clust_coeff_weighted = nx.clustering(
+                    self.G, weight="weight"
+                )  # Weighted clustering coefficient
 
         # Calculate average clustering coefficient
-        avg_clust_coeff_unweighted = sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted) if clust_coeff_unweighted else 0
-        avg_clust_coeff_weighted = sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted) if clust_coeff_weighted else 0
+        avg_clust_coeff_unweighted = (
+            sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
+            if clust_coeff_unweighted
+            else 0
+        )
+        avg_clust_coeff_weighted = (
+            sum(clust_coeff_weighted.values()) / len(clust_coeff_weighted)
+            if clust_coeff_weighted
+            else 0
+        )
 
         return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
 
@@ -357,14 +391,18 @@ class Network:
         for node in self.G.nodes():
             # Calculate shortest paths from 'node' to all other nodes
             try:
-                shortest_paths_unweighted = nx.single_source_shortest_path_length(self.G, node)
+                shortest_paths_unweighted = nx.single_source_shortest_path_length(
+                    self.G, node
+                )
                 for target, path_length_unweighted in shortest_paths_unweighted.items():
                     if node != target:  # Skip the node itself
                         efficiency_unweighted_values.append(1 / path_length_unweighted)
             except nx.NetworkXNoPath:
                 pass  # No path found for this node
 
-        global_efficiency_unweighted = np.mean(efficiency_unweighted_values) if efficiency_unweighted_values else 0
+        global_efficiency_unweighted = (
+            np.mean(efficiency_unweighted_values) if efficiency_unweighted_values else 0
+        )
 
         return global_efficiency_unweighted
 
@@ -384,14 +422,16 @@ class Network:
 
             # Create a subgraph of neighbors
             subgraph = self.G.subgraph(neighbors)
-            
+
             # Calculate the number of shortest paths between neighbors
             efficiency_values = []
             for i, neighbor1 in enumerate(neighbors):
-                for neighbor2 in neighbors[i+1:]:
+                for neighbor2 in neighbors[i + 1 :]:
                     try:
                         # Get shortest path length between neighbors in the subgraph
-                        path_length = nx.shortest_path_length(subgraph, source=neighbor1, target=neighbor2)
+                        path_length = nx.shortest_path_length(
+                            subgraph, source=neighbor1, target=neighbor2
+                        )
                         efficiency_values.append(1 / path_length)
                     except nx.NetworkXNoPath:
                         pass  # No path found between this pair
@@ -400,9 +440,12 @@ class Network:
             if efficiency_values:
                 local_efficiency_values.append(np.mean(efficiency_values))
 
-        local_efficiency = np.mean(local_efficiency_values) if local_efficiency_values else 0
+        local_efficiency = (
+            np.mean(local_efficiency_values) if local_efficiency_values else 0
+        )
 
         return local_efficiency
+
 
 @dataclass
 class MatrixGroup:
@@ -503,7 +546,7 @@ class NetworkGroup:
             row = {self.matrix_group.group_by: network.grouping, **network.between}
             for variable in [
                 "density",
-                'neg_edge_density',
+                "neg_edge_density",
                 "total_edges",
                 "pos_edges",
                 "neg_edges",
@@ -515,8 +558,8 @@ class NetworkGroup:
                 "clust_coeff_unweighted",
                 "clust_coeff_weighted",
                 "global_efficiency",
-                "local_efficiency"
-            ]:  
+                "local_efficiency",
+            ]:
                 row = {
                     **row,
                     "measurement": variable,
