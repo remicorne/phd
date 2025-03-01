@@ -317,18 +317,21 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
-        if "experiment" in selector:
-            experiment = selection.pop("experiment")
-            self.experiment_information = ExperimentInformation(self.project).select(
-                label=experiment
-            )
-            groups = self.experiment_information.iloc[0, :].groups
-            groups = (
-                GroupInformation(self.project).select(group_id=groups).group_name.values
-            )
-        else:
-            groups = GroupInformation(self.project).df.group_name.values
-        selection["group_name"] = groups
+        if "group_name" not in selection:
+            if "experiment" in selector:
+                experiment = selection.pop("experiment")
+                self.experiment_information = ExperimentInformation(
+                    self.project
+                ).select(label=experiment)
+                groups = self.experiment_information.iloc[0, :].groups
+                groups = (
+                    GroupInformation(self.project)
+                    .select(group_id=groups)
+                    .group_name.values
+                )
+            else:
+                groups = GroupInformation(self.project).df.group_name.values
+            selection["group_name"] = groups
         if "remove_outliers" in selection:
             test, remove_outliers = next(iter(selection["remove_outliers"].items()))
             self.data = self.data.extend(self.outliers.select(test=test))
