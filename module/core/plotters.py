@@ -110,8 +110,8 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
     else:
         statistics = []
 
-    custom_params["order"] = list(dataset.data[x].unique())
-    custom_params["hue_order"] = list(dataset.data[hue].unique())
+    custom_params["order"] = list(dataset.data[x].cat.categories)
+    custom_params["hue_order"] = list(dataset.data[hue].cat.categories)
 
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
