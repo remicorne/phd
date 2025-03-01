@@ -372,7 +372,7 @@ class Dataset(
             data[col] = pd.Categorical(
                 data[col], categories=values, ordered=True
             )  # Necessary, .loc assignment doesnt work
-        return data.sort_values(by=list(categoricals))
+        return data.sort_values(by=list(categoricals) + [self.subject_column])
 
     def to_generic(self):
         if not self.is_generic:
