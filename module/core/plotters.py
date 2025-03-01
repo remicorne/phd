@@ -36,6 +36,7 @@ def get_dataset(project, request):
 
 
 def histogram(project, request, custom_params=None):
+
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     x = hue = custom_params.get("x", "group_name")
@@ -389,7 +390,7 @@ def statistics_table(project, request):
             ["test", *dataset.measurement_columns, "result_string"]
         ]
         stats_results.append(data)
-    stats_results = dataset.sort_values(pd.concat(stats_results))
+    stats_results = dataset.sort_values(pd.concat(stats_results), dataset.selection)
 
     index, *column = sorted(
         dataset.measurement_columns,

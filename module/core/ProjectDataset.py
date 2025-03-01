@@ -108,6 +108,7 @@ class Dataset(
             "value",
         }
         self.selector = {}
+        self.selection = {}
         self.data = self.df
         self.statistics = []
         self.statistics_table = []
@@ -314,35 +315,37 @@ class Dataset(
         # return self._sort_values(data)
 
     def select(self, **selector):
-        self.selector = {**selector}
+        self.selector = {**self.selector, **selector}
+        selection = {**selector}
         if "experiment" in selector:
-            experiment = selector.pop("experiment")
-            groups = (
-                ExperimentInformation(self.project).select_one(label=experiment).groups
+            experiment = selection.pop("experiment")
+            self.experiment_information = ExperimentInformation(self.project).select(
+                label=experiment
             )
+            groups = self.experiment_information.iloc[0, :].groups
             groups = (
                 GroupInformation(self.project).select(group_id=groups).group_name.values
             )
         else:
             groups = GroupInformation(self.project).df.group_name.values
-        selector["group_name"] = groups
-        if "remove_outliers" in selector:
-            test, remove_outliers = next(iter(selector["remove_outliers"].items()))
+        selection["group_name"] = groups
+        if "remove_outliers" in selection:
+            test, remove_outliers = next(iter(selection["remove_outliers"].items()))
             self.data = self.data.extend(self.outliers.select(test=test))
             if remove_outliers == "eliminated":
                 raise NotImplementedError
             elif remove_outliers == "calculated":
-                selector.update(
+                selection.update(
                     is_outlier=lambda x: x is not True
                 )  # nan considered not outlier
-                del selector["remove_outliers"]
-        for col in filter(lambda col: col in selector, self.measurement_columns):
+                del selection["remove_outliers"]
+        for col in filter(lambda col: col in selection, self.measurement_columns):
             if ClassRegistry.exists(element_type=col):
                 registry = ClassRegistry.get_registry(element_type=col)
-                if selector[col] in registry:
-                    selector[col] = registry[selector[col]]
-        self.data = self.sort_values(self.data.select(**selector), selector)
-        self.selector = {**self.selector, **selector}
+                if selection[col] in registry:
+                    selection[col] = registry[selection[col]]
+        self.selection = {**self.selection, **selection}
+        self.data = self.sort_values(self.data.select(**selection), selection)
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
@@ -368,16 +371,16 @@ class Dataset(
     #     )
 
     def sort_values(self, data, categoricals):
-        categoricals = {
+        valid_categoricals = {
             col: values
             for col, values in categoricals.items()
             if col in data and is_array_like(values)
         }
-        for col, values in categoricals.items():
+        for col, values in valid_categoricals.items():
             data[col] = pd.Categorical(
                 data[col], categories=values, ordered=True
             )  # Necessary, .loc assignment doesnt work
-        return data.sort_values(by=list(categoricals) + [self.subject_column])
+        return data.sort_values(by=list(valid_categoricals))
 
     def to_generic(self):
         if not self.is_generic:
@@ -477,17 +480,19 @@ class MergedDatasets:
     def __post_init__(self):
         self.datasets = [dataset.to_generic() for dataset in self.datasets]
         self.selector = {}
+        self.selection = {}
         self.statistics = []
         self.statistics_table = []
         self.measurement_columns = ["dataset", "measurement"]
 
     def select(self, **selector):
-        self.selector = {**self.selector, **selector}
         for dataset in self.datasets:
             selector = {
                 col: val for col, val in selector.items() if col in dataset.columns
             }
             dataset.select(**selector)
+            self.selection = {**self.selection, **dataset.selection}
+            self.selector = {**self.selector, **dataset.selector}
         return self
 
     def calculate_quantitative_statistics(self):
