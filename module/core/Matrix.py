@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from module.core.utils import parallel_process
 from module.core.Dataset import SelectableDataFrame
+from statsmodels.stats.multitest import fdrcorrection
 
 
 def calculate_correlation(method, x, y):
@@ -69,6 +70,7 @@ class Matrix:
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
+    fdr_threshold: float = field(kw_only=True, default=None)  
     delay_execution: bool = field(default=True, kw_only=True)
 
     filtered_data: pd.DataFrame = field(init=False)
@@ -151,7 +153,43 @@ class Matrix:
         """
         self.pvalues = self.create_corr_matrix("pvalues")
         self.correlations = self.create_corr_matrix("correlations")
-        self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
+        # self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
+
+        if self.fdr_threshold is not None:
+            self.apply_fdr_correction()
+        else:
+            self.pvalues_corrected = self.pvalues
+        mask = self.pvalues_corrected < self.pvalue_threshold
+        self.corr_masked = self.correlations.where(mask, other=np.nan)
+
+    def apply_fdr_correction(self):
+        """
+        Applies Benjamini-Hochberg FDR correction to p-values.
+        """
+        pvalues_corrected = np.full(self.pvalues.shape, np.nan)  # Start with NaN matrix
+
+        if self.is_square: # apply FDR to the entire matrix
+            p_flat = self.pvalues.values.flatten()
+            _, p_corrected = fdrcorrection(p_flat, alpha=self.fdr_threshold, method='indep')
+            pvalues_corrected = p_corrected.reshape(self.pvalues.shape)  # Reshape back
+        else:
+            triu_indices = np.triu_indices_from(self.pvalues, k=1)  
+            p_flat = self.pvalues.values[triu_indices]
+            _, p_corrected = fdrcorrection(p_flat, alpha=self.fdr_threshold, method='indep')
+
+            # Fill only the upper triangle with corrected values
+            pvalues_corrected[triu_indices] = p_corrected
+            pvalues_corrected = np.where(np.isnan(pvalues_corrected.T), pvalues_corrected, pvalues_corrected.T)
+            np.fill_diagonal(pvalues_corrected, self.pvalues.values.diagonal())
+
+
+        self.pvalues_corrected = pd.DataFrame(
+            pvalues_corrected, index=self.pvalues.index, columns=self.pvalues.columns
+        )
+        print(f"Matrix for: {self.grouping}")
+        print(f"Significant correlations before FDR correction: {np.sum(self.pvalues.values < self.pvalue_threshold)}")
+        print(f"Significant correlations after FDR correction: {np.sum(pvalues_corrected < self.pvalue_threshold)}")
+  
 
     def create_corr_matrix(self, result_type):
         """
@@ -480,6 +518,7 @@ class MatrixGroup:
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
+    fdr_threshold: float = field(kw_only=True, default=None)
 
     matrices: list[Matrix] = field(init=False)
 
@@ -501,6 +540,7 @@ class MatrixGroup:
                         n_minimum=self.n_minimum,
                         method=self.method,
                         pvalue_threshold=self.pvalue_threshold,
+                        fdr_threshold=self.fdr_threshold,
                     )
                 )  # TODO: Setup multiprocessing pool
         self.matrices = parallel_process(batch)

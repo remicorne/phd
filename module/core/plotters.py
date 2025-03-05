@@ -141,6 +141,7 @@ def correlogram(project, request, between, custom_params=None):
         dataset.measurement_columns,
         between=between,
         pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
+        fdr_threshold = custom_params.get("fdr_threshold", None)
     )
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
