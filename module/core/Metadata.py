@@ -8,6 +8,7 @@ from typing import ClassVar
 from distutils.util import (
     strtobool,
 )  # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
+from collections import namedtuple
 
 
 @dataclass(repr=False)
@@ -344,3 +345,52 @@ class DatasetInformation(_ProjectSettings):
         "unit": {"type": str},
         "experiments": {"type": list, "subtype": str},
     }
+
+
+@dataclass(repr=False)
+class MeasurementInformation(_ProjectSettings):
+
+    filename: ClassVar[str] = "dataset_information"
+    _template: ClassVar[dict] = {
+        "label": ["hplc", "tissue_weight", "behavior"],
+        "measurement_columns": ["compound, region", "region", "measure"],
+        "unit": ["ng/mg", "mg", ""],
+        "string_template": ["compound in region", "region", "measure"],
+    }
+    _template_types: ClassVar[dict] = {
+        "label": {"type": str},
+        "measurement_columns": {"type": list, "subtype": str},
+        "unit": {"type": str},
+        "string_template": {"type": list, "subtype": str},
+    }
+
+    def create_measurement_class(self, name):
+        measurement_information = self.select_one(label=name)
+        attributes = measurement_information.measurement_columns
+        string_template = measurement_information.string_template
+
+        cls = namedtuple(name, attributes)
+
+        def __eq__(self, other):
+            if isinstance(other, cls):
+                return other == cls
+            if isinstance(other, dict):
+                for attribute in other:
+                    if attribute not in attributes:
+                        return False
+                    if other[attribute] != getattr(self, attribute):
+                        return False
+                return True
+            return False
+
+        cls.__eq__ = __eq__
+
+        def __str__(self):
+            string = string_template
+            for attribute in attributes:
+                string = string.replace(attribute, getattr(self, attribute))
+            return string
+
+        cls.__str__ = __str__
+
+        return cls

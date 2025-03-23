@@ -66,6 +66,8 @@ class Matrix:
     pivot_columns: list[str]
     # order: list[str] = None # TODO: use pdcategorical
     between: dict = field(kw_only=True, default_factory=dict)
+    rows: dict = field(kw_only=True, default_factory=dict)
+    cols: dict = field(kw_only=True, default_factory=dict)
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
@@ -165,9 +167,9 @@ class Matrix:
         """
         method = get_correlation_callback(self.method, result_type)
         matrix = self.pivot.corr(method=method, min_periods=self.n_minimum)
-        return matrix.loc[
-            self.var1, self.var2
-        ]  # IMPROVE: use .corrwith to only caluclate necessary correlation for square corr
+        return matrix  # .loc[
+        # self.var1, self.var2
+        # ]  # IMPROVE: use .corrwith to only caluclate necessary correlation for square corr
 
     def find_missing_overlap(self):
         """
@@ -475,7 +477,7 @@ class MatrixGroup:
     data: pd.DataFrame
     group_by: str
     pivot_columns: list[str]
-    between: dict = field(kw_only=True, default_factory=dict)
+    # between: dict = field(kw_only=True, default_factory=dict)
     # order: list[str] = None
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
@@ -489,20 +491,20 @@ class MatrixGroup:
 
     def build_matrices(self):
         batch = []
-        col, cases = next(iter(self.between.items()))
+        # col, cases = next(iter(self.between.items()))
         for group, group_df in self.data.groupby(by=self.group_by, sort=False):
-            for between in cases:
-                batch.append(
-                    Matrix(
-                        group_df.select(**{col: between}),
-                        group,
-                        self.pivot_columns,
-                        between={col: tuple(between)},
-                        n_minimum=self.n_minimum,
-                        method=self.method,
-                        pvalue_threshold=self.pvalue_threshold,
-                    )
-                )  # TODO: Setup multiprocessing pool
+            # for between in cases:
+            batch.append(
+                Matrix(
+                    group_df,  # .select(**{col: between}),
+                    group,
+                    self.pivot_columns,
+                    # between={col: tuple(between)},
+                    n_minimum=self.n_minimum,
+                    method=self.method,
+                    pvalue_threshold=self.pvalue_threshold,
+                )
+            )  # TODO: Setup multiprocessing pool
         self.matrices = parallel_process(batch)
 
     def homogenize_datasets(self):
@@ -543,7 +545,7 @@ class NetworkGroup:
     def get_summary_df(self):
         data = []
         for network in self.networks:
-            row = {self.matrix_group.group_by: network.grouping, **network.between}
+            row = {self.matrix_group.group_by: network.grouping}  # , **network.between}
             for variable in [
                 "density",
                 "neg_edge_density",

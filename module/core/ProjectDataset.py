@@ -1,6 +1,7 @@
 import os, re, sys
+import warnings
 from dataclasses import dataclass, field
-from typing import ClassVar, Any
+from typing import ClassVar, Any, Dict
 import pandas as pd
 import numpy as np
 import scipy
@@ -18,6 +19,7 @@ from module.core.Metadata import (
     GroupInformation,
     DatasetInformation,
     Palette,
+    MeasurementInformation,
 )
 from module.core.questions import input_escape
 from module.core.utils import parallel_process, is_array_like
@@ -78,6 +80,101 @@ OUTLIER_TESTS = {"grubbs": grubbs_test, "iqr": iqr_test}
 
 
 @dataclass
+class ProjectDataset:
+    project: str = field(kw_only=True)
+    filename: str = field(kw_only=True)
+
+    def __post_init__(self):
+        self.dataset_information = DatasetInformation(self.project).select_one(
+            label=self.filename
+        )
+        self.measurement_columns = self.dataset_information.measurement_columns
+        self.project_information = ProjectInformation(self.project).df
+        self.experiment_information = ExperimentInformation(self.project).select(
+            experiment=self.dataset_information.experiments
+        )
+        self.filepath = f"PROJECTS/{self.project}/{self.filename}.pkl"
+        if not os.path.isfile(self.filepath):
+            self.initialize()
+
+        self.data = pd.read_pickle(f"PROJECTS/{self.project}/{self.filename}.pkl")
+        if not os.path.isfile(self.filepath):
+            self.initialize()
+        self.data = pd.read_pickle(self.filepath)
+        self.validate(self.data)
+
+    def initialize(self):
+        print(f"Initializing {self.filename} for {self.project} project")
+        source_filepath = input_escape(
+            f"Enter {self.filename} filepath for {self.project} project"
+        )
+        df = pd.read_pickle(source_filepath)
+        df.to_pickle(self.filepath)
+
+    def validate(self, df):
+        """
+        Validate that the dataframe has the required columns and that the values
+        in these columns are valid according to the ConstantRegistry.
+        """
+        mandatory_columns = [
+            self.project_information.subject_column,
+            *self.measurement_columns,
+            "value",
+            "unit",
+        ]
+        df_columns = df.columns
+        if not all(col in df_columns for col in mandatory_columns):
+            raise ValueError(
+                f"{mandatory_columns} columns are mandatory, modify file and retry"
+            )
+        subject_id_groups = (
+            GroupInformation(project=self.project)
+            .df[self.project_information.subject_column]
+            .unique()
+        )
+        valid_subject_ids = chain(subject_id_groups)
+        df_mouse_ids = df[self.project_information.subject_column].unique()
+        invalid_mouse_ids = set(df_mouse_ids) - set(valid_subject_ids)
+        missing_mouse_ids = set(valid_subject_ids) - set(df_mouse_ids)
+        if missing_mouse_ids:
+            warnings.warn(f"Missing mouse ids: {missing_mouse_ids}")
+        if invalid_mouse_ids:
+            raise ValueError(
+                f"Invalid mouse ids: {invalid_mouse_ids}, modify file and retry"
+            )
+        for col_name in df_columns:
+            if ConstantRegistry.exists(element_type=col_name):
+                registry = ConstantRegistry.get_registry(element_type=col_name)
+                unique_values = df[col_name].unique()
+                invalid_values = set(unique_values) - set(registry)
+                if invalid_values:
+                    correction_mapper = {
+                        value: registry.choose_valid_value(value)
+                        for value in unique_values
+                    }
+                    df[col_name].apply(correction_mapper.get)
+            else:
+                print(
+                    f"No ConstantRegistry for element type '{col_name}', skipping validation"
+                )
+        return df
+
+
+@dataclass
+class Measurement:
+    name: str
+    variables: list[str]
+
+    def to_generic(self, instance: dict | pd.Series):
+        pass
+
+
+@dataclass
+class ProjectDatasetSelection:
+    dataset: ProjectDataset
+
+
+@dataclass
 class Dataset(
     PickleCachedDataFrame
 ):  # TODO seems to me that there is a confusion between a dataset and its linked onfo (outliers, stats..)
@@ -90,6 +187,9 @@ class Dataset(
             DatasetInformation(self.project).select(label=self.filename).iloc[0]
         )
         self.measurement_columns = self.dataset_information.measurement_columns
+        self.Measurement = MeasurementInformation(
+            self.project
+        ).create_measurement_class(name=self.filename)
         self.project_information = ProjectInformation(self.project).df
         self.subject_column = self.project_information.subject_column
         self.group_column = self.project_information.group_column
@@ -316,24 +416,17 @@ class Dataset(
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
-        selection = {**selector}
-        if "group_name" not in selection:
-            if "experiment" in selector:
-                experiment = selection.pop("experiment")
-                self.experiment_information = ExperimentInformation(
-                    self.project
-                ).select(label=experiment)
-                groups = self.experiment_information.iloc[0, :].groups
-                groups = (
-                    GroupInformation(self.project)
-                    .select(group_id=groups)
-                    .group_name.values
-                )
-            else:
-                groups = GroupInformation(self.project).df.group_name.values
-            selection["group_name"] = groups
-        if "remove_outliers" in selection:
-            test, remove_outliers = next(iter(selection["remove_outliers"].items()))
+        if selector.pop("dataset", self.filename) != self.filename:
+            raise ValueError(
+                f"Wrong dataset selected: {selector['dataset']} != {self.filename}"
+            )
+        if "experiment" in selector:
+            self.experiment_information = ExperimentInformation(self.project).select(
+                label=selector.pop("experiment")
+            )
+            selector["group_id"] = self.experiment_information.iloc[0].groups
+        if "remove_outliers" in selector:
+            test, remove_outliers = next(iter(selector["remove_outliers"].items()))
             self.data = self.data.extend(self.outliers.select(test=test))
             if remove_outliers == "eliminated":
                 raise NotImplementedError
@@ -385,34 +478,32 @@ class Dataset(
             )  # Necessary, .loc assignment doesnt work
         return data.sort_values(by=list(valid_categoricals))
 
-    def to_generic(self):
-        if not self.is_generic:
-            ordered_measurement = [
-                # "dataset",
-                *sorted(
-                    self.measurement_columns,
-                    key=lambda col: len(self.data[col].unique()),
-                ),
-            ]
+    def to_generic(self, data):
+        # ordered_measurement = [
+        #     # "dataset",
+        #     *sorted(
+        #         self.measurement_columns,
+        #         key=lambda col: len(data[col].unique()),
+        #     ),
+        # ]
 
-            # self.data["measurement"] = self.data[self.measurement_columns].apply(
-            #     MeasurementCharacteristics, axis=1
-            # )
+        # data["measurement"] = data[self.measurement_columns].apply(
+        #     MeasurementCharacteristics, axis=1
+        # )
 
-            self.data["measurement"] = self.data[self.measurement_columns].apply(
-                tuple, axis=1
-            )
+        data["measurement"] = data[self.measurement_columns].apply(
+            self.Measurement, axis=1
+        )
 
-            self.data["measurement"] = pd.Categorical(
-                self.data["measurement"],
-                categories=self.data["measurement"].unique(),
-                ordered=True,
-            )
-            self.data["dataset"] = self.filename
-            self.data.measurement = self.data.measurement.astype(object)
-            self.data = self.data.drop(columns=ordered_measurement, axis=1)
-            self.is_generic = True
-        return self
+        data["measurement"] = pd.Categorical(
+            data["measurement"],
+            categories=data["measurement"].unique(),
+            ordered=True,
+        )
+        data["dataset"] = self.filename
+        data.measurement = data.measurement.astype(object)
+        data = data.drop(columns=self.measurement_columns, axis=1)
+        return data
 
     def get_palette(self, palette_type):
         palette = {}
@@ -478,10 +569,9 @@ class Dataset(
 @dataclass
 class MergedDatasets:
 
-    datasets: list[Dataset]
+    datasets: Dict[str, Dataset]
 
     def __post_init__(self):
-        self.datasets = [dataset.to_generic() for dataset in self.datasets]
         self.selector = {}
         self.selection = {}
         self.statistics = []
@@ -489,31 +579,34 @@ class MergedDatasets:
         self.measurement_columns = ["dataset", "measurement"]
 
     def select(self, **selector):
-        for dataset in self.datasets:
-            selector = {
-                col: val for col, val in selector.items() if col in dataset.columns
-            }
-            dataset.select(**selector)
-            self.selection = {**self.selection, **dataset.selection}
-            self.selector = {**self.selector, **dataset.selector}
+        self.selector = {**self.selector, **selector}
+        if "dataset" in selector:
+            self.datasets[selector.pop("dataset")].select(**selector)
+        else:
+            for dataset in self.datasets.values():
+                selector = {
+                    col: val for col, val in selector.items() if col in dataset.columns
+                }
+                dataset.select(**selector)
         return self
 
     def calculate_quantitative_statistics(self):
-        for dataset in self.datasets:
+        dataset_data = self.datasets.values()
+        for dataset in dataset_data:
             dataset.calculate_quantitative_statistics()
         self.statistics_table = pd.concat(
-            [dataset.statistics_table for dataset in self.datasets]
+            [dataset.to_generic(dataset.statistics_table) for dataset in dataset_data]
         )
         self.statistics = list(
-            chain.from_iterable([dataset.statistics for dataset in self.datasets])
+            chain.from_iterable([dataset.statistics for dataset in dataset_data])
         )
         return self
 
     @property
     def data(self):
-        data = pd.concat([dataset.data for dataset in self.datasets]).reset_index(
-            drop=True
-        )
+        data = pd.concat(
+            [dataset.to_generic(dataset.data) for dataset in self.datasets.values()]
+        ).reset_index(drop=True)
         data.measurement = pd.Categorical(
             data.measurement,
             categories=data.measurement.unique(),
@@ -523,17 +616,17 @@ class MergedDatasets:
 
     def get_palette(self, palette_type):
         palette = {}
-        for dataset in self.datasets:
+        for dataset in self.datasets.values():
             palette.update(dataset.get_palette(palette_type))
         return palette
 
     def get_units(self):
         units = []
-        for dataset in self.datasets:
+        for dataset in self.datasets.values():
             units.extend(dataset.get_units())
         return units
 
     def get_selection_string(self):
         return " and ".join(
-            [dataset.get_selection_string() for dataset in self.datasets]
+            [dataset.get_selection_string() for dataset in self.datasets.values()]
         )

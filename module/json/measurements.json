@@ -1,0 +1,12 @@
+{
+    "hplc": {
+        "attributes": ["compound", "region"],
+        "string": "compound in region",
+        "unit": "ng/mL"
+    },
+    "behavior": {
+        "attributes": ["measure"],
+        "string": "measure",
+        "unit": null
+    }
+}

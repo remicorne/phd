@@ -368,8 +368,8 @@ class Correlogram(MultiAxFigure):
             fontsize=16,
         )
 
-        ax.set_ylabel(matrix.var1, fontsize=28)
-        ax.set_xlabel(matrix.var2, fontsize=28)
+        ax.set_ylabel(self.custom_params.get("xlabel", ""), fontsize=28)
+        ax.set_xlabel(self.custom_params.get("ylabel", ""), fontsize=28)
 
 
 @dataclass

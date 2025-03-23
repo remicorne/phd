@@ -13,25 +13,26 @@ from module.core.Figure import (
     Correlation,
 )
 from module.core.FileSystem import FileSystem
-from module.core.Metadata import GroupInformation
+from module.core.Metadata import GroupInformation, MeasurementInformation
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
 from module.core.questions import input_escape
 from module.core.Statistics import QuantitativeStatistic
 
 
-def get_dataset(project, request):
+def get_dataset(project, request=None):
     datasets = request["datasets"]
     if len(datasets) == 1:
         dataset, selector = next(iter(request["datasets"].items()))
-        dataset = Dataset(project=project, filename=dataset).select(**selector)
+        dataset = Dataset(project=project, filename=dataset)
+        if request:
+            dataset.select(**selector)
     else:
-        dataset = MergedDatasets(
-            [
-                Dataset(project=project, filename=dataset).select(**selector)
-                for dataset, selector in request["datasets"].items()
-            ]
-        )
+        datasets = [
+            Dataset(project=project, filename=dataset).select(**selector)
+            for dataset, selector in request["datasets"].items()
+        ]
+        dataset = MergedDatasets({dataset.filename: dataset for dataset in datasets})
     return dataset.select(**request.get("selector", {}))
 
 
@@ -86,7 +87,7 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
             )
         )
         if len(multiple_measurement_columns) > 1:
-            dataset.to_generic()
+            dataset.data = dataset.to_generic(dataset.data)
             x = "measurement"
         elif len(multiple_measurement_columns) == 1:
             x = next(iter(multiple_measurement_columns))
@@ -132,22 +133,47 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
     return dataset
 
 
-def correlogram(project, request, between, custom_params=None):
+def guess_labels(rows, columns):
+    for row_key, col_key in zip(rows, columns):
+        if rows[row_key] != columns[col_key]:
+            return rows[row_key], columns[col_key]
+    return None, None
+
+
+def correlogram(project, rows, columns, custom_params=None):
     custom_params = custom_params or {}
-    dataset = get_dataset(project, request)
-    matrices = MatrixGroup(
+    dataset = get_dataset(
+        project, {"datasets": {axis["dataset"]: axis for axis in (rows, columns)}}
+    )
+    xlabel, ylabel = guess_labels(rows, columns)
+    custom_params["xlabel"] = custom_params.get("xlabel", xlabel)
+    custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
+
+    matrices = []
+    for matrix in MatrixGroup(
         dataset.data,
         "group_name",
         dataset.measurement_columns,
-        between=between,
-        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
-    )
+    ):
+        indexor = []
+        for axis in (rows, columns):
+            Measurement = MeasurementInformation(project).create_measurement_class(
+                name=axis["dataset"]
+            )
+            axis_measurement_attributes = [
+                attr for attr in axis if attr in Measurement._fields
+            ]
+            indexor.append(
+                Measurement(*[axis[attr] for attr in axis_measurement_attributes])
+            )
+        matrices.append(matrix[indexor[0], indexor[1]])
+
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
     filepath = os.path.join(location, "correlogram", title)
-    Correlogram(title, filepath, matrices.matrices, custom_params=custom_params)
+    Correlogram(title, filepath, matrices, custom_params=custom_params)
     return matrices
 
 
@@ -211,6 +237,7 @@ def network_summary(project, request, between, measurement: str, custom_params=N
     custom_params = custom_params or {}
     custom_params["plot_bar"] = False
     dataset = get_dataset(project, request)
+    # TODO, handle selection of data and creation of matrix groups per between var
     matrices = MatrixGroup(
         dataset.data,
         "group_name",
