@@ -162,6 +162,21 @@ class Matrix:
         mask = self.pvalues_corrected < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
 
+    def benjamini_hochberg(self, p_values, alpha=0.05):
+        """Applies Benjamini-Hochberg correction for multiple comparisons."""
+        p_values_sorted = np.sort(p_values)
+        m = len(p_values)
+        rank = np.argsort(p_values)  # Get the indices of the sorted p-values
+        threshold = (np.arange(1, m + 1) / m) * alpha  # BH critical values
+        rejected = p_values_sorted <= threshold  # Find which p-values are rejected
+        corrected_p_values = np.zeros_like(p_values)
+        # Update corrected p-values by rank
+        for i, idx in enumerate(rank):
+            corrected_p_values[idx] = p_values_sorted[i] * m / (i + 1)
+        # Ensure p-values are bounded by 1 (as they are probabilities)
+        corrected_p_values = np.minimum(corrected_p_values, 1)
+        return rejected, corrected_p_values
+
     def apply_fdr_correction(self):
         """
         Applies Benjamini-Hochberg FDR correction to p-values.
@@ -173,11 +188,11 @@ class Matrix:
             _, p_corrected = fdrcorrection(p_flat, alpha=self.fdr_threshold, method='indep')
             pvalues_corrected = p_corrected.reshape(self.pvalues.shape)  # Reshape back
         else:
-            triu_indices = np.triu_indices_from(self.pvalues, k=1)  
+            triu_indices = np.triu_indices_from(self.pvalues, k=-1)  
             p_flat = self.pvalues.values[triu_indices]
             _, p_corrected = fdrcorrection(p_flat, alpha=self.fdr_threshold, method='indep')
+            # _, p_corrected = self.benjamini_hochberg(p_flat, self.fdr_threshold)
 
-            # Fill only the upper triangle with corrected values
             pvalues_corrected[triu_indices] = p_corrected
             pvalues_corrected = np.where(np.isnan(pvalues_corrected.T), pvalues_corrected, pvalues_corrected.T)
             np.fill_diagonal(pvalues_corrected, self.pvalues.values.diagonal())
@@ -189,7 +204,9 @@ class Matrix:
         print(f"Matrix for: {self.grouping}")
         print(f"Significant correlations before FDR correction: {np.sum(self.pvalues.values < self.pvalue_threshold)}")
         print(f"Significant correlations after FDR correction: {np.sum(pvalues_corrected < self.pvalue_threshold)}")
-  
+
+    
+
 
     def create_corr_matrix(self, result_type):
         """
