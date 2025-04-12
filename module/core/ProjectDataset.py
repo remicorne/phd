@@ -118,7 +118,9 @@ class Dataset(
         else:
             raise ValueError(f"Unsupported file type: {filepath}")
         print(f"replacing 0 with nan for {len(df[df['value'] == 0])} values")
-        df["value"] = df["value"].replace({0: np.nan, "NA": np.nan})
+        df["value"] = (
+            df["value"].replace({0: np.nan, "NA": np.nan, "": np.nan}).fillna(np.nan)
+        )
         self.validate(df)
         df = pd.concat([df, self.calculate_ratios(df)])
         return df
@@ -140,6 +142,7 @@ class Dataset(
             raise ValueError(
                 f"Invalid mouse ids: {invalid_mouse_ids}, modify file and retry"
             )
+
         for col_name in df_columns:
             if ConstantRegistry.exists(element_type=col_name):
                 registry = ConstantRegistry.get_registry(element_type=col_name)
@@ -155,6 +158,7 @@ class Dataset(
                 print(
                     f"No ConstantRegistry for element type '{col_name}', skipping validation"
                 )
+        df.value = df.value.astype(float)
         return df
 
     def calculate_outliers(self):
