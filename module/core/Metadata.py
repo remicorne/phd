@@ -262,61 +262,22 @@ class ProjectInformation(_ProjectSettings):
     filename: ClassVar[str] = "project_information"
     _template: ClassVar[dict] = {
         "label": ["TCB2"],
-        "outlier_test": ["grubbs"],
         "p_value_threshold": [0.05],
-        "raw_data_filename": ["raw_data.csv"],
         "subject_column": ["mouse_id"],
         "group_column": ["group_id"],
-        "grouping_characteristic": ["treatment"],
         "max_outliers": [2],
     }
     _template_types: ClassVar[dict] = {
         "label": {"type": str},
-        "outlier_test": {"type": str},
         "p_value_threshold": {"type": float},
-        "raw_data_filename": {"type": str},
         "subject_column": {"type": str},
         "group_column": {"type": str},
-        "grouping_characteristic": {"type": str},
         "max_outliers": {"type": int},
     }
-
-    def generate(self):
-        from module.core.HPLC import OUTLIER_TESTS
-
-        data = super().generate()
-        data["label"] = self.project
-        data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
-        data["p_value_threshold"] = float(input("Enter p value threshold"))
-        data["raw_data_filename"] = self.get_valid_filename()
-        return data
-
-    def get_valid_filename(self):
-        # raw_data_filename = easygui.fileopenbox(title="Select raw HPLC file", filetypes=["*.xls", "*.xlsx"])
-        raw_data_filename = input("Enter HPLC excel filename (must be in phd/)")
-        file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        while not is_valid_file(file_path):
-            print(raw_data_filename, "NOT FOUND")
-            raw_data_filename = input("Enter excel HPLC filename (must be in phd/)")
-            file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        return file_path
 
     @property
     def df(self):
         return super().df.iloc[0]
-
-    def _repr_html_(self) -> str:
-        return f"""
-            <b>Project Information:</b><br>
-            <ul>
-                <li>Project: {self.project}</li>
-                <li>Raw Data Filename: {self.raw_data_filename}</li>
-                <li>Outlier Test: {self.outlier_test}</li>
-                <li>P-Value Threshold: {self.p_value_threshold}</li>
-            </ul>
-        """
 
 
 @dataclass(repr=False)
