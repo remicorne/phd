@@ -248,7 +248,7 @@ class Dataset(
         measurement_cols = (
             ["measurement"] if self.is_generic else self.measurement_columns
         )
-        for measurement, data in self.data.groupby(measurement_cols):
+        for measurement, data in self.data.groupby(measurement_cols, observed=True):
             metadata = dict(zip(measurement_cols, measurement))
             for experiment in self.experiment_information.itertuples():
                 metadata["experiment"] = experiment.label
