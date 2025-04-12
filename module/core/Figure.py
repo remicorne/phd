@@ -29,7 +29,6 @@ from module.core.Metadata import ProjectInformation
 
 @dataclass
 class Figure:
-
     title: str
     filepath: str
     custom_params: dict = field(kw_only=True, default_factory=dict)
@@ -70,7 +69,6 @@ class Histogram(Figure):
     statistic: QuantitativeStatistic = field(default=None)
 
     def generate_figure(self):
-
         self.fig, self.ax = plt.subplots(
             figsize=(
                 self.custom_params.get("width", 20),
@@ -285,7 +283,6 @@ class SummaryHistogram(Figure):
 
 
 class MultiAxFigure(Figure):
-
     @property
     def num_axs(self):
         raise NotImplementedError("Must be implemented in subclass")
@@ -323,7 +320,6 @@ class MultiAxFigure(Figure):
 
 @dataclass
 class Correlogram(MultiAxFigure):
-
     matrices: list[Matrix]
 
     @property
@@ -331,7 +327,6 @@ class Correlogram(MultiAxFigure):
         return len(self.matrices)
 
     def plot_ax(self, i):
-
         ax = self.axs[i]
         matrix = self.matrices[i]
         title = self.matrices[i].grouping
@@ -374,7 +369,6 @@ class Correlogram(MultiAxFigure):
 
 @dataclass
 class NetworkFigure(MultiAxFigure):
-
     networks: list[Network]
     positions: dict = field(kw_only=True, default=None)
 
@@ -516,7 +510,6 @@ class NetworkFigure(MultiAxFigure):
 
 @dataclass
 class NetworkDegreesFigure(MultiAxFigure):
-
     networks: list[Network]
 
     @property
@@ -624,7 +617,6 @@ class NetworkDegreesFigure(MultiAxFigure):
 
 @dataclass
 class Correlation(Figure):
-
     x: dict
     y: dict
 
@@ -791,13 +783,11 @@ class Table(ExcelCachedDataFrame, Figure):
 
 @dataclass
 class StatisticsTable(Table):
-
     def define_filename(self):
         super().define_filename()
         self.filename += " STATS"
 
     def generate(self):
-
         if not self.statistics:
             return pd.DataFrame()
 

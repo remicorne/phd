@@ -1,16 +1,13 @@
 import os, re, sys
 from dataclasses import dataclass, field
-from typing import ClassVar, Any
 import pandas as pd
 import numpy as np
 import scipy
 from itertools import chain
 from tqdm import tqdm
 
-from collections import namedtuple
 from outliers import smirnov_grubbs as grubbs
 from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
-from module.core.MeasuremenCharacteristics import MeasurementCharacteristics
 from module.core.Constants import ConstantRegistry, ClassRegistry
 from module.core.Metadata import (
     ProjectInformation,
@@ -81,7 +78,6 @@ OUTLIER_TESTS = {"grubbs": grubbs_test, "iqr": iqr_test}
 class Dataset(
     PickleCachedDataFrame
 ):  # TODO seems to me that there is a confusion between a dataset and its linked onfo (outliers, stats..)
-
     project: str = field(kw_only=True)
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
 
@@ -93,9 +89,6 @@ class Dataset(
         self.project_information = ProjectInformation(self.project).df
         self.subject_column = self.project_information.subject_column
         self.group_column = self.project_information.group_column
-        self.experiment_information = ExperimentInformation(self.project).select(
-            experiment=self.dataset_information.experiments
-        )
         self.mandatory_columns = [
             self.subject_column,
             "value",
@@ -206,7 +199,6 @@ class Dataset(
             self.data.select(value="notna").groupby(group_columns),
             desc="Calculating group statistics",
         ):
-
             if len(groupby_df) >= 3:
                 (
                     F,
@@ -249,7 +241,6 @@ class Dataset(
         )
 
     def calculate_quantitative_statistics(self, p_value_threshold=None):
-
         p_value_threshold = (
             p_value_threshold or self.project_information.p_value_threshold
         )
@@ -395,10 +386,6 @@ class Dataset(
                 ),
             ]
 
-            # self.data["measurement"] = self.data[self.measurement_columns].apply(
-            #     MeasurementCharacteristics, axis=1
-            # )
-
             self.data["measurement"] = self.data[self.measurement_columns].apply(
                 tuple, axis=1
             )
@@ -477,7 +464,6 @@ class Dataset(
 
 @dataclass
 class MergedDatasets:
-
     datasets: list[Dataset]
 
     def __post_init__(self):

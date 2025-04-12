@@ -106,22 +106,20 @@ class _ProjectSettings(ExcelCachedDataFrame):
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
 
-    
     def explode(self, col):
         col_template = self._template_types[col]
         col_type = col_template.get("subtype", col_template.get("type"))
         return self.df[col].explode(col).astype(col_type)
-    # def select(self, **selector) -> SelectableDataFrame:
-    #     df = super().select(**selector)
-    #     return df.iloc[0] if len(df) == 1 else df
 
-    # def select_many(self, **selector) -> SelectableDataFrame:
-    #     return super().select(**selector)valid_mouse_ids
+    def select(self, **selector) -> SelectableDataFrame:
+        df = super().select(**selector)
+        if df.empty:
+            raise ValueError(f"Empty selection for {self.filename}: {selector}")
+        return df
 
 
 @dataclass(repr=False)
 class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
-
     filename: ClassVar[str] = "group_information"
     _template: ClassVar[dict] = {
         "group_id": [1, 5, 3, 4],
@@ -158,7 +156,6 @@ class GroupInformation(_ProjectSettings):  # TODO: generalize to GroupInformatio
 
 @dataclass(repr=False)
 class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
-
     filename: ClassVar[str] = "palette"
     _template: ClassVar[dict] = {
         "group_id": [1, 2, 3, 4],
@@ -192,7 +189,6 @@ class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
 
 @dataclass(repr=False)
 class ExperimentInformation(_ProjectSettings):
-
     filename: ClassVar[str] = "experiment_information"
     _template: ClassVar[dict] = {
         "label": ["agonist_antagonist"],
@@ -230,7 +226,7 @@ class ExperimentInformation(_ProjectSettings):
         return list(self.df.label)
 
     def select(self, **selector):
-        if selector.get("label") == "default":
+        if selector.get("label", selector.get("experiment")) in ["default", None]:
             return self.get_default_experiment()
         return super().select(**selector)
 
@@ -263,7 +259,6 @@ def is_valid_file(file_path):
 
 @dataclass(repr=False)
 class ProjectInformation(_ProjectSettings):
-
     filename: ClassVar[str] = "project_information"
     _template: ClassVar[dict] = {
         "label": ["TCB2"],
@@ -326,7 +321,6 @@ class ProjectInformation(_ProjectSettings):
 
 @dataclass(repr=False)
 class DatasetInformation(_ProjectSettings):
-
     filename: ClassVar[str] = "dataset_information"
     _template: ClassVar[dict] = {
         "label": ["hplc", "tissue_weight", "behavior"],

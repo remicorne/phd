@@ -342,12 +342,11 @@ class QuantitativeStatistic:
             "p_value": p_value,
             "is_significant": is_significant,
             "result": results,
-            "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else '' }",
+            "result_string": f"F({int(results['DF'][2])}, {int(results['DF'][3])}) = {results['F'][2]:3g}, p = {p_value:2g} {'*' if is_significant else ''}",
         }
 
 
 class QuantitativeStatisticBatch:
-
     def __init__(self):
         self.statistics = []
         self.statistics_table = None
