@@ -162,21 +162,6 @@ class Matrix:
         mask = self.pvalues_corrected < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
 
-    def benjamini_hochberg(self, p_values, alpha=0.05):
-        """Applies Benjamini-Hochberg correction for multiple comparisons."""
-        p_values_sorted = np.sort(p_values)
-        m = len(p_values)
-        rank = np.argsort(p_values)  # Get the indices of the sorted p-values
-        threshold = (np.arange(1, m + 1) / m) * alpha  # BH critical values
-        rejected = p_values_sorted <= threshold  # Find which p-values are rejected
-        corrected_p_values = np.zeros_like(p_values)
-        # Update corrected p-values by rank
-        for i, idx in enumerate(rank):
-            corrected_p_values[idx] = p_values_sorted[i] * m / (i + 1)
-        # Ensure p-values are bounded by 1 (as they are probabilities)
-        corrected_p_values = np.minimum(corrected_p_values, 1)
-        return rejected, corrected_p_values
-
     def apply_fdr_correction(self):
         """
         Applies Benjamini-Hochberg FDR correction to p-values.
