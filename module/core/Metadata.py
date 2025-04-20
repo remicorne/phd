@@ -196,7 +196,6 @@ class ExperimentInformation(_ProjectSettings):
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],
         "parametric": [True],
-        "control_group_id": [1],
         # "data_source": ["hplc, behavior"],
     }
     _template_types: ClassVar[dict] = {
@@ -205,7 +204,6 @@ class ExperimentInformation(_ProjectSettings):
         "independant_variables": {"type": list, "subtype": str},
         "paired": {"type": bool},
         "parametric": {"type": bool},
-        "control_group_id": {"type": int},
         # "data_source": {"type": list, "subtype": str},
     }
 
