@@ -70,7 +70,7 @@ class Matrix:
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
-    fdr_threshold: float = field(kw_only=True, default=None)
+    fdr_correction: bool = field(kw_only=True, default=False)
     delay_execution: bool = field(default=True, kw_only=True)
 
     filtered_data: pd.DataFrame = field(init=False)
@@ -155,11 +155,10 @@ class Matrix:
         self.correlations = self.create_corr_matrix("correlations")
         # self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
 
-        if self.fdr_threshold is not None:
-            self.apply_fdr_correction()
-        else:
-            self.pvalues_corrected = self.pvalues
-        mask = self.pvalues_corrected < self.pvalue_threshold
+        if self.fdr_correction:
+            self.uncorrected_pvalues = self.pvalues
+            self.pvalues = self.apply_fdr_correction()
+        mask = self.pvalues < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
 
     def apply_fdr_correction(self):
@@ -172,18 +171,14 @@ class Matrix:
 
         if self.is_square:  # apply FDR to the entire matrix
             p_flat = self.pvalues.values.flatten()
-            _, p_corrected = fdrcorrection(
-                p_flat, alpha=self.fdr_threshold, method="indep"
-            )
+            _, p_corrected = fdrcorrection(p_flat, method="indep")
             pvalues_corrected_matrix = p_corrected.reshape(
                 self.pvalues.shape
             )  # Reshape back
         else:
             triu_indices = np.triu_indices_from(self.pvalues, k=1)
             p_flat = self.pvalues.values[triu_indices]
-            _, p_corrected = fdrcorrection(
-                p_flat, alpha=self.fdr_threshold, method="indep"
-            )
+            _, p_corrected = fdrcorrection(p_flat, method="indep")
 
             pvalues_corrected_matrix[triu_indices] = p_corrected
             pvalues_corrected_matrix[triu_indices[::-1]] = (
@@ -531,7 +526,7 @@ class MatrixGroup:
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
-    fdr_threshold: float = field(kw_only=True, default=None)
+    fdr_correction: float = field(kw_only=True, default=None)
 
     matrices: list[Matrix] = field(init=False)
 
@@ -553,7 +548,7 @@ class MatrixGroup:
                         n_minimum=self.n_minimum,
                         method=self.method,
                         pvalue_threshold=self.pvalue_threshold,
-                        fdr_threshold=self.fdr_threshold,
+                        fdr_correction=self.fdr_correction,
                     )
                 )  # TODO: Setup multiprocessing pool
         self.matrices = parallel_process(batch)

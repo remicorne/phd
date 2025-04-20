@@ -36,7 +36,6 @@ def get_dataset(project, request):
 
 
 def histogram(project, request, custom_params=None):
-
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     x = hue = custom_params.get("x", "group_name")
@@ -141,7 +140,7 @@ def correlogram(project, request, between, custom_params=None):
         dataset.measurement_columns,
         between=between,
         pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
-        fdr_threshold = custom_params.get("fdr_threshold", None)
+        fdr_correction=custom_params.get("fdr_correction", False),
     )
     title = dataset.get_selection_string()
     location = FileSystem.get_location(
