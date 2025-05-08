@@ -47,9 +47,7 @@ class Cacheable:
                 raise ValueError("Child classes must define filename")
             self.filename = sanitize_filename(self.filename)
             # Automatically extrat relevant params for laction building
-            self.filepath = os.path.join(
-                FileSystem.get_location(**self.__dict__), self.filename
-            )
+            self.filepath = os.path.join(FileSystem.get_location(**self.__dict__))
         if not self.extension:
             raise ValueError("Child classes must define extension")
         # Remove extension if it has already been added

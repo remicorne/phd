@@ -42,4 +42,6 @@ class FileSystem:
                 if not os.path.exists(location):
                     os.mkdir(location)
                     print(f"Created {path_elements[element]} {element} folder")
+        if path_elements.get("filename"):
+            location = os.path.join(location, path_elements["filename"])
         return location

@@ -13,7 +13,7 @@ from module.core.Figure import (
     Correlation,
 )
 from module.core.FileSystem import FileSystem
-from module.core.Metadata import GroupInformation
+from module.core.Metadata import ProjectMetadata
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Constants import ConstantRegistry
 from module.core.questions import input_escape
@@ -44,7 +44,7 @@ def histogram(project, request, custom_params=None):
     )
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["order"] = GroupInformation(project).select(
+    custom_params["order"] = ProjectMetadata(project).groups.select(
         group_id=dataset.data.group_id.unique()
     )[x]
     title = dataset.get_selection_string()
@@ -101,7 +101,7 @@ def summary_histogram(project, request, invert_hue=False, custom_params=None):
             "palette", dataset.get_palette("color")
         )
     custom_params["significance_palette"] = custom_params.get(
-        "significance_palette", dataset.get_palette("significance")
+        "significance_palette", dataset.get_palette("significance_symbol")
     )
     if "experiment" in dataset.selector:
         dataset.calculate_quantitative_statistics()
@@ -226,22 +226,20 @@ def network_summary(project, request, between, measurement: str, custom_params=N
         .select(measurement=measurement)
     )
     # TODO generalize stats logic + dataset logic for when mouse_id not there
-    experiment_information = dataset.experiment_information.iloc[0, :]
-    network_summary_df = GroupInformation(project).extend(network_summary_df)
-    statistic = (
-        QuantitativeStatistic(
+    if "experiment" in request.get("selector", {}):
+        statistic = QuantitativeStatistic(
             data=network_summary_df,
             group_column="group_name",
-            independant_variables=experiment_information.independant_variables,
-            is_paired=experiment_information.paired,
-            is_parametric=experiment_information.parametric,
+            independant_variables=dataset.selected_experiment.independant_variables,
+            is_paired=dataset.selected_experiment.paired,
+            is_parametric=dataset.selected_experiment.parametric,
             p_value_threshold=0.05,
             delay_execution=False,
             metadata=dict(measurement=measurement),
-        )
-        if "experiment" in request.get("selector", {})
-        else None
-    )  # TODO fix by generalizing concept of dataset further DerivedDataset?
+        )  # TODO fix by generalizing concept of dataset further DerivedDataset?
+    else:
+        statistic = None
+    network_summary_df = ProjectMetadata(project).groups.extend(network_summary_df)
     x = hue = custom_params.get("x", "group_name")
 
     # colormapping by vehicle rank #REMI CLEAN ME
@@ -311,7 +309,7 @@ def summary_network_summary(
     filepath = os.path.join(location, title)
 
     custom_params["significance_palette"] = custom_params.get(
-        "palette", dataset.get_palette("significance")
+        "palette", dataset.get_palette("significance_symbol")
     )
     custom_params["ylabel"] = "AU"
     custom_params["hue_order"] = dataset.data.group_name.unique()
@@ -332,30 +330,20 @@ def summary_network_summary(
 
 def correlation(project, x, y, grouper, custom_params=None):
     custom_params = custom_params or {}
-
+    project_information = ProjectMetadata(project)
     data = []
     for selector in [x, y]:
         dataset = Dataset(project=project, filename=selector.pop("dataset"))
         dataset.select(**selector, **grouper)
         data.append(dataset)
-
-    common_mouse_ids = list(
-        set(data[0].data[data[0].project_information.subject_column]).intersection(
-            set(data[1].data[data[1].project_information.subject_column])
+    subject_column = project_information.subject_column
+    common_subject_ids = list(
+        set(data[0].data[subject_column]).intersection(
+            set(data[1].data[subject_column])
         )
     )
-    x_data = (
-        data[0]
-        .data.set_index(data[0].project_information.subject_column)
-        .loc[common_mouse_ids]
-        .value.values
-    )
-    y_data = (
-        data[1]
-        .data.set_index(data[1].project_information.subject_column)
-        .loc[common_mouse_ids]
-        .value.values
-    )
+    x_data = data[0].data.set_index(subject_column).loc[common_subject_ids].value.values
+    y_data = data[1].data.set_index(subject_column).loc[common_subject_ids].value.values
 
     x_label = data[0].get_selection_string() + " " + ", ".join(data[0].get_units())
     y_label = data[1].get_selection_string() + " " + ", ".join(data[1].get_units())

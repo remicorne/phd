@@ -1,4 +1,4 @@
-import os, re, sys
+import os
 from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
@@ -10,17 +10,11 @@ from outliers import smirnov_grubbs as grubbs
 from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
 from module.core.Constants import ConstantRegistry, ClassRegistry
 from module.core.Metadata import (
-    ProjectInformation,
-    ExperimentInformation,
-    GroupInformation,
-    DatasetInformation,
-    Palette,
+    ProjectMetadata,
 )
 from module.core.questions import input_escape
 from module.core.utils import parallel_process, is_array_like
-from module.core.Statistics import QuantitativeStatistic, QuantitativeStatisticBatch
-from module.core.Figure import Histogram, SummaryHistogram
-from module.core.FileSystem import FileSystem
+from module.core.Statistics import QuantitativeStatisticBatch
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -82,24 +76,16 @@ class Dataset(
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
 
     def __post_init__(self):
-        self.dataset_information = (
-            DatasetInformation(self.project).select(label=self.filename).iloc[0]
-        )
-        self.measurement_columns = self.dataset_information.measurement_columns
-        self.project_information = ProjectInformation(self.project).df
-        self.subject_column = self.project_information.subject_column
-        self.group_column = self.project_information.group_column
-        self.mandatory_columns = [
-            self.subject_column,
-            "value",
-        ]
         super().__post_init__()
+        self.metadata = ProjectMetadata(self.project)
+        self.measurement_columns = self.metadata.datasets.select_one(
+            label=self.filename
+        ).measurement_columns
+        self.subject_column = self.metadata.subject_column
+        self.group_column = self.metadata.group_column
+        self.mandatory_columns = [self.subject_column, "value", "unit"]
         self.columns = self.df.columns
         self.dataset_specific_columns = set(self.columns) - set(self.mandatory_columns)
-        self.group_columns = set(self.columns) - {
-            self.project_information.subject_column,
-            "value",
-        }
         self.selector = {}
         self.selection = {}
         self.data = self.df
@@ -135,12 +121,14 @@ class Dataset(
             raise ValueError(
                 f"{self.mandatory_columns} columns are mandatory, modify file and retry"
             )
-        valid_mouse_ids = GroupInformation(self.project).explode("mouse_id")
-        df_mouse_ids = df[self.subject_column].astype(valid_mouse_ids.dtype).unique()
-        invalid_mouse_ids = set(df_mouse_ids) - set(valid_mouse_ids)
-        if invalid_mouse_ids:
+        valid_subject_ids = self.metadata.subject_ids
+        df_subject_ids = (
+            df[self.subject_column].astype(valid_subject_ids.dtype).unique()
+        )
+        invalid_subject_ids = set(df_subject_ids) - set(valid_subject_ids)
+        if invalid_subject_ids:
             raise ValueError(
-                f"Invalid mouse ids: {invalid_mouse_ids}, modify file and retry"
+                f"Invalid mouse ids: {invalid_subject_ids}, modify file and retry"
             )
 
         for col_name in df_columns:
@@ -162,18 +150,17 @@ class Dataset(
         return df
 
     def calculate_outliers(self):
-        project_information = ProjectInformation(self.project)
         cases = []
         for _, subset_df in self.df[
             [
-                self.project_information.subject_column,
-                self.project_information.group_column,
+                self.subject_column,
+                self.group_column,
                 *self.measurement_columns,
                 "value",
             ]
         ].groupby(
             [
-                self.project_information.group_column,
+                self.group_column,
                 *self.measurement_columns,
             ]
         ):
@@ -182,21 +169,19 @@ class Dataset(
                     (
                         subset_df.copy(),
                         test,
-                        project_information.p_value_threshold,
-                        project_information.max_outliers,
+                        self.metadata.p_value_threshold,
+                        self.metadata.max_outliers,
                     )
                 )
         results = parallel_process(
             cases, label_group_outliers, description="Calculating outliers"
         )  # TODO check what happens with nan
-        return pd.concat(results).drop(
-            columns=[self.project_information.group_column, "value"]
-        )
+        return pd.concat(results).drop(columns=[self.group_column, "value"])
 
     def calculate_group_statistics(self):
         result_ls = []
         group_columns = [
-            self.project_information.group_column,
+            self.group_column,
             *self.measurement_columns,
         ]
         for (group_column_values), groupby_df in tqdm(
@@ -245,24 +230,21 @@ class Dataset(
         )
 
     def calculate_quantitative_statistics(self, p_value_threshold=None):
-        p_value_threshold = (
-            p_value_threshold or self.project_information.p_value_threshold
-        )
+        p_value_threshold = p_value_threshold or self.metadata.p_value_threshold
         stats_batch = QuantitativeStatisticBatch()
         measurement_cols = (
             ["measurement"] if self.is_generic else self.measurement_columns
         )
         for measurement, data in self.data.groupby(measurement_cols, observed=True):
             metadata = dict(zip(measurement_cols, measurement))
-            for experiment in self.experiment_information.itertuples():
-                metadata["experiment"] = experiment.label
-                stats_batch.add(
-                    data,
-                    "group_name",
-                    experiment,
-                    metadata,
-                    p_value_threshold,
-                )
+            metadata["experiment"] = self.selected_experiment.label
+            stats_batch.add(
+                data,
+                "group_name",
+                self.selected_experiment,
+                metadata,
+                p_value_threshold,
+            )
 
         self.statistics, self.statistics_table = stats_batch.compute()
 
@@ -284,48 +266,37 @@ class Dataset(
     @property
     def group_statistics(self):
         return self.get_linked_data("group_statistics")
-        # return self._sort_values(self.get_linked_data("group_statistics"))
 
     @property
     def quantitative_statistics(self):
         return self.get_linked_data("experiment_statistics")
-        # return self._sort_values(self.get_linked_data("experiment_statistics"))
 
     @property
     def outliers(self):
         return self.get_linked_data("outliers")
-        # return self._sort_values(self.get_linked_data("outliers"))
 
     @property
     def df(
         self,
     ):  # TODO clear up with full df, also, derived datasets should be able to be projectDatasets (network df)
         data = self.load()
-        data = GroupInformation(self.project).extend_dataset(
-            data
-        )  # TODO should be groups.pkl here
-        if self.dataset_information.unit:
-            data["unit"] = self.dataset_information.unit
+        data = self.metadata.groups.extend_dataset(data)
         return data
-        # return self._sort_values(data)
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
         if "group_name" not in selection:
             if "experiment" in selector:
+                if not isinstance(selector["experiment"], str):
+                    raise ValueError("Experiment must be a string")
                 experiment = selection.pop("experiment")
-                self.experiment_information = ExperimentInformation(
-                    self.project
-                ).select(label=experiment)
-                groups = self.experiment_information.iloc[0, :].groups
-                groups = (
-                    GroupInformation(self.project)
-                    .select(group_id=groups)
-                    .group_name.values
+                self.selected_experiment = self.metadata.experiments.select_one(
+                    label=experiment
                 )
+                groups = self.selected_experiment.group_names
             else:
-                groups = GroupInformation(self.project).df.group_name.values
+                groups = self.metadata.groups.df.group_name.values
             selection["group_name"] = groups
         if "remove_outliers" in selection:
             test, remove_outliers = next(iter(selection["remove_outliers"].items()))
@@ -343,42 +314,22 @@ class Dataset(
                 if selection[col] in registry:
                     selection[col] = registry[selection[col]]
         self.selection = {**self.selection, **selection}
-        self.data = self.sort_values(self.data.select(**selection), selection)
+        self.data = self.sort_values(self.data.select(**selection).copy(), selection)
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
 
-    # def _sort_values(self, df):
-    #     for col in self.measurement_columns:
-    #         if ConstantRegistry.exists(element_type=col):
-    #             registry = ConstantRegistry.get_registry(element_type=col)
-    #             order = registry.keys()
-    #             df[col] = pd.Categorical(
-    #                 df[col], categories=order, ordered=True
-    #             ).remove_unused_categories()
-    #         else:
-    #             print(
-    #                 f"No ConstantRegistry for element type '{col}', skipping validation"
-    #             )
-    #     return df.sort_values(
-    #         by=list(
-    #             set(
-    #                 [self.project_information.group_column, *self.measurement_columns]
-    #             ).intersection(df.columns)
-    #         ),
-    #     )
-
     def sort_values(self, data, categoricals):
-        valid_categoricals = {
+        categories_to_create = {
             col: values
             for col, values in categoricals.items()
-            if col in data and is_array_like(values)
+            if col in data and is_array_like(values) and len(values) > 1
         }
-        for col, values in valid_categoricals.items():
+        for col, values in categories_to_create.items():
             data[col] = pd.Categorical(
                 data[col], categories=values, ordered=True
             )  # Necessary, .loc assignment doesnt work
-        return data.sort_values(by=list(valid_categoricals))
+        return data.sort_values(by=list(categories_to_create))
 
     def to_generic(self):
         if not self.is_generic:
@@ -400,7 +351,6 @@ class Dataset(
                 ordered=True,
             )
             self.data["dataset"] = self.filename
-            self.data.measurement = self.data.measurement.astype(object)
             self.data = self.data.drop(columns=ordered_measurement, axis=1)
             self.is_generic = True
         return self
@@ -408,9 +358,9 @@ class Dataset(
     def get_palette(self, palette_type):
         palette = {}
         for (group_id, group_name), _ in self.data.groupby(["group_id", "group_name"]):
-            palette[group_name] = (
-                Palette(self.project).select(group_id=group_id).iloc[0][palette_type]
-            )
+            palette[group_name] = self.metadata.palette.select(group_id=group_id).iloc[
+                0
+            ][palette_type]
         return palette
 
     def get_units(self):
@@ -447,6 +397,7 @@ class Dataset(
         for col in categorical_cols:
             df_ratios[col] = df_ratios[f"{col}_num"] + "/" + df_ratios[f"{col}_den"]
 
+        # Eliminate unit if it is the same for numerator and denominator
         if "unit" in categorical_cols:
             df_ratios.loc[df_ratios["unit_num"] == df_ratios["unit_den"], "unit"] = ""
 
@@ -460,10 +411,6 @@ class Dataset(
 
     def __repr__(self):
         return self.data.__repr__()
-
-
-# class GenericProjectDataset(ProjectDataset):
-#     pass
 
 
 @dataclass

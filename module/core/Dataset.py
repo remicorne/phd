@@ -12,7 +12,6 @@ ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
 def handle_class_selectors(classes, select_value):
-
     if is_array_like(select_value):
         values = []
         for item in select_value:
@@ -23,7 +22,7 @@ def handle_class_selectors(classes, select_value):
 
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
-    selected = df.index != None  # Select all
+    selected = df.index.notna()  # Select all
     absent_columns = set(mask_conditions) - set([*df.columns, "index"])
     if absent_columns:
         raise ValueError(
@@ -36,7 +35,6 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
                 f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead."
             )
         else:
-
             if callable(value):
                 sub_selection = column.apply(value)
             else:
@@ -59,7 +57,6 @@ def sub_select(df, selector):
 
 
 class SelectableDataFrame(pd.DataFrame):
-
     @property
     def _constructor(self):
         return SelectableDataFrame
@@ -106,10 +103,9 @@ class SelectableDataFrame(pd.DataFrame):
         return self.merge(other, on=common_columns)
 
 
-@dataclass(repr=False)
-class CachedDataFrame(Cacheable):
+class DataframeWrapperMixin:
     """
-    Base class for datasets ie dataframes stored in Excel or Pickle files.
+    Mixin for datasets ie dataframes stored in Excel or Pickle files.
     Similar to JSONmapping interface for json/dict.
     Actual dataframe is accessed through the df property and read directly from the file.
 
@@ -129,7 +125,7 @@ class CachedDataFrame(Cacheable):
 
     @property
     def df(self) -> SelectableDataFrame:
-        return SelectableDataFrame(self.load())
+        raise NotImplementedError("Subclasses must implement a `df` property.")
 
     def extend(self, other) -> SelectableDataFrame:
         """
@@ -154,6 +150,19 @@ class CachedDataFrame(Cacheable):
         """
         return repr(self.df)
 
+    def __getattr__(self, key):
+        try:
+            return getattr(self.df, key)
+        except AttributeError:
+            raise AttributeError(f"{key} not found in {self.__class__.__name__}")
+
+    def __setitem__(self, key, value):
+        self.df[key] = value
+
+
+class CachedDataFrame(DataframeWrapperMixin, Cacheable):
+    pass
+
 
 @dataclass
 class PickleCachedDataFrame(CachedDataFrame):
@@ -167,8 +176,8 @@ class PickleCachedDataFrame(CachedDataFrame):
     def save(self, data: pd.DataFrame, filepath=None):
         data.to_pickle(filepath or self.filepath)
 
-    def load(self) -> SelectableDataFrame:
-        return SelectableDataFrame(pd.read_pickle(self.filepath))
+    def load(self, **kwargs) -> SelectableDataFrame:
+        return SelectableDataFrame(pd.read_pickle(self.filepath, **kwargs))
 
 
 @dataclass
@@ -183,5 +192,5 @@ class ExcelCachedDataFrame(CachedDataFrame):
     def save(self, data: pd.DataFrame):
         data.to_excel(self.filepath, index=False)
 
-    def load(self) -> SelectableDataFrame:
-        return SelectableDataFrame(pd.read_excel(self.filepath))
+    def load(self, **kwargs) -> SelectableDataFrame:
+        return SelectableDataFrame(pd.read_excel(self.filepath, **kwargs))

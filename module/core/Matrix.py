@@ -127,7 +127,7 @@ class Matrix:
         """
         self.pivot = self.filtered_data.pivot_table(
             values="value",
-            index="mouse_id",
+            index="subject_id",
             columns=self.pivot_columns,
         )
 

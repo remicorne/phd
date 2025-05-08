@@ -1,30 +1,21 @@
+import os
 from dataclasses import dataclass, field
-import os
+from typing import ClassVar
+
 import networkx as nx
-from scipy.stats import norm
-from scipy import stats
-from matplotlib.colors import Normalize
-from matplotlib.cm import ScalarMappable
-
-from module.core.Dataset import SelectableDataFrame, ExcelCachedDataFrame
-from module.core.questions import input_escape
-from IPython.display import display
-
-from module.core.Matrix import Matrix, Network
-from module.core.Matrix import Network as NetworkModel
-from module.core.Constants import ConstantRegistry
-from matplotlib import pyplot as plt
-import seaborn as sns
-from typing import ClassVar
 import numpy as np
-from IPython.display import Image, display
 import pandas as pd
-import os
-from module.core.utils import parallel_process
+import seaborn as sns
+from matplotlib import pyplot as plt
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+from scipy import stats
+from scipy.stats import norm
 from statannotations.Annotator import Annotator
+
+from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
+from module.core.Matrix import Matrix, Network
 from module.core.Statistics import QuantitativeStatistic
-from typing import ClassVar
-from module.core.Metadata import ProjectInformation
 
 
 @dataclass

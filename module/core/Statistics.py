@@ -1,24 +1,15 @@
 from dataclasses import dataclass, field
-from typing import ClassVar
-import pandas as pd
-import numpy as np
-from typing import List, Tuple
-from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
 
-# from module.core.HPLC import HPLC
-from module.core.Metadata import (
-    ExperimentInformation,
-    ProjectInformation,
-)
-from tqdm import tqdm
-import scipy
+import numpy as np
+import pandas as pd
+
 import pingouin as pg
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from module.core.utils import parallel_process
-from IPython.display import HTML
-from module.core.utils import is_array_like
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+
+from module.core.Dataset import SelectableDataFrame
+from module.core.utils import is_array_like, parallel_process
 
 
 def get_quantitative_statistics_pipeline(
@@ -118,104 +109,6 @@ class QuantitativeStatistic:
                     else val
                 )
             self.is_significant = self.results.is_significant.all()
-
-    @staticmethod
-    def calculate_from_selection(
-        data,
-        experiments,
-        p_value_threshold: float = None,
-        pipeline: list = None,
-    ):
-        """
-        Calculate statistical for data, autmaticcaly groups by experiment, compound regions.
-
-        Args:
-            data (pd.DataFrame): The name of the project.
-            experiemnts (str): The experiments to calculate for.
-            p_value_threshold (float, optional): The p-value threshold used for statistical analysis. Defaults to None.
-
-        Returns:
-            SelectableDataFrame: Containing the statistical results.
-
-        """
-
-        groupings = []
-
-        experiments = (
-            [experiments] if isinstance(experiments, pd.Series) else experiments
-        )
-
-        for experiment in experiments:
-            groupings.extend(
-                [
-                    QuantitativeStatistic(
-                        data=group_data,
-                        independant_variables=experiment.independant_variables,
-                        is_paired=experiment.paired,
-                        is_parametric=experiment.parametric,
-                        p_value_threshold=p_value_threshold,
-                        pipeline=pipeline,
-                        delay_execution=True,
-                        metadata={
-                            "experiment": experiment.label,
-                            "compound": compound,
-                            "region": region,
-                        },
-                    )
-                    for (region, compound), group_data in tqdm(
-                        data.select(group_id=experiment.groups).groupby(
-                            ["region", "compound"]
-                        ),
-                        desc=f"Preparing statistical groupings for {experiment.label}",
-                    )
-                ]
-            )
-
-        statistics = parallel_process(groupings, description="Calculating statistics")
-
-        results = []
-        for statistic in statistics:
-            result = statistic.results
-            result["fully_significant"] = statistic.is_significant
-            results.append(result)
-
-        return statistics, SelectableDataFrame(pd.concat(results))
-
-    @classmethod
-    def calculate_batch(
-        data_groupings: list[Tuple[List, pd.DataFrame]],
-        experiments,
-        group_column,
-        p_value_threshold=0.05,
-    ):
-        batch = []
-        for group, data in data_groupings:
-            for experiment in experiments:
-                batch.append(
-                    QuantitativeStatistic(
-                        data=data,
-                        group_column=group_column,
-                        independant_variables=experiment.independant_variables,
-                        is_paired=experiment.paired,
-                        is_parametric=experiment.parametric,
-                        p_value_threshold=p_value_threshold,
-                        delay_execution=True,
-                        metadata={
-                            "experiment": experiment.label,
-                            **{col: val for col, val in zip(group_by, group)},
-                        },
-                    )
-                )
-
-        statistics = parallel_process(batch, description="Calculating statistics")
-
-        results = []
-        for statistic in statistics:
-            result = statistic.results
-            result["fully_significant"] = statistic.is_significant
-            results.append(result)
-
-        return statistics, SelectableDataFrame(pd.concat(results))
 
     # for parallel
     def __call__(self):
