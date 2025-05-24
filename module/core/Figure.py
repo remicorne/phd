@@ -16,6 +16,7 @@ from statannotations.Annotator import Annotator
 from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
 from module.core.Matrix import Matrix, Network
 from module.core.Statistics import QuantitativeStatistic
+from module.core.constants import DatasetColumn
 
 
 @dataclass
@@ -72,7 +73,7 @@ class Histogram(Figure):
             sns.barplot(
                 data=self.data,
                 x=self.x,
-                y="value",
+                y=DatasetColumn.VALUE,
                 hue=self.hue,
                 palette=self.custom_params.get("palette"),
                 errorbar=self.custom_params.get("errorbar", "sd"),
@@ -87,7 +88,7 @@ class Histogram(Figure):
             sns.swarmplot(
                 data=self.data,
                 x=self.x,
-                y="value",
+                y=DatasetColumn.VALUE,
                 hue=self.custom_params.get("swarm_hue", self.hue),
                 size=self.custom_params.get("size", 5),
                 palette=self.custom_params.get("palette"),
@@ -120,7 +121,7 @@ class Histogram(Figure):
                 pairs,
                 data=self.data,
                 x=self.x,
-                y="value",
+                y=DatasetColumn.VALUE,
                 order=self.custom_params.get("hue_order"),
             )
             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
@@ -152,7 +153,7 @@ class SummaryHistogram(Figure):
             sns.barplot(
                 data=self.data,
                 x=self.custom_params.get("x", self.x),
-                y="value",
+                y=DatasetColumn.VALUE,
                 hue=self.custom_params.get("hue", self.hue),
                 palette=self.custom_params.get("palette"),
                 errorbar=self.custom_params.get("errorbar", "sd"),
@@ -170,7 +171,7 @@ class SummaryHistogram(Figure):
             sns.swarmplot(
                 data=self.data,
                 x=self.custom_params.get("x", self.x),
-                y="value",
+                y=DatasetColumn.VALUE,
                 hue=self.custom_params.get(
                     "swarm_hue", self.custom_params.get("hue", self.hue)
                 ),
@@ -660,80 +661,80 @@ class Correlation(Figure):
         plt.show()
 
 
-@dataclass
-class Violin(Figure):  # TODO make work? JASMINE: still necessary?
-    """
-    Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
-    If multiple compounds or regions are specified, a summary histogram is generated.
-    """
+# @dataclass
+# class Violin(Figure):  # TODO make work? JASMINE: still necessary?
+#     """
+#     Generate a histogram of treatments. If only one compound or region is specified, a simple histogram is generated.
+#     If multiple compounds or regions are specified, a summary histogram is generated.
+#     """
 
-    figure_type: ClassVar[str] = "histogram"
+#     figure_type: ClassVar[str] = "histogram"
 
-    data: pd.DataFrame
-    x: str
-    hue: str
-    statistic: QuantitativeStatistic = field(default=None)
+#     data: pd.DataFrame
+#     x: str
+#     hue: str
+#     statistic: QuantitativeStatistic = field(default=None)
 
-    def generate_figure(self):
-        self.fig, self.ax = plt.subplots(figsize=(20, 10))
+#     def generate_figure(self):
+#         self.fig, self.ax = plt.subplots(figsize=(20, 10))
 
-    def plot(self):
-        sns.violinplot(
-            data=data,
-            x=x,
-            y="value",
-            hue=hue,
-            split=True if hue else False,
-            inner=None,  # Removes inner elements (like quartiles) for cleaner overlay
-            palette="muted",
-        )
+#     def plot(self):
+#         sns.violinplot(
+#             data=data,
+#             x=x,
+#             y=DatasetColumn.VALUE,
+#             hue=hue,
+#             split=True if hue else False,
+#             inner=None,  # Removes inner elements (like quartiles) for cleaner overlay
+#             palette="muted",
+#         )
 
-        for i, group in enumerate(data[x].unique()):
-            group_data = data[data[x] == group]
-            y_values = group_data[measurement].values
-            jittered_x = np.random.normal(loc=i, scale=0.1, size=len(y_values))
-            colors = plt.cm.viridis(norm(y_values))  # Use Viridis colormap
+#         for i, group in enumerate(data[x].unique()):
+#             group_data = data[data[x] == group]
+#             y_values = group_data[measurement].values
+#             jittered_x = np.random.normal(loc=i, scale=0.1, size=len(y_values))
+#             colors = plt.cm.viridis(norm(y_values))  # Use Viridis colormap
 
-            plt.scatter(
-                jittered_x,
-                y_values,
-                color=colors,
-                marker="+",
-                s=100,
-                edgecolor="black",
-                linewidth=0.5,
-                label=None,  # Prevent duplicate legend entries for scatter
-            )
+#             plt.scatter(
+#                 jittered_x,
+#                 y_values,
+#                 color=colors,
+#                 marker="+",
+#                 s=100,
+#                 edgecolor="black",
+#                 linewidth=0.5,
+#                 label=None,  # Prevent duplicate legend entries for scatter
+#             )
 
-        self.ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
-        self.ax.set_ylabel(
-            self.custom_params.get("ylabel"),
-            fontsize=self.custom_params.get("ylabel_fontsize", 24),
-        )
-        self.ax.set_xlabel(
-            " ", fontsize=self.custom_params.get("xlabel_fontsize", 20)
-        )  # treatments
-        self.ax.set_title(
-            self.title,
-            y=self.custom_params.get("y", 1.04),
-            fontsize=self.custom_params.get("fontsize", 34),
-        )
-        sns.despine(left=False)
-        self.label_histogram_stats()
+#         self.ax.tick_params(labelsize=self.custom_params.get("labelsize", 24))
+#         self.ax.set_ylabel(
+#             self.custom_params.get("ylabel"),
+#             fontsize=self.custom_params.get("ylabel_fontsize", 24),
+#         )
+#         self.ax.set_xlabel(
+#             " ", fontsize=self.custom_params.get("xlabel_fontsize", 20)
+#         )  # treatments
+#         self.ax.set_title(
+#             self.title,
+#             y=self.custom_params.get("y", 1.04),
+#             fontsize=self.custom_params.get("fontsize", 34),
+#         )
+#         sns.despine(left=False)
+#         self.label_histogram_stats()
 
-    def label_histogram_stats(self):
-        if self.statistic and self.statistic.is_significant:
-            pairs, p_values = self.statistic.significant_pairs
-            annotator = Annotator(
-                self.ax,
-                pairs,
-                data=self.data,
-                x=self.x,
-                y="value",
-                order=self.custom_params.get("hue_order"),
-            )
-            annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
-            annotator.set_pvalues_and_annotate(p_values)
+#     def label_histogram_stats(self):
+#         if self.statistic and self.statistic.is_significant:
+#             pairs, p_values = self.statistic.significant_pairs
+#             annotator = Annotator(
+#                 self.ax,
+#                 pairs,
+#                 data=self.data,
+#                 x=self.x,
+#                 y=DatasetColumn.VALUE,
+#                 order=self.custom_params.get("hue_order"),
+#             )
+#             annotator.configure(text_format="star", loc="inside", fontsize="xx-large")
+#             annotator.set_pvalues_and_annotate(p_values)
 
 
 @dataclass
@@ -744,8 +745,8 @@ class Table(ExcelCachedDataFrame, Figure):
         grouped = (
             self.data.groupby(["region", "compound", "treatment"])
             .agg(
-                mean_value=("value", "mean"),
-                std_value=("value", lambda x: np.std(x, ddof=1)),
+                mean_value=(DatasetColumn.VALUE, "mean"),
+                std_value=(DatasetColumn.VALUE, lambda x: np.std(x, ddof=1)),
             )
             .reset_index()
         )

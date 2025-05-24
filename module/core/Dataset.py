@@ -3,22 +3,13 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import ClassVar
-from module.core.Constants import ConstantRegistry
+from abc import ABC, abstractmethod
+from module.core.Registry import Registry
 from module.core.Cacheable import Cacheable
 import pandas as pd
 from module.core.utils import is_array_like
 
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
-
-
-def handle_class_selectors(classes, select_value):
-    if is_array_like(select_value):
-        values = []
-        for item in select_value:
-            values.extend(classes.get(item, [item]))
-        return values
-
-    return classes.get(select_value, select_value)
 
 
 def mask(df: pd.DataFrame, mask_conditions: dict):
@@ -51,9 +42,9 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     return selected
 
 
-def sub_select(df, selector):
+def sub_select(df: "SelectableDataFrame", selector: dict) -> "SelectableDataFrame":
     df = df.loc[mask(df, selector)]
-    return df
+    return df.copy()
 
 
 class SelectableDataFrame(pd.DataFrame):
@@ -103,7 +94,7 @@ class SelectableDataFrame(pd.DataFrame):
         return self.merge(other, on=common_columns)
 
 
-class DataframeWrapperMixin:
+class DataframeWrapperMixin(ABC):
     """
     Mixin for datasets ie dataframes stored in Excel or Pickle files.
     Similar to JSONmapping interface for json/dict.
@@ -124,8 +115,9 @@ class DataframeWrapperMixin:
         return list(self.df.to_dict(orient="index").values())
 
     @property
+    @abstractmethod
     def df(self) -> SelectableDataFrame:
-        raise NotImplementedError("Subclasses must implement a `df` property.")
+        """The dataframe property that must be implemented by subclasses."""
 
     def extend(self, other) -> SelectableDataFrame:
         """
@@ -142,26 +134,27 @@ class DataframeWrapperMixin:
     def __contains__(self, column):
         return column in self.df
 
-    def __repr__(self) -> str:
-        """Called by terminal to display the dataframe (pretty)
-
-        Returns:
-            str: Pretty representation of the df
-        """
-        return repr(self.df)
-
     def __getattr__(self, key):
         try:
             return getattr(self.df, key)
-        except AttributeError:
-            raise AttributeError(f"{key} not found in {self.__class__.__name__}")
+        except AttributeError as e:
+            raise AttributeError(f"{key} not found in {self.__class__.__name__}") from e
 
     def __setitem__(self, key, value):
         self.df[key] = value
 
 
 class CachedDataFrame(DataframeWrapperMixin, Cacheable):
-    pass
+    @abstractmethod
+    def save(self, data: pd.DataFrame):
+        pass
+
+    @abstractmethod
+    def load(self, **kwargs) -> SelectableDataFrame:
+        pass
+
+    def df(self) -> SelectableDataFrame:
+        return self.load()
 
 
 @dataclass

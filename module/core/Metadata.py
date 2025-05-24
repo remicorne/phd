@@ -29,8 +29,6 @@ class ProjectMetadata(ExcelCachedDataFrame):
 
     project: str = field(default=None)
     filename: ClassVar[str] = "metadata"
-    subject_column: ClassVar[str] = "subject_id"
-    group_column: ClassVar[str] = "group_id"
 
     def __post_init__(self):
         super().__post_init__()
@@ -72,11 +70,11 @@ class ProjectMetadata(ExcelCachedDataFrame):
 
     def generate(self):
         return {
-            "datasets": Datasets.generate(self),
-            "groups": Groups.generate(self),
-            "experiments": Experiments.generate(self),
-            "palette": Palette.generate(self),
-            "statistics": Statistics.generate(self),
+            "datasets": Datasets.generate(),
+            "groups": Groups.generate(),
+            "experiments": Experiments.generate(),
+            "palette": Palette.generate(),
+            "statistics": Statistics.generate(),
         }
 
     def initialize(self):
@@ -143,22 +141,25 @@ class SubSetting(DataframeWrapperMixin):
     def df(self):
         return self._df
 
-    def generate(self):
+    @classmethod
+    def generate(cls):
         """Generate template dataframe"""
-        return pd.DataFrame(self._default)
+        return pd.DataFrame(cls._default)
 
     def convert_dtypes(self, df):
         errors = []
         for col_name, col_info in self._types.items():
             try:
-                if col_info["type"] is list:
+                if col_info["type"] in [list, tuple]:
                     df[col_name] = df[col_name].apply(
-                        lambda val: [
-                            col_info["subtype"](subval)
-                            for subval in (
-                                val.replace(" ", "").split(",") if val else []
-                            )
-                        ]
+                        lambda val: col_info["type"](
+                            [
+                                col_info["subtype"](subval)
+                                for subval in (
+                                    val.replace(" ", "").split(",") if val else []
+                                )
+                            ]
+                        )
                     )
                 elif col_info["type"] is bool:
                     df[col_name] = df[col_name].apply(
@@ -259,7 +260,10 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
     _types: ClassVar[dict] = {
         "group_id": {"type": int},
         "group_name": {"type": str},
-        "independant_variables": {"type": list, "subtype": str},
+        "independant_variables": {
+            "type": tuple,
+            "subtype": str,
+        },  # tuple because list unhashable in pandas
         "subject_ids": {"type": list, "subtype": int},
     }
     control_group: ClassVar[list] = "vehicles"
@@ -287,7 +291,7 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
 class Palette(SubSetting):
     sheet_name: ClassVar[str] = "palette"
     _default: ClassVar[dict] = {
-        "group_id": [1, 2, 3, 4],
+        "group_id": [1, 5, 3, 4],
         "color": ["white", "pink", "orange", "red"],
         "significance_symbol": ["*", "", "$", ""],
     }

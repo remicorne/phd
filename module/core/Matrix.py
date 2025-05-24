@@ -6,6 +6,7 @@ import numpy as np
 from module.core.utils import parallel_process
 from module.core.Dataset import SelectableDataFrame
 from statsmodels.stats.multitest import fdrcorrection
+from module.core.constants import DatasetColumn
 
 
 def calculate_correlation(method, x, y):
@@ -126,7 +127,7 @@ class Matrix:
         Creates a pivot table from the filtered data.
         """
         self.pivot = self.filtered_data.pivot_table(
-            values="value",
+            values=DatasetColumn.VALUE,
             index="subject_id",
             columns=self.pivot_columns,
         )
@@ -222,7 +223,7 @@ class Matrix:
         stack = self.correlations.stack(dropna=False)
         stack.index = stack.index.rename(self.pivot_columns)
         stack = pd.DataFrame(stack.reset_index())
-        stack.columns = list(stack.columns[:-1]) + ["value"]
+        stack.columns = list(stack.columns[:-1]) + [DatasetColumn.VALUE]
         stack = stack[stack.value.isna()]
         self.missing_overlap = stack[stack.value.isna()][self.pivot_columns].values
         if len(self.missing_overlap):
@@ -610,7 +611,7 @@ class NetworkGroup:
                 row = {
                     **row,
                     "measurement": variable,
-                    "value": getattr(network, variable),
+                    DatasetColumn.VALUE: getattr(network, variable),
                 }
                 data.append(row)
         return SelectableDataFrame(data)

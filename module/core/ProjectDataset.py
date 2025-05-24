@@ -1,5 +1,5 @@
-import os
 from dataclasses import dataclass, field
+from typing import Callable
 import pandas as pd
 import numpy as np
 import scipy
@@ -8,13 +8,15 @@ from tqdm import tqdm
 
 from outliers import smirnov_grubbs as grubbs
 from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
-from module.core.Constants import ConstantRegistry, ClassRegistry
+from module.core.Registry import Registry, ClassRegistry
 from module.core.Metadata import (
     ProjectMetadata,
 )
-from module.core.questions import input_escape
+from module.core.questions import input_escape, yes_or_no
 from module.core.utils import parallel_process, is_array_like
 from module.core.Statistics import QuantitativeStatisticBatch
+from module.core.Ratio import Ratio
+from module.core.constants import DatasetColumn
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -27,7 +29,7 @@ def label_group_outliers(df__test__p_value_threshold__max_outliers):
     if only_values.value.count() < 3:
         df["outlier_status"] = "Not enough data"
         return df
-    outlier_test = OUTLIER_TESTS[test]
+    outlier_test: Callable = OUTLIER_TESTS[test]
     outliers = outlier_test(only_values.value.tolist(), p_value_threshold)
     if len(outliers) > max_outliers:
         identifying_values = {
@@ -75,20 +77,35 @@ class Dataset(
     project: str = field(kw_only=True)
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
 
+    # Necessary to avoir infinite recursion with self.df -> self.data before data is init
+    # Only problem in debug mode because debugger wants to display self.df
+    # This mostly solves the issue but the debugger will still fail between self init and data init
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.data = None
+        return self
+
     def __post_init__(self):
-        super().__post_init__()
         self.metadata = ProjectMetadata(self.project)
         self.measurement_columns = self.metadata.datasets.select_one(
             label=self.filename
         ).measurement_columns
-        self.subject_column = self.metadata.subject_column
-        self.group_column = self.metadata.group_column
-        self.mandatory_columns = [self.subject_column, "value", "unit"]
-        self.columns = self.df.columns
-        self.dataset_specific_columns = set(self.columns) - set(self.mandatory_columns)
+        self.subject_column = DatasetColumn.SUBJECT_ID
+        self.group_column = DatasetColumn.GROUP_ID
+        self.mandatory_columns = [
+            self.subject_column,
+            DatasetColumn.VALUE,
+            DatasetColumn.UNIT,
+        ]
+        # Must be here to be able to use metadata
+        super().__post_init__()
+        self.data = self.validate(self.load())
+        self.data = self.metadata.groups.extend_dataset(self.data)
+        self.dataset_specific_columns = set(self.data.columns) - set(
+            self.mandatory_columns
+        )
         self.selector = {}
         self.selection = {}
-        self.data = self.df
         self.statistics = []
         self.statistics_table = []
         self.is_generic = False
@@ -103,18 +120,20 @@ class Dataset(
             df = pd.read_pickle(filepath)
         else:
             raise ValueError(f"Unsupported file type: {filepath}")
-        print(f"replacing 0 with nan for {len(df[df['value'] == 0])} values")
-        df["value"] = (
-            df["value"].replace({0: np.nan, "NA": np.nan, "": np.nan}).fillna(np.nan)
+        zero_values = df[df["value"] == 0]
+        if zero_values and yes_or_no(
+            f"{len(zero_values)} values are equal to 0, replace with nan?"
+        ):
+            df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(0, np.nan)
+        df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(
+            {"NA": np.nan, "": np.nan}
         )
-        self.validate(df)
-        df = pd.concat([df, self.calculate_ratios(df)])
-        return df
+        return self.validate(df)
 
     def validate(self, df):
         """
         Validate that the dataframe has the required columns and that the values
-        in these columns are valid according to the ConstantRegistry.
+        in these columns are valid according to the Registry.
         """
         df_columns = df.columns
         if not all(col in df_columns for col in self.mandatory_columns):
@@ -122,9 +141,7 @@ class Dataset(
                 f"{self.mandatory_columns} columns are mandatory, modify file and retry"
             )
         valid_subject_ids = self.metadata.subject_ids
-        df_subject_ids = (
-            df[self.subject_column].astype(valid_subject_ids.dtype).unique()
-        )
+        df_subject_ids = df[self.subject_column].unique()
         invalid_subject_ids = set(df_subject_ids) - set(valid_subject_ids)
         if invalid_subject_ids:
             raise ValueError(
@@ -132,8 +149,8 @@ class Dataset(
             )
 
         for col_name in df_columns:
-            if ConstantRegistry.exists(element_type=col_name):
-                registry = ConstantRegistry.get_registry(element_type=col_name)
+            if Registry.exists(element_type=col_name):
+                registry = Registry.get_registry(element_type=col_name)
                 unique_values = df[col_name].unique()
                 invalid_values = set(unique_values) - set(registry)
                 if invalid_values:
@@ -143,20 +160,18 @@ class Dataset(
                     }
                     df[col_name] = df[col_name].apply(correction_mapper.get)
             else:
-                print(
-                    f"No ConstantRegistry for element type '{col_name}', skipping validation"
-                )
+                print(f"No Registry for element type '{col_name}', skipping validation")
         df.value = df.value.astype(float)
         return df
 
-    def calculate_outliers(self):
+    def calculate_outliers(self, test: str):
         cases = []
-        for _, subset_df in self.df[
+        for _, subset_df in self.data[
             [
                 self.subject_column,
                 self.group_column,
                 *self.measurement_columns,
-                "value",
+                DatasetColumn.VALUE,
             ]
         ].groupby(
             [
@@ -164,19 +179,20 @@ class Dataset(
                 *self.measurement_columns,
             ]
         ):
-            for test in OUTLIER_TESTS:
-                cases.append(
-                    (
-                        subset_df.copy(),
-                        test,
-                        self.metadata.p_value_threshold,
-                        self.metadata.max_outliers,
-                    )
+            cases.append(
+                (
+                    subset_df.copy(),
+                    test,
+                    self.metadata.p_value_threshold,
+                    self.metadata.max_outliers,
                 )
+            )
         results = parallel_process(
             cases, label_group_outliers, description="Calculating outliers"
         )  # TODO check what happens with nan
-        return pd.concat(results).drop(columns=[self.group_column, "value"])
+        self.outliers = pd.concat(results).drop(
+            columns=[self.group_column, DatasetColumn.VALUE]
+        )
 
     def calculate_group_statistics(self):
         result_ls = []
@@ -192,7 +208,7 @@ class Dataset(
                 (
                     F,
                     p,
-                ) = scipy.stats.shapiro(groupby_df["value"])
+                ) = scipy.stats.shapiro(groupby_df[DatasetColumn.VALUE])
                 is_parametric = p > 0.05
             else:
                 F, p, is_parametric = np.nan, np.nan, np.nan
@@ -215,7 +231,7 @@ class Dataset(
                     values,
                 ]
             )
-        return pd.DataFrame(
+        self.group_statistics = pd.DataFrame(
             result_ls,
             columns=[
                 *group_columns,
@@ -248,41 +264,6 @@ class Dataset(
 
         self.statistics, self.statistics_table = stats_batch.compute()
 
-        return self
-
-    def calculate_full_quantitative_statistics(self):
-        self.calculate_quantitative_statistics()
-        return self.statistics_table
-
-    def get_linked_data(self, linked_data_type):
-        filepath = self.filepath.replace(
-            self.filename, f"{self.filename}_{linked_data_type}"
-        )
-        if not os.path.isfile(filepath):
-            data = getattr(self, f"calculate_{linked_data_type}")()
-            data.to_pickle(filepath)
-        return SelectableDataFrame(pd.read_pickle(filepath))
-
-    @property
-    def group_statistics(self):
-        return self.get_linked_data("group_statistics")
-
-    @property
-    def quantitative_statistics(self):
-        return self.get_linked_data("experiment_statistics")
-
-    @property
-    def outliers(self):
-        return self.get_linked_data("outliers")
-
-    @property
-    def df(
-        self,
-    ):  # TODO clear up with full df, also, derived datasets should be able to be projectDatasets (network df)
-        data = self.load()
-        data = self.metadata.groups.extend_dataset(data)
-        return data
-
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
@@ -298,26 +279,45 @@ class Dataset(
             else:
                 groups = self.metadata.groups.df.group_name.values
             selection["group_name"] = groups
-        if "remove_outliers" in selection:
-            test, remove_outliers = next(iter(selection["remove_outliers"].items()))
-            self.data = self.data.extend(self.outliers.select(test=test))
-            if remove_outliers == "eliminated":
-                raise NotImplementedError
-            elif remove_outliers == "calculated":
-                selection.update(
-                    is_outlier=lambda x: x is not True
-                )  # nan considered not outlier
-                del selection["remove_outliers"]
-        for col in filter(lambda col: col in selection, self.measurement_columns):
+        for col in set.intersection(set(self.measurement_columns), set(selection)):
             if ClassRegistry.exists(element_type=col):
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selection[col] in registry:
                     selection[col] = registry[selection[col]]
+                if isinstance(selection[col], str):
+                    selection[col] = [selection[col]]
+        remove_outliers = selection.pop("remove_outliers", None)
         self.selection = {**self.selection, **selection}
-        self.data = self.sort_values(self.data.select(**selection).copy(), selection)
+        data_with_ratios = self.build_ratios(self.data, selection)
+        self.data = self.sort_values(data_with_ratios.select(**selection), selection)
+        if remove_outliers:
+            test, how = next(iter(remove_outliers.items()))
+            self.calculate_outliers(test)
+            self.data = self.data.extend(self.outliers)
+            if how == "eliminated":
+                raise NotImplementedError("Manual outlier selection not implemented")
+            elif how == "calculated":
+                selection.update(
+                    is_outlier=lambda x: x is not True
+                )  # nan considered not outlier
         if self.data.empty:
             raise ValueError("No data left after selection")
         return self
+
+    def build_ratios(
+        self, data: SelectableDataFrame, selection: dict
+    ) -> SelectableDataFrame:
+        ratios = []
+        for col in self.measurement_columns:
+            for value in selection.get(col, []):
+                if Ratio.is_ratio(value):
+                    ratios.append((col, value))
+        if ratios:
+            ratios_df = pd.concat(
+                Ratio(column, value).compute(data) for column, value in ratios
+            )
+            data = pd.concat([data, ratios_df])
+        return data
 
     def sort_values(self, data, categoricals):
         categories_to_create = {
@@ -364,7 +364,7 @@ class Dataset(
         return palette
 
     def get_units(self):
-        return self.data["unit"].unique()
+        return self.data[DatasetColumn.UNIT].unique()
 
     def get_selection_string(self):  # TODO: develop figure params classes
         return " in ".join(
@@ -382,35 +382,9 @@ class Dataset(
             ]
         )
 
-    def calculate_ratios(self, df):
-        print(f"Calculating ratios for {len(df)} values")
-        df_ratios = df.merge(
-            df, on=[self.subject_column, "region"], suffixes=("_num", "_den")
-        )  # TODO dirty for jasmine, remove to generalize
-        df_ratios["value"] = df_ratios["value_num"] / df_ratios["value_den"]
-
-        categorical_cols = [
-            col
-            for col in df.columns
-            if col not in ["value", "region", self.subject_column]
-        ]
-        for col in categorical_cols:
-            df_ratios[col] = df_ratios[f"{col}_num"] + "/" + df_ratios[f"{col}_den"]
-
-        # Eliminate unit if it is the same for numerator and denominator
-        if "unit" in categorical_cols:
-            df_ratios.loc[df_ratios["unit_num"] == df_ratios["unit_den"], "unit"] = ""
-
-        drop_cols = [f"{col}_num" for col in categorical_cols] + [
-            f"{col}_den" for col in categorical_cols
-        ]
-
-        df_ratios.drop(columns=drop_cols, inplace=True)
-        print(f"{len(df_ratios)} ratios calculated")
-        return df_ratios
-
-    def __repr__(self):
-        return self.data.__repr__()
+    @property
+    def df(self):
+        return self.data
 
 
 @dataclass

@@ -15,9 +15,10 @@ from module.core.Figure import (
 from module.core.FileSystem import FileSystem
 from module.core.Metadata import ProjectMetadata
 from module.core.Matrix import MatrixGroup, NetworkGroup
-from module.core.Constants import ConstantRegistry
+from module.core.Registry import Registry
 from module.core.questions import input_escape
 from module.core.Statistics import QuantitativeStatistic
+from module.core.constants import DatasetColumn
 
 
 def get_dataset(project, request):
@@ -169,9 +170,7 @@ def network(project, request, between, custom_params=None):
     )
     filepath = os.path.join(location, "network", title)
     region_class = request["datasets"].get("hplc", {}).get("region")
-    positions = ConstantRegistry.get_registry(name="region_classes_positions").get(
-        region_class
-    )
+    positions = Registry.get_registry(name="region_classes_positions").get(region_class)
     NetworkFigure(
         title,
         filepath,
@@ -249,7 +248,7 @@ def network_summary(project, request, between, measurement: str, custom_params=N
             network_summary_df[hue] == "vehicles"
         ]  # HARD CODE
         compound_value_dict = dict(
-            zip(vehicle_values["compound"], vehicle_values["value"])
+            zip(vehicle_values["compound"], vehicle_values[DatasetColumn.VALUE])
         )
         sorted_compound_value = {
             k: v
@@ -336,7 +335,7 @@ def correlation(project, x, y, grouper, custom_params=None):
         dataset = Dataset(project=project, filename=selector.pop("dataset"))
         dataset.select(**selector, **grouper)
         data.append(dataset)
-    subject_column = project_information.subject_column
+    subject_column = DatasetColumn.SUBJECT_ID
     common_subject_ids = list(
         set(data[0].data[subject_column]).intersection(
             set(data[1].data[subject_column])
