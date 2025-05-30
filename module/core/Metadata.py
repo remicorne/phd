@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 
 from module.core.Dataset import (
-    DataframeWrapperMixin,
     ExcelCachedDataFrame,
     SelectableDataFrame,
 )
@@ -109,11 +108,8 @@ class ProjectMetadata(ExcelCachedDataFrame):
             for sheet_name, df in content.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-    def load(self):
-        return pd.read_excel(self.filepath, sheet_name=None)
 
-
-class SubSetting(DataframeWrapperMixin):
+class SubSetting(ExcelCachedDataFrame):
     """Base class for project settings subsets.
     Handles validation and data processing for individual sheets.
     """
@@ -224,15 +220,7 @@ class Experiments(SubSetting):
     def experiments(self):
         return list(self.df.label)
 
-    def select(self, **selector):
-        if selector.get("label", selector.get("experiment")) in ["default", None]:
-            return self.get_default_experiment()
-        return super().select(**selector)
-
-    def select_one(self, **selector):
-        return self.select(**selector).iloc[0,:]
-    
-    def get_default_experiment(self):
+    def _get_default_experiment(self):
         return pd.DataFrame(
             [
                 dict(
@@ -245,6 +233,13 @@ class Experiments(SubSetting):
                 )
             ]
         )
+
+    @property
+    def df(self):
+        df = self.load()
+        if "default" in df.label.values:
+            raise ValueError("Default experiment is a reserved keyword")
+        return pd.concat([df, self._get_default_experiment()])
 
 
 class Groups(SubSetting):  # TODO: generalize to Groups?

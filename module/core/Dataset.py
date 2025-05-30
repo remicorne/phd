@@ -91,6 +91,8 @@ class SelectableDataFrame(pd.DataFrame):
         if isinstance(other, CachedDataFrame):
             other = other.df
         common_columns = self.columns.intersection(other.columns).to_list()
+        if not common_columns:
+            return self.merge(other, how="cross")
         return self.merge(other, on=common_columns)
 
 
@@ -180,10 +182,13 @@ class ExcelCachedDataFrame(CachedDataFrame):
 
     """
 
+    sheet_name: ClassVar[str] = None
     extension: ClassVar[str] = "xlsx"
 
     def save(self, data: pd.DataFrame):
         data.to_excel(self.filepath, index=False)
 
     def load(self, **kwargs) -> SelectableDataFrame:
-        return SelectableDataFrame(pd.read_excel(self.filepath, **kwargs))
+        return SelectableDataFrame(
+            pd.read_excel(self.filepath, sheet_name=self.sheet_name, **kwargs)
+        )
