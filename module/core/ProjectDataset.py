@@ -120,9 +120,9 @@ class Dataset(
             df = pd.read_pickle(filepath)
         else:
             raise ValueError(f"Unsupported file type: {filepath}")
-        zero_values = df[df["value"] == 0]
-        if zero_values and yes_or_no(
-            f"{len(zero_values)} values are equal to 0, replace with nan?"
+        num_zero_values = len(df[df["value"] == 0])
+        if num_zero_values and yes_or_no(
+            f"{len(num_zero_values)} values are equal to 0, replace with nan?"
         ):
             df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(0, np.nan)
         df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(
