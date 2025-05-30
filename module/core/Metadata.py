@@ -229,6 +229,9 @@ class Experiments(SubSetting):
             return self.get_default_experiment()
         return super().select(**selector)
 
+    def select_one(self, **selector):
+        return self.select(**selector).iloc[0,:]
+    
     def get_default_experiment(self):
         return pd.DataFrame(
             [
