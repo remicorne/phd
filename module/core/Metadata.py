@@ -31,28 +31,27 @@ class ProjectMetadata(ExcelCachedDataFrame):
 
     def __post_init__(self):
         super().__post_init__()
-        sheets = self.load()
-        self.datasets = Datasets(sheets["datasets"])
-        self.groups = Groups(sheets["groups"])
-        self.experiments = Experiments(sheets["experiments"])
-        self.palette = Palette(sheets["palette"])
-        self.statistics = Statistics(sheets["statistics"])
+        self.datasets = Datasets(self.project)
+        self.groups = Groups(self.project)
+        self.experiments = Experiments(self.project)
+        self.palette = Palette(self.project)
+        self.statistics = Statistics(self.project)
         self.validate_consistency()
 
         self.subject_ids = self.groups.subject_ids
-        self.experiments["group_names"] = self.experiments.group_ids.apply(
-            lambda x: self.groups.group_name[self.groups.group_id.isin(x)].tolist()
+        self.experiments["group_names"] = self.experiments.df.group_ids.apply(
+            lambda x: self.groups.df.group_name[self.groups.df.group_id.isin(x)].tolist()
         )
-        self.p_value_threshold = self.statistics.p_value_threshold
-        self.max_outliers = self.statistics.max_outliers
+        self.p_value_threshold = self.statistics.df.p_value_threshold
+        self.max_outliers = self.statistics.df.max_outliers
 
     def validate_consistency(self):
         experiment_group_ids = set()
         for experiment in self.experiments:
             experiment_group_ids.update(experiment.group_ids)
 
-        groups_group_ids = set(self.groups.group_id)
-        palette_group_ids = set(self.palette.group_id)
+        groups_group_ids = set(self.groups.df.group_id)
+        palette_group_ids = set(self.palette.df.group_id)
 
         unknown_experiment_groups = experiment_group_ids - groups_group_ids
         unknown_palette_groups = palette_group_ids - groups_group_ids
@@ -108,34 +107,16 @@ class ProjectMetadata(ExcelCachedDataFrame):
             for sheet_name, df in content.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-
+@dataclass
 class SubSetting(ExcelCachedDataFrame):
     """Base class for project settings subsets.
     Handles validation and data processing for individual sheets.
     """
-
+    project: str = field(default=None)
+    filename: ClassVar[str] = ProjectMetadata.filename
     sheet_name: ClassVar[str] = None
     _default: ClassVar[dict] = None
     _types: ClassVar[dict] = None
-
-    def __init__(self, df: pd.DataFrame):
-        """
-        Load data from template and handles type conversions for merges with raw data.
-        This process makes sure the template is both human and programatic friendly.
-
-        Raises:
-            ValueError: If a cell is not of the correct type (ie user input unusable data)
-
-        Returns:
-            SelectableDataFrame: Contains the project settings
-        """
-        # vehicle.independant_var == nan, problem for "var in independant_var" (nan not iterable)
-        df = SelectableDataFrame(df).replace(np.nan, "")
-        self._df = self.convert_dtypes(df)
-
-    @property
-    def df(self):
-        return self._df
 
     @classmethod
     def generate(cls):
@@ -185,6 +166,10 @@ class SubSetting(ExcelCachedDataFrame):
         if df.empty:
             raise ValueError(f"Empty selection for {self.filename}: {selector}")
         return df
+    
+    @property
+    def df(self):
+        return self.convert_dtypes(super().df.replace(np.nan, ""))
 
 
 class Datasets(SubSetting):
@@ -225,8 +210,7 @@ class Experiments(SubSetting):
             [
                 dict(
                     independant_variables=["group_id"],
-                    group_column="group_id",
-                    group_ids=None,
+                    group_ids=Groups(self.project).df.group_id.values,
                     paired=False,
                     parametric=True,
                     label="default",
@@ -236,7 +220,7 @@ class Experiments(SubSetting):
 
     @property
     def df(self):
-        df = self.load()
+        df = super().df
         if "default" in df.label.values:
             raise ValueError("Default experiment is a reserved keyword")
         return pd.concat([df, self._get_default_experiment()])
@@ -326,7 +310,6 @@ class Statistics(SubSetting):
         "max_outliers": {"type": int},
     }
 
-    def __init__(self, df: pd.DataFrame):
-        super().__init__(df)
-        self.p_value_threshold = self.df.p_value_threshold.iloc[0]
-        self.max_outliers = self.df.max_outliers.iloc[0]
+    @property
+    def df(self):
+        return super().df.iloc[0, :]

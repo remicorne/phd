@@ -136,17 +136,11 @@ class DataframeWrapperMixin(ABC):
     def __contains__(self, column):
         return column in self.df
 
-    def __getattr__(self, key):
-        try:
-            return getattr(self.df, key)
-        except AttributeError as e:
-            raise AttributeError(f"{key} not found in {self.__class__.__name__}") from e
-
     def __setitem__(self, key, value):
         self.df[key] = value
 
 
-class CachedDataFrame(DataframeWrapperMixin, Cacheable):
+class CachedDataFrame(Cacheable, DataframeWrapperMixin):
     @abstractmethod
     def save(self, data: pd.DataFrame):
         pass
@@ -155,6 +149,7 @@ class CachedDataFrame(DataframeWrapperMixin, Cacheable):
     def load(self, **kwargs) -> SelectableDataFrame:
         pass
 
+    @property
     def df(self) -> SelectableDataFrame:
         return self.load()
 
@@ -189,6 +184,5 @@ class ExcelCachedDataFrame(CachedDataFrame):
         data.to_excel(self.filepath, index=False)
 
     def load(self, **kwargs) -> SelectableDataFrame:
-        return SelectableDataFrame(
-            pd.read_excel(self.filepath, sheet_name=self.sheet_name, **kwargs)
-        )
+        data = pd.read_excel(self.filepath, sheet_name=self.sheet_name, **kwargs)
+        return SelectableDataFrame(data) if isinstance(data, pd.DataFrame) else data

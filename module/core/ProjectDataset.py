@@ -134,6 +134,9 @@ class Dataset(
         """
         Validate that the dataframe has the required columns and that the values
         in these columns are valid according to the Registry.
+        First step of validation is the structure of the dataset. Expect columns are [subject_id, *measurement_colums, unit]
+        measurement columns = columns characterising a measurement for a subject (compo+region, cell+signal, region, behavior, etc)
+        These will then be the ones you use as parameters
         """
         df_columns = df.columns
         if not all(col in df_columns for col in self.mandatory_columns):
@@ -263,6 +266,7 @@ class Dataset(
             )
 
         self.statistics, self.statistics_table = stats_batch.compute()
+        return self
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
@@ -275,10 +279,6 @@ class Dataset(
                 self.selected_experiment = self.metadata.experiments.select_one(
                     label=experiment
                 )
-                groups = self.selected_experiment.group_names
-            else:
-                groups = self.metadata.groups.df.group_name.values
-            selection["group_name"] = groups
         for col in set.intersection(set(self.measurement_columns), set(selection)):
             if ClassRegistry.exists(element_type=col):
                 registry = ClassRegistry.get_registry(element_type=col)
