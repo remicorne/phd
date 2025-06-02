@@ -263,7 +263,7 @@ class QuantitativeStatisticBatch:
 
     def compute(self):
         statistics = parallel_process(
-            self.statistics, description="Calculating statistics"
+            self.statistics, description="Calculating statistics", optimize=True
         )
 
         results = []

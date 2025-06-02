@@ -32,12 +32,6 @@ def label_group_outliers(df__test__p_value_threshold__max_outliers):
     outlier_test: Callable = OUTLIER_TESTS[test]
     outliers = outlier_test(only_values.value.tolist(), p_value_threshold)
     if len(outliers) > max_outliers:
-        identifying_values = {
-            col: df[col].unique()[0] for col in df.columns if df[col].unique().size == 1
-        }
-        print(
-            f"{test} found {len(outliers)} outliers for {identifying_values}, eliminating top {max_outliers}"
-        )
         outliers = outliers[:max_outliers]
     df["is_outlier"] = df.value.apply(lambda value: value in outliers)
     df["outlier_status"] = df.is_outlier.apply(
@@ -92,18 +86,10 @@ class Dataset(
         ).measurement_columns
         self.subject_column = DatasetColumn.SUBJECT_ID
         self.group_column = DatasetColumn.GROUP_ID
-        self.mandatory_columns = [
-            self.subject_column,
-            DatasetColumn.VALUE,
-            DatasetColumn.UNIT,
-        ]
-        # Must be here to be able to use metadata
         super().__post_init__()
         self.data = self.validate(self.load())
+        self.columns = self.data.columns
         self.data = self.metadata.groups.extend_dataset(self.data)
-        self.dataset_specific_columns = set(self.data.columns) - set(
-            self.mandatory_columns
-        )
         self.selector = {}
         self.selection = {}
         self.statistics = []
@@ -122,7 +108,7 @@ class Dataset(
             raise ValueError(f"Unsupported file type: {filepath}")
         num_zero_values = len(df[df["value"] == 0])
         if num_zero_values and yes_or_no(
-            f"{len(num_zero_values)} values are equal to 0, replace with nan?"
+            f"{num_zero_values} values are equal to 0, replace with nan?"
         ):
             df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(0, np.nan)
         df[DatasetColumn.VALUE] = df[DatasetColumn.VALUE].replace(
@@ -139,9 +125,10 @@ class Dataset(
         These will then be the ones you use as parameters
         """
         df_columns = df.columns
-        if not all(col in df_columns for col in self.mandatory_columns):
+        mandatory_columns = DatasetColumn.get_mandatory_columns()
+        if not all(col in df_columns for col in mandatory_columns):
             raise ValueError(
-                f"{self.mandatory_columns} columns are mandatory, modify file and retry"
+                f"{mandatory_columns} columns are mandatory, modify file and retry"
             )
         valid_subject_ids = self.metadata.subject_ids
         df_subject_ids = df[self.subject_column].unique()
@@ -151,19 +138,23 @@ class Dataset(
                 f"Invalid mouse ids: {invalid_subject_ids}, modify file and retry"
             )
 
-        for col_name in df_columns:
-            if Registry.exists(element_type=col_name):
-                registry = Registry.get_registry(element_type=col_name)
-                unique_values = df[col_name].unique()
+        for measurement_col in set(df_columns) - set(mandatory_columns):
+            if Registry.exists(element_type=measurement_col):
+                registry = Registry.get_registry(element_type=measurement_col)
+                unique_values = df[measurement_col].unique()
                 invalid_values = set(unique_values) - set(registry)
                 if invalid_values:
                     correction_mapper = {
                         value: registry.choose_valid_value(value)
                         for value in unique_values
                     }
-                    df[col_name] = df[col_name].apply(correction_mapper.get)
+                    df[measurement_col] = df[measurement_col].apply(
+                        correction_mapper.get
+                    )
             else:
-                print(f"No Registry for element type '{col_name}', skipping validation")
+                print(
+                    f"No Registry for element type '{measurement_col}', skipping validation"
+                )
         df.value = df.value.astype(float)
         return df
 
@@ -191,7 +182,10 @@ class Dataset(
                 )
             )
         results = parallel_process(
-            cases, label_group_outliers, description="Calculating outliers"
+            cases,
+            label_group_outliers,
+            description="Calculating outliers",
+            optimize=True,
         )  # TODO check what happens with nan
         self.outliers = pd.concat(results).drop(
             columns=[self.group_column, DatasetColumn.VALUE]
@@ -271,14 +265,18 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
-        if "group_name" not in selection:
-            if "experiment" in selector:
-                if not isinstance(selector["experiment"], str):
-                    raise ValueError("Experiment must be a string")
-                experiment = selection.pop("experiment")
-                self.selected_experiment = self.metadata.experiments.select_one(
-                    label=experiment
-                )
+        if "experiment" in selector:
+            if not isinstance(selector["experiment"], str):
+                raise ValueError("Experiment must be a string")
+            experiment = selection.pop("experiment")
+            self.selected_experiment = self.metadata.experiments.select_one(
+                label=experiment
+            )
+            if "group_name" not in selection:
+                selection["group_name"] = [
+                    self.metadata.groups.select_one(group_id=group_id).group_name
+                    for group_id in self.selected_experiment.group_ids
+                ]
         for col in set.intersection(set(self.measurement_columns), set(selection)):
             if ClassRegistry.exists(element_type=col):
                 registry = ClassRegistry.get_registry(element_type=col)
@@ -286,23 +284,28 @@ class Dataset(
                     selection[col] = registry[selection[col]]
                 if isinstance(selection[col], str):
                     selection[col] = [selection[col]]
-        remove_outliers = selection.pop("remove_outliers", None)
+        # Pop it so it doesnt go through classic "select" filtering
+        outlier_config = selection.pop("remove_outliers", None)
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
-        self.data = self.sort_values(data_with_ratios.select(**selection), selection)
-        if remove_outliers:
-            test, how = next(iter(remove_outliers.items()))
-            self.calculate_outliers(test)
-            self.data = self.data.extend(self.outliers)
-            if how == "eliminated":
-                raise NotImplementedError("Manual outlier selection not implemented")
-            elif how == "calculated":
-                selection.update(
-                    is_outlier=lambda x: x is not True
-                )  # nan considered not outlier
+        data_selected = data_with_ratios.select(**selection)
+        self.data = self.sort_values(data_selected, selection)
+        if outlier_config:
+            self.data = self.remove_outliers(outlier_config)
         if self.data.empty:
-            raise ValueError("No data left after selection")
+            raise ValueError(
+                f"No data for selection: {selection}, try different selection"
+            )
         return self
+
+    def remove_outliers(self, remove_outliers: dict[str, str]):
+        test, how = next(iter(remove_outliers.items()))
+        self.calculate_outliers(test)
+        self.data = self.data.extend(self.outliers)
+        if how == "eliminated":
+            raise NotImplementedError("Manual outlier selection not implemented")
+        elif how == "calculated":
+            return self.data.select(is_outlier=lambda x: x is not True)
 
     def build_ratios(
         self, data: SelectableDataFrame, selection: dict

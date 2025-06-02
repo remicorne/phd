@@ -12,6 +12,10 @@ from module.core.utils import is_array_like
 ROOT = os.getcwd()  # This gives terminal location (terminal working dir)
 
 
+class SelectionError(Exception):
+    pass
+
+
 def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index.notna()  # Select all
     absent_columns = set(mask_conditions) - set([*df.columns, "index"])
@@ -74,7 +78,12 @@ class SelectableDataFrame(pd.DataFrame):
         return sub_selection
 
     def select_one(self, **selector):
-        return self.select(**selector).iloc[0]
+        sub_selection = self.select(**selector)
+        if sub_selection.empty:
+            raise SelectionError(f"No rows found for selector: {selector}")
+        if len(sub_selection) > 1:
+            raise SelectionError(f"Multiple rows found for selector: {selector}")
+        return sub_selection.iloc[0]
 
     def extend(
         self, other: "CachedDataFrame|SelectableDataFrame|pd.DataFrame"
@@ -149,6 +158,12 @@ class CachedDataFrame(Cacheable, DataframeWrapperMixin):
     def load(self, **kwargs) -> SelectableDataFrame:
         pass
 
+    def select_one(self, **selector) -> SelectableDataFrame:
+        try:
+            return super().select_one(**selector)
+        except SelectionError as e:
+            raise SelectionError(f"{e} for {self.filename}")
+
     @property
     def df(self) -> SelectableDataFrame:
         return self.load()
@@ -186,3 +201,11 @@ class ExcelCachedDataFrame(CachedDataFrame):
     def load(self, **kwargs) -> SelectableDataFrame:
         data = pd.read_excel(self.filepath, sheet_name=self.sheet_name, **kwargs)
         return SelectableDataFrame(data) if isinstance(data, pd.DataFrame) else data
+
+    def select_one(self, **selector) -> SelectableDataFrame:
+        try:
+            return super().select_one(**selector)
+        except SelectionError as e:
+            raise SelectionError(
+                str(e) + f" - {self.sheet_name}" if self.sheet_name else e
+            )

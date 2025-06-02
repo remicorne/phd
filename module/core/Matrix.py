@@ -552,7 +552,7 @@ class MatrixGroup:
                         fdr_correction=self.fdr_correction,
                     )
                 )  # TODO: Setup multiprocessing pool
-        self.matrices = parallel_process(batch)
+        self.matrices = parallel_process(batch, description="Building matrices")
 
     def homogenize_datasets(self):
         conserved_rows = set.intersection(

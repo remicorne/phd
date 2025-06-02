@@ -39,11 +39,8 @@ class ProjectMetadata(ExcelCachedDataFrame):
         self.validate_consistency()
 
         self.subject_ids = self.groups.subject_ids
-        self.experiments["group_names"] = self.experiments.df.group_ids.apply(
-            lambda x: self.groups.df.group_name[self.groups.df.group_id.isin(x)].tolist()
-        )
-        self.p_value_threshold = self.statistics.df.p_value_threshold
-        self.max_outliers = self.statistics.df.max_outliers
+        self.p_value_threshold = self.statistics.p_value_threshold
+        self.max_outliers = self.statistics.max_outliers
 
     def validate_consistency(self):
         experiment_group_ids = set()
@@ -107,11 +104,13 @@ class ProjectMetadata(ExcelCachedDataFrame):
             for sheet_name, df in content.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
+
 @dataclass
 class SubSetting(ExcelCachedDataFrame):
     """Base class for project settings subsets.
     Handles validation and data processing for individual sheets.
     """
+
     project: str = field(default=None)
     filename: ClassVar[str] = ProjectMetadata.filename
     sheet_name: ClassVar[str] = None
@@ -139,11 +138,13 @@ class SubSetting(ExcelCachedDataFrame):
                         )
                     )
                 elif col_info["type"] is bool:
-                    df[col_name] = df[col_name].apply(
-                        lambda val: bool(strtobool(str(val)))
+                    df[col_name] = (
+                        df[col_name]
+                        .apply(lambda val: bool(strtobool(str(val))))
+                        .astype(bool)
                     )
                 else:
-                    df[col_name] = df[col_name].apply(col_info["type"])
+                    df[col_name] = df[col_name].astype(col_info["type"])
             except KeyError as e:
                 errors.append(f"Missing column {e}")
             except ValueError as e:
@@ -166,7 +167,7 @@ class SubSetting(ExcelCachedDataFrame):
         if df.empty:
             raise ValueError(f"Empty selection for {self.filename}: {selector}")
         return df
-    
+
     @property
     def df(self):
         return self.convert_dtypes(super().df.replace(np.nan, ""))
@@ -310,6 +311,7 @@ class Statistics(SubSetting):
         "max_outliers": {"type": int},
     }
 
-    @property
-    def df(self):
-        return super().df.iloc[0, :]
+    def __post_init__(self):
+        super().__post_init__()
+        self.p_value_threshold = self.df.p_value_threshold[0]
+        self.max_outliers = self.df.max_outliers[0]
