@@ -1,3 +1,4 @@
+from itertools import chain
 from dataclasses import dataclass, field
 import networkx as nx
 import scipy
@@ -587,6 +588,7 @@ class NetworkGroup:
             [Network(matrix) for matrix in self.matrix_group],
             description="Creating networks",
         )
+        self.nodes = set(chain(*[network.G.nodes for network in self.networks]))
 
     def get_summary_df(self):
         data = []
@@ -615,3 +617,9 @@ class NetworkGroup:
                 }
                 data.append(row)
         return SelectableDataFrame(data)
+
+    def __len__(self):
+        return len(self.networks)
+
+    def __getitem__(self, index):
+        return self.networks[index]

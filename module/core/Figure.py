@@ -14,7 +14,7 @@ from scipy.stats import norm
 from statannotations.Annotator import Annotator
 
 from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
-from module.core.Matrix import Matrix, Network
+from module.core.Matrix import Matrix, NetworkGroup
 from module.core.Statistics import QuantitativeStatistic
 from module.core.constants import DatasetColumn
 
@@ -361,7 +361,7 @@ class Correlogram(MultiAxFigure):
 
 @dataclass
 class NetworkFigure(MultiAxFigure):
-    networks: list[Network]
+    networks: NetworkGroup
     positions: dict = field(kw_only=True, default=None)
 
     @property
@@ -378,9 +378,7 @@ class NetworkFigure(MultiAxFigure):
         ax = self.axs[i]
         network = self.networks[i]
 
-        if (
-            not self.positions or self.custom_params.get("node_position") == "circle"
-        ):  # If positions are not already set, use default
+        if not self.positions:  # If positions are not already set, use default
             self.positions = nx.circular_layout(network.G)
 
         nx.draw_networkx_nodes(
@@ -502,7 +500,7 @@ class NetworkFigure(MultiAxFigure):
 
 @dataclass
 class NetworkDegreesFigure(MultiAxFigure):
-    networks: list[Network]
+    networks: NetworkGroup
 
     @property
     def num_axs(self):

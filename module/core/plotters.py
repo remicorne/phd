@@ -152,7 +152,7 @@ def correlogram(project, request, between, custom_params=None):
     return matrices
 
 
-def network(project, request, between, custom_params=None):
+def network(project, request, between, layout=None, custom_params=None):
     custom_params = custom_params or {}
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
@@ -162,15 +162,17 @@ def network(project, request, between, custom_params=None):
         between=between,
         pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
     )
-    networks = NetworkGroup(matrices).networks
+    networks = NetworkGroup(matrices)
     title = dataset.get_selection_string()
 
     location = FileSystem.get_location(
         **{"project": project, "experiment": dataset.selector.get("experiment", "All")}
     )
     filepath = os.path.join(location, "network", title)
-    region_class = request["datasets"].get("hplc", {}).get("region")
-    positions = Registry.get_registry(name="region_classes_positions").get(region_class)
+    positions = Registry.get_registry(name="region_classes_positions").get(layout)
+    if positions:
+        if missing_positions := set(networks.nodes) - set(positions.keys()):
+            raise ValueError(f"Missing positions for {missing_positions}")
     NetworkFigure(
         title,
         filepath,
