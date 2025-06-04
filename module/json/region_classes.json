@@ -54,37 +54,21 @@
     "MR"
   ],
 
-  "all_regions": [
+  "5HT4_regions": [
     "OF",
     "PL",
-    "aCC",
-    "IC",
-    "M1",
-    "SJ",
-    "S1L",
-    "S1R",
-    "AC",
-    "V1",
-    "A",
+    "IL",
+    "BLA",
     "dH",
     "vH",
     "NAc",
     "VM",
-    "DM",
-    "VL",
     "DL",
     "MD",
-    "VPL",
-    "VPR",
-    "DLG",
-    "HY",
-    "SC",
     "SN",
-    "VTA",
-    "DR",
-    "MR",
-    "CB"
+    "DR"
   ],
+
   "TCB2_regions": [
     "OF",
     "PL",

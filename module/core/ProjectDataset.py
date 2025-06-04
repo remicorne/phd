@@ -241,6 +241,7 @@ class Dataset(
                 "values",
             ],
         )
+        return self
 
     def calculate_quantitative_statistics(self, p_value_threshold=None):
         p_value_threshold = p_value_threshold or self.metadata.p_value_threshold
