@@ -69,6 +69,36 @@
     "DR"
   ],
 
+  "alz_regions": [
+    "MO",
+    "LO",
+    "PL",
+    "IL",
+    "aCg",
+    "pCg",
+    "M2",
+    "S1",
+    "ENT",
+    "A",
+    "dH",
+    "vH",
+    "SH",
+    "CO",
+    "VM",
+    "DM",
+    "VL",
+    "DL",
+    "MD",
+    "GP",
+    "vlT",
+    "HY",
+    "SN",
+    "VTA",
+    "DR",
+    "MR",
+    "CB"
+  ],
+
   "TCB2_regions": [
     "OF",
     "PL",

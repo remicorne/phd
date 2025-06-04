@@ -207,7 +207,7 @@ class SummaryHistogram(Figure):
             self.custom_params.get("ylabel_x", -0.5 / self.fig_width), 0.5
         )
         self.ax.set_xlabel(" ", fontsize=15)
-        self.ax.set_title(self.custom_params.get("title"), y=1.04, fontsize=34)
+        self.ax.set_title(self.title, y=1.04, fontsize=34)
         self.ax.legend(
             loc="upper right", fontsize=self.custom_params.get("legend_fontsize", 10)
         )  # , bbox_to_anchor=(0.1, 1))
