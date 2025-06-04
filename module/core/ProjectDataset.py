@@ -332,7 +332,7 @@ class Dataset(
         for col, values in categories_to_create.items():
             data[col] = pd.Categorical(
                 data[col], categories=values, ordered=True
-            )  # Necessary, .loc assignment doesnt work
+            ).remove_unused_categories()  # Necessary, .loc assignment doesnt work
         return data.sort_values(by=list(categories_to_create))
 
     def to_generic(self):
