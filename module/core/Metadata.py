@@ -268,6 +268,7 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
     def extend_dataset(self, dataset):
         data = self.df.explode("subject_ids")
         data["subject_id"] = data.subject_ids.astype(int)
+        data.drop(columns=["subject_ids"], inplace=True)
         return SelectableDataFrame(data.extend(dataset))
 
 
