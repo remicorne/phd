@@ -1,3 +1,4 @@
+
 [project]
 name = "cyberlabrat"
 version = "0.1.0"
@@ -14,23 +15,15 @@ dependencies = [
     "openpyxl>=3.1.5",
     "outlier-utils>=0.0.5",
     "pandarallel>=1.6.5",
-    "pandas==1.5.3",
+    "pandas==2.0.3",
     "pingouin>=0.5.5",
     "pydantic>=2.11.1",
     "pylint>=3.3.6",
     "pytest>=8.3.5",
     "scipy>=1.15.2",
-    "setuptools",
     "statannotations",
     "tqdm>=4.67.1",
 ]
-
-[tool.hatch.build.targets.wheel]
-packages = ["cyberlabrat"]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [tool.uv.sources]
 statannotations = { git = "https://github.com/remicorne/statannotations" }
