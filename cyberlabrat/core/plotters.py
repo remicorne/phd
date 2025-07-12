@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from module.core.ProjectDataset import Dataset, MergedDatasets
-from module.core.Figure import (
+from cyberlabrat.core.ProjectDataset import Dataset, MergedDatasets
+from cyberlabrat.core.Figure import (
     Histogram,
     SummaryHistogram,
     Correlogram,
@@ -12,13 +12,13 @@ from module.core.Figure import (
     NetworkDegreesFigure,
     Correlation,
 )
-from module.core.FileSystem import FileSystem
-from module.core.Metadata import ProjectMetadata
-from module.core.Matrix import MatrixGroup, NetworkGroup
-from module.core.Registry import Registry
-from module.core.questions import input_escape
-from module.core.Statistics import QuantitativeStatistic
-from module.core.constants import DatasetColumn
+from cyberlabrat.core.FileSystem import FileSystem
+from cyberlabrat.core.Metadata import ProjectMetadata
+from cyberlabrat.core.Matrix import MatrixGroup, NetworkGroup
+from cyberlabrat.core.Registry import Registry
+from cyberlabrat.core.questions import input_escape
+from cyberlabrat.core.Statistics import QuantitativeStatistic
+from cyberlabrat.core.constants import DatasetColumn
 
 
 def get_dataset(project, request):

@@ -1,9 +1,9 @@
 import os, shutil
 import unittest
-from module.core.HPLC import HPLC
-from module.core.Statistics import QuantitativeStatistic, AggregateStatistics
-from module.core.Project import Project, ROOT
-from module.core.Figure import (
+from cyberlabrat.core.HPLC import HPLC
+from cyberlabrat.core.Statistics import QuantitativeStatistic, AggregateStatistics
+from cyberlabrat.core.Project import Project, ROOT
+from cyberlabrat.core.Figure import (
     Histogram,
     Correlation,
     Correlogram,

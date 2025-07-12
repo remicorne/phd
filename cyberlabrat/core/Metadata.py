@@ -7,7 +7,7 @@ from typing import ClassVar, Dict
 import numpy as np
 import pandas as pd
 
-from module.core.Dataset import (
+from cyberlabrat.core.Dataset import (
     ExcelCachedDataFrame,
     SelectableDataFrame,
 )

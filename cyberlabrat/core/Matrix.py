@@ -4,10 +4,10 @@ import networkx as nx
 import scipy
 import pandas as pd
 import numpy as np
-from module.core.utils import parallel_process
-from module.core.Dataset import SelectableDataFrame
+from cyberlabratabrat.core.utils import parallel_process
+from cyberlabrat.core.Dataset import SelectableDataFrame
 from statsmodels.stats.multitest import fdrcorrection
-from module.core.constants import DatasetColumn
+from cyberlabrat.core.constants import DatasetColumn
 
 
 def calculate_correlation(method, x, y):

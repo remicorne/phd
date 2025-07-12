@@ -13,10 +13,10 @@ from scipy import stats
 from scipy.stats import norm
 from statannotations.Annotator import Annotator
 
-from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
-from module.core.Matrix import Matrix, NetworkGroup
-from module.core.Statistics import QuantitativeStatistic
-from module.core.constants import DatasetColumn
+from cyberlabrat.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
+from cyberlabrat.core.Matrix import Matrix, NetworkGroup
+from cyberlabrat.core.Statistics import QuantitativeStatistic
+from cyberlabrat.core.constants import DatasetColumn
 
 
 @dataclass

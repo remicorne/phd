@@ -7,16 +7,16 @@ from itertools import chain
 from tqdm import tqdm
 
 from outliers import smirnov_grubbs as grubbs
-from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
-from module.core.Registry import Registry, ClassRegistry
-from module.core.Metadata import (
+from cyberlabrat.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
+from cyberlabrat.core.Registry import Registry, ClassRegistry
+from cyberlabrat.core.Metadata import (
     ProjectMetadata,
 )
-from module.core.questions import input_escape, yes_or_no
-from module.core.utils import parallel_process, is_array_like
-from module.core.Statistics import QuantitativeStatisticBatch
-from module.core.Ratio import Ratio
-from module.core.constants import DatasetColumn
+from cyberlabrat.core.questions import input_escape, yes_or_no
+from cyberlabrat.core.utils import parallel_process, is_array_like
+from cyberlabrat.core.Statistics import QuantitativeStatisticBatch
+from cyberlabrat.core.Ratio import Ratio
+from cyberlabrat.core.constants import DatasetColumn
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -266,6 +266,8 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
+        # Pop it so it doesnt go through classic "select" filtering
+        outlier_config = selection.pop("remove_outliers", None)
         if "experiment" in selector:
             if not isinstance(selector["experiment"], str):
                 raise ValueError("Experiment must be a string")
@@ -285,8 +287,6 @@ class Dataset(
                     selection[col] = registry[selection[col]]
                 if isinstance(selection[col], str):
                     selection[col] = [selection[col]]
-        # Pop it so it doesnt go through classic "select" filtering
-        outlier_config = selection.pop("remove_outliers", None)
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
         data_selected = data_with_ratios.select(**selection)

@@ -11,13 +11,18 @@ class FileSystem:
 
     ROOT = os.getcwd()
     PROJECTS = f"{ROOT}/PROJECTS"
-    CONSTANTS = f"{ROOT}/module/json"
+    CONSTANTS = f"{ROOT}/cyberlabrat/json"
     PATH_ELEMENT_ORDER = ["project", "experiment", "figure_type"]
 
     @staticmethod
     def list_projects():
         projects = os.listdir(FileSystem.PROJECTS)
         return [project.split("/")[-1] for project in projects]
+
+    @staticmethod
+    def list_datasets(project):
+        files = os.listdir(f"{FileSystem.PROJECTS}/{project}")
+        return [file.split("/")[-1] for file in files if file.endswith(".pkl")]
 
     @staticmethod
     def list_experiments(project=None):

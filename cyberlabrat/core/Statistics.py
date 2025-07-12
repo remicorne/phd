@@ -8,9 +8,9 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
-from module.core.Dataset import SelectableDataFrame
-from module.core.constants import DatasetColumn
-from module.core.utils import is_array_like, parallel_process
+from cyberlabrat.core.Dataset import SelectableDataFrame
+from cyberlabrat.core.constants import DatasetColumn
+from cyberlabrat.core.utils import is_array_like, parallel_process
 
 
 def get_quantitative_statistics_pipeline(

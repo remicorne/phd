@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import Dict, List
-from module.core.constants import DatasetColumn
-from module.core.Dataset import SelectableDataFrame
+from cyberlabrat.core.constants import DatasetColumn
+from cyberlabrat.core.Dataset import SelectableDataFrame
 
 
 class Ratio:

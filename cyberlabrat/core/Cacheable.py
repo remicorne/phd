@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
 import os, platform, subprocess
-from module.core.FileSystem import FileSystem
-from module.core.questions import input_escape
+from cyberlabrat.core.FileSystem import FileSystem
+from cyberlabrat.core.questions import input_escape
 import re
 
 
