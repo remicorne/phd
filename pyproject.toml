@@ -25,5 +25,14 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["cyberlabrat"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.uv.sources]
 statannotations = { git = "https://github.com/remicorne/statannotations" }
