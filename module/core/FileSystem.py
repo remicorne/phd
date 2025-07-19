@@ -34,6 +34,11 @@ class FileSystem:
             return experiments
 
     @staticmethod
+    def list_datasets(project):
+        files = os.listdir(f"{FileSystem.PROJECTS}/{project}")
+        return [file.split("/")[-1] for file in files if file.endswith(".pkl")]
+
+    @staticmethod
     def get_location(**path_elements):
         location = FileSystem.PROJECTS
         for element in FileSystem.PATH_ELEMENT_ORDER:

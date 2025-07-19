@@ -287,7 +287,12 @@ class Network:
             # directed edge -  to_correlate[0] --> to_correlate[1]
             self.G.clear()
 
-            self.G.add_nodes_from(self.matrix.corr_masked.columns.tolist())
+            self.G.add_nodes_from(
+                set(
+                    self.matrix.corr_masked.columns.tolist()
+                    + self.matrix.corr_masked.index.tolist()
+                )
+            )
             self.edge_labels = {}
             for (row, col), correlation in self.matrix.significant_correlations:
                 if not (row == col and not self.is_directed):

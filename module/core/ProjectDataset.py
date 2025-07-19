@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from operator import attrgetter
 from typing import Callable
 import pandas as pd
 import numpy as np
@@ -16,7 +17,7 @@ from module.core.questions import input_escape, yes_or_no
 from module.core.utils import parallel_process, is_array_like
 from module.core.Statistics import QuantitativeStatisticBatch
 from module.core.Ratio import Ratio
-from module.core.constants import DatasetColumn
+from module.core.constants import DatasetColumn, SelectorColumns
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -87,7 +88,7 @@ class Dataset(
         self.subject_column = DatasetColumn.SUBJECT_ID
         self.group_column = DatasetColumn.GROUP_ID
         super().__post_init__()
-        self.data = self.validate(self.load())
+        self.data: SelectableDataFrame = self.validate(self.load())
         self.columns = self.data.columns
         self.data = self.metadata.groups.extend_dataset(self.data)
         self.selector = {}
@@ -116,7 +117,7 @@ class Dataset(
         )
         return self.validate(df)
 
-    def validate(self, df):
+    def validate(self, df: pd.DataFrame) -> SelectableDataFrame:
         """
         Validate that the dataframe has the required columns and that the values
         in these columns are valid according to the Registry.
@@ -266,6 +267,8 @@ class Dataset(
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
         selection = {**selector}
+        # Pop it so it doesnt go through classic "select" filtering
+        outlier_config = selection.pop("remove_outliers", None)
         if "experiment" in selector:
             if not isinstance(selector["experiment"], str):
                 raise ValueError("Experiment must be a string")
@@ -406,7 +409,9 @@ class MergedDatasets:
     def select(self, **selector):
         for dataset in self.datasets:
             selector = {
-                col: val for col, val in selector.items() if col in dataset.columns
+                col: val
+                for col, val in selector.items()
+                if col in dataset.columns.union(list(SelectorColumns))
             }
             dataset.select(**selector)
             self.selection = {**self.selection, **dataset.selection}
@@ -452,3 +457,14 @@ class MergedDatasets:
         return " and ".join(
             [dataset.get_selection_string() for dataset in self.datasets]
         )
+
+    @property
+    def selected_experiment(self):
+        selected_experiments = [
+            getattr(dataset, "selected_experiment", None) for dataset in self.datasets
+        ]
+        if len(set(map(attrgetter("label"), selected_experiments))) > 1:
+            raise ValueError(
+                f"Multiple experiments selected: {selected_experiments}, please select only one"
+            )
+        return selected_experiments[0]

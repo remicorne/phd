@@ -69,6 +69,8 @@ class SelectableDataFrame(pd.DataFrame):
             SelectableDataFrame: Filtered DataFrame that also includes the select method.
             Series: if selection conditions result in a single row
         """
+        if unknown_cols := set(selector.keys()) - set(self.columns):
+            raise ValueError(f"Unknown columns: {unknown_cols}")
         catgorical_cols = [col for col in selector if self[col].dtype == "category"]
         sub_selection = sub_select(self, selector)
         for col in catgorical_cols:
