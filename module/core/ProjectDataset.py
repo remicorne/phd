@@ -288,8 +288,6 @@ class Dataset(
                     selection[col] = registry[selection[col]]
                 if isinstance(selection[col], str):
                     selection[col] = [selection[col]]
-        # Pop it so it doesnt go through classic "select" filtering
-        outlier_config = selection.pop("remove_outliers", None)
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
         data_selected = data_with_ratios.select(**selection)

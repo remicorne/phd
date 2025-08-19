@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass, field
-from typing import ClassVar
 
 import networkx as nx
 import numpy as np
@@ -16,7 +15,7 @@ from statannotations.Annotator import Annotator
 from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
 from module.core.Matrix import Matrix, NetworkGroup
 from module.core.Statistics import QuantitativeStatistic
-from module.core.Constants import DatasetColumn
+from module.core.constants import DatasetColumn
 
 
 @dataclass
@@ -326,7 +325,6 @@ class Correlogram(MultiAxFigure):
         colormap = self.custom_params.get("colormap", "coolwarm")
         if self.custom_params.get("invert_cmap", False):
             colormap = plt.get_cmap(colormap + "_r")
-
 
         ax.set_title(
             title, fontsize=28, pad=20, y=1
