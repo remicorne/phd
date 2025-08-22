@@ -44,7 +44,7 @@ class Figure:
         os.makedirs(dirpath, exist_ok=True)
         self.fig.savefig(f"{self.filepath}.svg")
         self.fig.savefig(f"{self.filepath}.png")
-        print(f"SAVED {self.filepath}")
+        print(f"SAVED {self.filepath} (svg and png)")
 
 
 @dataclass
