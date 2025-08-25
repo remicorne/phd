@@ -17,7 +17,7 @@ from module.core.Metadata import ProjectMetadata
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Registry import Registry
 from module.core.Statistics import QuantitativeStatistic
-from module.core.constants import DatasetColumn
+from module.core.Constants import DatasetColumn
 
 
 def get_dataset(project, request):
@@ -130,7 +130,7 @@ def summary_histogram(
     return dataset
 
 
-def correlogram(project, request, between, title=None, filename=None, custom_params=None):
+def correlogram(project, request, between, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None,  custom_params=None):
     if not (title or filename):
         raise Exception("Must specify parameter filename or title")
     custom_params = custom_params or {}
@@ -140,8 +140,9 @@ def correlogram(project, request, between, title=None, filename=None, custom_par
         "group_name",
         dataset.measurement_columns,
         between=between,
-        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
-        fdr_correction=custom_params.get("fdr_correction", False),
+        pvalue_threshold=pvalue_threshold,
+        fdr_correction=fdr_correction,
+        density_thresholding=density_thresholding,
     )
     filepath = FileSystem.get_location(
         project=project, figure_type="correlogram", filename=filename or title
@@ -150,7 +151,7 @@ def correlogram(project, request, between, title=None, filename=None, custom_par
     return matrices
 
 
-def network(project, request, between, title=None, filename=None, layout=None, custom_params=None):
+def network(project, request, between, title=None, filename=None, layout=None, pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
     if not (title or filename):
         raise Exception("Must specify parameter filename or title")
     custom_params = custom_params or {}
@@ -160,7 +161,9 @@ def network(project, request, between, title=None, filename=None, layout=None, c
         "group_name",
         dataset.measurement_columns,
         between=between,
-        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
+        pvalue_threshold=pvalue_threshold,
+        fdr_correction=fdr_correction,
+        density_thresholding=density_thresholding,
     )
     networks = NetworkGroup(matrices)
     filepath = FileSystem.get_location(
@@ -180,7 +183,7 @@ def network(project, request, between, title=None, filename=None, layout=None, c
     return dataset
 
 
-def network_degrees(project, request, between, title=None, filename=None, custom_params=None):
+def network_degrees(project, request, between, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
     if not (title or filename):
         raise Exception("Must specify parameter filename or title")
     custom_params = custom_params or {}
@@ -190,6 +193,9 @@ def network_degrees(project, request, between, title=None, filename=None, custom
         "group_name",
         dataset.measurement_columns,
         between=between,
+        pvalue_threshold=pvalue_threshold,
+        fdr_correction=fdr_correction,
+        density_thresholding=density_thresholding,
     )
     networks = NetworkGroup(matrices).networks
     filepath = FileSystem.get_location(
@@ -204,7 +210,7 @@ def network_degrees(project, request, between, title=None, filename=None, custom
     return dataset
 
 
-def network_summary(project, request, between, measurement: str, title=None, filename=None, custom_params=None):
+def network_summary(project, request, between, measurement: str, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
     if not (title or filename):
         raise Exception("Must specify parameter filename or title")
     custom_params = custom_params or {}
@@ -215,7 +221,9 @@ def network_summary(project, request, between, measurement: str, title=None, fil
         "group_name",
         dataset.measurement_columns,
         between=between,
-        pvalue_threshold=custom_params.get("p_value_threshold", 0.05),
+        pvalue_threshold=pvalue_threshold,
+        fdr_correction=fdr_correction,
+        density_thresholding=density_thresholding,
     )
     network_summary_df = (
         NetworkGroup(
@@ -278,7 +286,7 @@ def network_summary(project, request, between, measurement: str, title=None, fil
     return network_summary_df
 
 
-def summary_network_summary(
+def summary_network_summary(    # NOT FUNCTIONAL
     project, request, between, title=None, filename=None, measurement: list[str] = None, custom_params=dict()
 ):
     custom_params = custom_params or {}

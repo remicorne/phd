@@ -7,7 +7,7 @@ import numpy as np
 from module.core.utils import parallel_process
 from module.core.Dataset import SelectableDataFrame
 from statsmodels.stats.multitest import fdrcorrection
-from module.core.constants import DatasetColumn
+from module.core.Constants import DatasetColumn
 
 
 def calculate_correlation(method, x, y):
@@ -73,6 +73,7 @@ class Matrix:
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
     fdr_correction: bool = field(kw_only=True, default=False)
+    density_thresholding: bool = field(kw_only=True, default=False)
     delay_execution: bool = field(default=True, kw_only=True)
 
     filtered_data: pd.DataFrame = field(init=False)
@@ -151,17 +152,45 @@ class Matrix:
 
     def correlate(self):
         """
-        Calculates and stores correlation and p-value matrices.
+        Creates self.correlations and self.pvalues self.corr_masked (specific to normalisation).
         """
         self.pvalues = self.create_corr_matrix("pvalues")
         self.correlations = self.create_corr_matrix("correlations")
-        # self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
 
-        if self.fdr_correction:
-            self.uncorrected_pvalues = self.pvalues
-            self.pvalues = self.apply_fdr_correction()
-        mask = self.pvalues < self.pvalue_threshold
+        if self.density_thresholding is not None: # Density-based masking (ignore p-values) 
+            
+            if self.between:
+                corr_flat = self.correlations.abs().stack()
+            else:
+                corr_values = self.correlations.where(~np.eye(self.correlations.shape[0], dtype=bool))
+                corr_flat = corr_values.abs().stack()
+
+            cutoff = np.quantile(corr_flat, 1 - self.density_thresholding)
+            mask = self.correlations.abs() >= cutoff
+
+        else: #  P-value based masking 
+            if self.fdr_correction: 
+                self.uncorrected_pvalues = self.pvalues
+                self.pvalues = self.apply_fdr_correction()
+            
+            mask = self.pvalues < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
+
+
+    # def correlate(self): # REMI CHECK I have replaed the bellow with the function above
+    #     """
+    #     Calculates and stores correlation and p-value matrices.
+    #     """
+    #     self.pvalues = self.create_corr_matrix("pvalues")
+    #     self.correlations = self.create_corr_matrix("correlations")
+    #     # self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
+
+    #     if self.fdr_correction:
+    #         self.uncorrected_pvalues = self.pvalues
+    #         self.pvalues = self.apply_fdr_correction()
+        
+    #     mask = self.pvalues < self.pvalue_threshold
+    #     self.corr_masked = self.correlations.where(mask, other=np.nan)
 
     def apply_fdr_correction(self):
         """
@@ -316,7 +345,7 @@ class Network:
             self.max_degree, self.average_degree, self.min_degree = (
                 self.calculate_node_degree()
             )
-            self.SD_node_degree = self.calculate_SD_node_degree()
+            self.SD_node_degree, self.SD_node_strength  = self.calculate_SD_node_degree_strength()
 
             self.clust_coeff_unweighted, self.clust_coeff_weighted = (
                 self.calculate_clustering_coefficient()
@@ -324,12 +353,15 @@ class Network:
             self.global_efficiency = self.calculate_global_efficiency()  # unweighted
             self.local_efficiency = self.calculate_global_efficiency()  # unweighted
 
-    def calculate_SD_node_degree(self):
+    def calculate_SD_node_degree_strength(self):
         """
         standard deviation of the node degrees (float)
         """
         degrees = dict(self.G.degree())
-        return np.std(list(degrees.values()))
+        strengths = dict(self.G.degree(weight="weight"))
+
+        return np.std(list(degrees.values())), np.std(list(strengths.values()))
+    
 
     def calculate_edge_count(self):
         total_edges = self.G.number_of_edges()
@@ -534,6 +566,7 @@ class MatrixGroup:
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
     fdr_correction: float = field(kw_only=True, default=None)
+    density_thresholding: bool = field(kw_only=True, default=False)
 
     matrices: list[Matrix] = field(init=False)
 
@@ -556,6 +589,7 @@ class MatrixGroup:
                         method=self.method,
                         pvalue_threshold=self.pvalue_threshold,
                         fdr_correction=self.fdr_correction,
+                        density_thresholding=self.density_thresholding,
                     )
                 )  # TODO: Setup multiprocessing pool
         self.matrices = parallel_process(batch, description="Building matrices")
@@ -610,6 +644,7 @@ class NetworkGroup:
                 "average_degree",
                 "min_degree",
                 "SD_node_degree",
+                "SD_node_strength",
                 "clust_coeff_unweighted",
                 "clust_coeff_weighted",
                 "global_efficiency",
