@@ -350,8 +350,8 @@ class Network:
             self.clust_coeff_unweighted, self.clust_coeff_weighted = (
                 self.calculate_clustering_coefficient()
             )
-            self.global_efficiency = self.calculate_global_efficiency()  # unweighted
-            self.local_efficiency = self.calculate_global_efficiency()  # unweighted
+            self.global_efficiency_weighted, self.global_efficiency_unweighted = self.calculate_global_efficiency()  # unweighted
+            self.local_efficiency_weighted, self.local_efficiency_unweighted = self.calculate_local_efficiency()  # unweighted
 
     def calculate_SD_node_degree_strength(self):
         """
@@ -469,67 +469,80 @@ class Network:
         Calculates the global efficiency of the graph (unweighted only).
 
         Returns:
+            global_efficiency_weighted (float): Global efficiency using edge weights.
             global_efficiency_unweighted (float): Global efficiency for the unweighted graph.
         """
-        efficiency_unweighted_values = []
+        n = self.G.number_of_nodes()
+        if n <= 1:
+            return 0, 0
 
-        for node in self.G.nodes():
-            # Calculate shortest paths from 'node' to all other nodes
-            try:
-                shortest_paths_unweighted = nx.single_source_shortest_path_length(
-                    self.G, node
-                )
-                for target, path_length_unweighted in shortest_paths_unweighted.items():
-                    if node != target:  # Skip the node itself
-                        efficiency_unweighted_values.append(1 / path_length_unweighted)
-            except nx.NetworkXNoPath:
-                pass  # No path found for this node
+        # Weighted: convert weights to distances (larger weight = shorter distance).
+        G_weighted = self.G.copy()
+        for u, v, d in G_weighted.edges(data=True):
+            d['distance'] = 1 / max(d.get('weight', 1e-6), 1e-6)
 
-        global_efficiency_unweighted = (
-            np.mean(efficiency_unweighted_values) if efficiency_unweighted_values else 0
-        )
+        # if directed shortest path respects directionality
+        weighted_lengths = dict(nx.all_pairs_dijkstra_path_length(G_weighted, weight='distance'))
+        unweighted_lengths = dict(nx.all_pairs_shortest_path_length(self.G))
 
-        return global_efficiency_unweighted
+        # Unreachable pairs are skipped
+        weighted_vals = [1 / l for src in weighted_lengths for tgt, l in weighted_lengths[src].items() if src != tgt and l > 0]
+        unweighted_vals = [1 / l for src in unweighted_lengths for tgt, l in unweighted_lengths[src].items() if src != tgt and l > 0]
+
+        return np.mean(weighted_vals) if weighted_vals else 0, np.mean(unweighted_vals) if unweighted_vals else 0
+
 
     def calculate_local_efficiency(self):
         """
-        Calculates the local efficiency of the graph (unweighted).
+        Calculates the local efficiency of the graph.
 
-        Local efficiency is calculated as the average efficiency of each node’s neighbors.
+        Local efficiency is the average efficiency of each node’s neighbors.
+        Returns:
+            local_efficiency_weighted (float): Local efficiency using edge weights.
+            local_efficiency_unweighted (float): Local efficiency ignoring weights.
         """
-        local_efficiency_values = []
+        local_efficiency_unweighted = []
+        local_efficiency_weighted = []
 
         for node in self.G.nodes():
-            # Subgraph of the neighbors of the node
             neighbors = list(self.G.neighbors(node))
             if len(neighbors) < 2:
-                continue  # Need at least two neighbors to calculate local efficiency
+                continue  # Need at least two neighbors to compute efficiency
 
-            # Create a subgraph of neighbors
+            # Subgraph of neighbors
             subgraph = self.G.subgraph(neighbors)
 
-            # Calculate the number of shortest paths between neighbors
-            efficiency_values = []
-            for i, neighbor1 in enumerate(neighbors):
-                for neighbor2 in neighbors[i + 1 :]:
-                    try:
-                        # Get shortest path length between neighbors in the subgraph
-                        path_length = nx.shortest_path_length(
-                            subgraph, source=neighbor1, target=neighbor2
-                        )
-                        efficiency_values.append(1 / path_length)
-                    except nx.NetworkXNoPath:
-                        pass  # No path found between this pair
+            # --- Unweighted ---
+            unweighted_lengths = dict(nx.all_pairs_shortest_path_length(subgraph))
+            unweighted_vals = [
+                1 / l
+                for src in unweighted_lengths
+                for tgt, l in unweighted_lengths[src].items()
+                if src != tgt and l > 0
+            ]
+            if unweighted_vals:
+                local_efficiency_unweighted.append(np.mean(unweighted_vals))
 
-            # Local efficiency for the node is the average of its neighbors' efficiency
-            if efficiency_values:
-                local_efficiency_values.append(np.mean(efficiency_values))
+            # --- Weighted ---
+            subgraph_w = subgraph.copy()
+            for u, v, d in subgraph_w.edges(data=True):
+                d['distance'] = 1 / max(d.get('weight', 1e-6), 1e-6)
 
-        local_efficiency = (
-            np.mean(local_efficiency_values) if local_efficiency_values else 0
-        )
+            weighted_lengths = dict(nx.all_pairs_dijkstra_path_length(subgraph_w, weight='distance'))
+            weighted_vals = [
+                1 / l
+                for src in weighted_lengths
+                for tgt, l in weighted_lengths[src].items()
+                if src != tgt and l > 0
+            ]
+            if weighted_vals:
+                local_efficiency_weighted.append(np.mean(weighted_vals))
 
-        return local_efficiency
+        avg_local_unweighted = np.mean(local_efficiency_unweighted) if local_efficiency_unweighted else 0
+        avg_local_weighted = np.mean(local_efficiency_weighted) if local_efficiency_weighted else 0
+
+        return avg_local_weighted, avg_local_unweighted
+
 
 
 @dataclass
@@ -647,8 +660,10 @@ class NetworkGroup:
                 "SD_node_strength",
                 "clust_coeff_unweighted",
                 "clust_coeff_weighted",
-                "global_efficiency",
-                "local_efficiency",
+                "global_efficiency_weighted",
+                "global_efficiency_unweighted",
+                "local_efficiency_weighted",
+                "local_efficiency_unweighted",
             ]:
                 row = {
                     **row,

@@ -15,7 +15,7 @@ from statannotations.Annotator import Annotator
 from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
 from module.core.Matrix import Matrix, NetworkGroup
 from module.core.Statistics import QuantitativeStatistic
-from module.core.constants import DatasetColumn
+from module.core.Constants import DatasetColumn
 
 
 @dataclass
@@ -89,7 +89,7 @@ class Histogram(Figure):
                 x=self.x,
                 y=DatasetColumn.VALUE,
                 hue=self.custom_params.get("swarm_hue", self.hue),
-                size=self.custom_params.get("size", 5),
+                size=self.custom_params.get("marker_size", 5),
                 palette=self.custom_params.get("palette"),
                 # legend=False if self.custom_params.get("plot_bar") else "auto",
                 order=self.custom_params.get("order"),
