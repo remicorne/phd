@@ -32,6 +32,8 @@ class FileSystem:
     @staticmethod
     def get_location(**path_elements):
         location = FileSystem.PROJECTS
+        if not os.path.exists(location):
+            os.mkdir(location)
         for element in FileSystem.PATH_ELEMENT_ORDER:
             if path_elements.get(element):
                 location = os.path.join(location, path_elements[element])
