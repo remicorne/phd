@@ -272,6 +272,7 @@ class ProjectDataset(
         return self
 
     def select(self, **selector):
+        print(self.data)
         self.selector = {**self.selector, **selector}
         selection = {**selector}
         # Pop it so it doesnt go through classic "select" filtering
