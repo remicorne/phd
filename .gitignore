@@ -8,7 +8,6 @@ debug.py
 debug2.py
 .DS_Store
 PROJECTS
-*_HPLC*
 *.xlsx
 
 allen_sdk
