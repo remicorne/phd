@@ -509,12 +509,7 @@ class NetworkDegreesFigure(MultiAxFigure):
 
     def plot_ax(self, i):
         """
-        Plots histogram of node degrees from network with a standard distribution overlay
-        input:
-            network object
-            ax to plot
-        returns:
-            ax to plot
+        Define a filename specific to degree plots.
         """
         network = self.networks[i]
         ax = self.axs[i]
@@ -528,9 +523,22 @@ class NetworkDegreesFigure(MultiAxFigure):
         mean_degree = np.mean(degree_sequence)
         std_degree = np.std(degree_sequence)
 
-        # Use the max_node_degree property from the Network class
-        max_degree = network.max_degree
-        mean_degree = network.average_degree
+        common_max_degree = max(
+            [max([d for _, d in net.G.degree()]) for net in self.networks]
+        )
+        common_max_freq = max(
+            [
+                max(
+                    np.histogram(
+                        [d for _, d in net.G.degree()],
+                        bins=np.arange(common_max_degree + 2) - 0.5,
+                    )[0]
+                )
+                for net in self.networks
+            ]
+        )
+        ax.set_xlim(-0.5, common_max_degree + 0.5)
+        ax.set_ylim(0, common_max_freq)
 
         # Set axis limits
         common_max_degree = max(
@@ -556,13 +564,15 @@ class NetworkDegreesFigure(MultiAxFigure):
         ax.plot(x, y, "r-", lw=2, label=f"SD = {std_degree:.2f}")
 
         # Create the histogram
+
         counts, bins, patches = ax.hist(
             degree_sequence,
-            bins=np.arange(max_degree + 2) - 0.5,
+            bins=np.arange(max(degree_sequence) + 2) - 0.5,
             edgecolor="black",
             color="whitesmoke",
             linewidth=2,
             alpha=0.8,
+            # density =True #normalise 0-1 for density SD
         )
 
         # Check if the sum of counts matches the number of nodes
@@ -573,10 +583,15 @@ class NetworkDegreesFigure(MultiAxFigure):
                 f"Total nodes ({total_nodes}) does not match total counted ({total_counted})"
             )
 
-        # Annotate each bar with the corresponding node labels
+        # Annotate bars with node labels
+        # for degree, patch in zip(degree_sequence, ax.patches):
         for i, patch in enumerate(patches):
             bin_center = patch.get_x() + patch.get_width() / 2
-            labels = [n for n, d in node_labels_with_degrees if d == i]
+            # labels = [n for n, d in node_labels_with_degrees if d == degree]
+            labels = [
+                n for n, d in node_labels_with_degrees if bins[i] <= d < bins[i + 1]
+            ]
+
             if labels:
                 ax.text(
                     bin_center,
@@ -584,7 +599,7 @@ class NetworkDegreesFigure(MultiAxFigure):
                     ", ".join(labels),
                     ha="center",
                     va="bottom",
-                    fontsize=28,
+                    fontsize=26,
                     rotation=90,
                 )
 
