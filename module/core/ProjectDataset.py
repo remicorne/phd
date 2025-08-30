@@ -272,8 +272,6 @@ class ProjectDataset(
         return self
 
     def select(self, **selector):
-        print(self.data)
-        print(self.data.columns)
         self.selector = {**self.selector, **selector}
         selection = {**selector}
         # Pop it so it doesnt go through classic "select" filtering
@@ -301,6 +299,7 @@ class ProjectDataset(
                     selection[col] = [selection[col]]
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
+        print(data_with_ratios)
         data_selected = data_with_ratios.select(**selection)
         self.data = self.sort_values(data_selected, selection)
         if outlier_config:
