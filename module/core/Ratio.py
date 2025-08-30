@@ -1,6 +1,5 @@
 import pandas as pd
-from typing import Dict, List
-from module.core.constants import DatasetColumn
+from module.core.enums import DatasetColumn
 from module.core.Dataset import SelectableDataFrame
 
 

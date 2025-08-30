@@ -76,7 +76,7 @@ class Cacheable:
         """
         data = self.generate()
         self.save(data) if data is not None else self.save()
-        print(f"CREATED AND CACHED {self.filepath}")
+        print(f"CREATED AND SAVED {self.filepath}")
 
     def load(self):
         raise NotImplementedError(

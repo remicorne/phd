@@ -7,7 +7,7 @@ import numpy as np
 from module.core.utils import parallel_process
 from module.core.Dataset import SelectableDataFrame
 from statsmodels.stats.multitest import fdrcorrection
-from module.core.Constants import DatasetColumn
+from module.core.enums import DatasetColumn
 
 
 def calculate_correlation(method, x, y):
@@ -157,25 +157,27 @@ class Matrix:
         self.pvalues = self.create_corr_matrix("pvalues")
         self.correlations = self.create_corr_matrix("correlations")
 
-        if self.density_thresholding is not None: # Density-based masking (ignore p-values) 
-            
+        if (
+            self.density_thresholding is not None
+        ):  # Density-based masking (ignore p-values)
             if self.between:
                 corr_flat = self.correlations.abs().stack()
             else:
-                corr_values = self.correlations.where(~np.eye(self.correlations.shape[0], dtype=bool))
+                corr_values = self.correlations.where(
+                    ~np.eye(self.correlations.shape[0], dtype=bool)
+                )
                 corr_flat = corr_values.abs().stack()
 
             cutoff = np.quantile(corr_flat, 1 - self.density_thresholding)
             mask = self.correlations.abs() >= cutoff
 
-        else: #  P-value based masking 
-            if self.fdr_correction: 
+        else:  #  P-value based masking
+            if self.fdr_correction:
                 self.uncorrected_pvalues = self.pvalues
                 self.pvalues = self.apply_fdr_correction()
-            
+
             mask = self.pvalues < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
-
 
     # def correlate(self): # REMI CHECK I have replaed the bellow with the function above
     #     """
@@ -188,7 +190,7 @@ class Matrix:
     #     if self.fdr_correction:
     #         self.uncorrected_pvalues = self.pvalues
     #         self.pvalues = self.apply_fdr_correction()
-        
+
     #     mask = self.pvalues < self.pvalue_threshold
     #     self.corr_masked = self.correlations.where(mask, other=np.nan)
 
@@ -345,7 +347,9 @@ class Network:
             self.max_degree, self.average_degree, self.min_degree = (
                 self.calculate_node_degree()
             )
-            self.SD_node_degree, self.SD_node_strength  = self.calculate_SD_node_degree_strength()
+            self.SD_node_degree, self.SD_node_strength = (
+                self.calculate_SD_node_degree_strength()
+            )
 
             self.clust_coeff_unweighted, self.clust_coeff_weighted = (
                 self.calculate_clustering_coefficient()
@@ -361,7 +365,6 @@ class Network:
         strengths = dict(self.G.degree(weight="weight"))
 
         return np.std(list(degrees.values())), np.std(list(strengths.values()))
-    
 
     def calculate_edge_count(self):
         total_edges = self.G.number_of_edges()
@@ -590,21 +593,22 @@ class MatrixGroup:
     def build_matrices(self):
         batch = []
         col, cases = next(iter(self.between.items()))
-        for group, group_df in self.data.groupby(by=self.group_by, sort=False):
-            for between in cases:
-                batch.append(
-                    Matrix(
-                        group_df.select(**{col: between}),
-                        group,
-                        self.pivot_columns,
-                        between={col: tuple(between)},
-                        n_minimum=self.n_minimum,
-                        method=self.method,
-                        pvalue_threshold=self.pvalue_threshold,
-                        fdr_correction=self.fdr_correction,
-                        density_thresholding=self.density_thresholding,
+        for col, cases in self.between.items():
+            for group, group_df in self.data.groupby(by=self.group_by, sort=False):
+                for between in cases:
+                    batch.append(
+                        Matrix(
+                            group_df.select(**{col: between}),
+                            group,
+                            self.pivot_columns,
+                            between={col: tuple(between)},
+                            n_minimum=self.n_minimum,
+                            method=self.method,
+                            pvalue_threshold=self.pvalue_threshold,
+                            fdr_correction=self.fdr_correction,
+                            density_thresholding=self.density_thresholding,
+                        )
                     )
-                )  # TODO: Setup multiprocessing pool
         self.matrices = parallel_process(batch, description="Building matrices")
 
     def homogenize_datasets(self):

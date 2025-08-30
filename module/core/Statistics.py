@@ -9,7 +9,7 @@ from statsmodels.formula.api import ols
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 from module.core.Dataset import SelectableDataFrame
-from module.core.constants import DatasetColumn
+from module.core.enums import DatasetColumn
 from module.core.utils import is_array_like, parallel_process
 
 

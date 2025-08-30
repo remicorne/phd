@@ -3,7 +3,7 @@ from distutils.util import (
     strtobool,
 )  # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
 from typing import ClassVar, Dict
-
+from functools import partial
 import numpy as np
 import pandas as pd
 
@@ -11,6 +11,9 @@ from module.core.Dataset import (
     ExcelCachedDataFrame,
     SelectableDataFrame,
 )
+from module.core.FileSystem import FileSystem
+from module.core.questions import yes_or_no
+from module.core.Dataset import SelectionError
 
 
 class ValidationError(Exception):
@@ -30,25 +33,33 @@ class ProjectMetadata(ExcelCachedDataFrame):
     filename: ClassVar[str] = "metadata"
 
     def __post_init__(self):
+        self.check_new_project()
         super().__post_init__()
-        self.datasets = Datasets(self.project)
-        self.groups = Groups(self.project)
-        self.experiments = Experiments(self.project)
-        self.palette = Palette(self.project)
-        self.statistics = Statistics(self.project)
-        self.validate_consistency()
+        metadata = self.load()
+        self.datasets = metadata["datasets"]
+        self.groups = metadata["groups"]
+        self.experiments = metadata["experiments"]
+        self.palette = metadata["palette"]
+        self.statistics = metadata["statistics"]
 
         self.subject_ids = self.groups.subject_ids
         self.p_value_threshold = self.statistics.p_value_threshold
         self.max_outliers = self.statistics.max_outliers
 
-    def validate_consistency(self):
+    def check_new_project(self):
+        if self.project not in FileSystem.list_projects():
+            if not yes_or_no(
+                f"Project '{self.project}' not found. Initialize new project {self.project}?"
+            ):
+                raise ValueError(f"Unknown project: {self.project}")
+
+    def validate_consistency(self, metadata):
         experiment_group_ids = set()
-        for experiment in self.experiments:
+        for experiment in metadata["experiments"]:
             experiment_group_ids.update(experiment.group_ids)
 
-        groups_group_ids = set(self.groups.df.group_id)
-        palette_group_ids = set(self.palette.df.group_id)
+        groups_group_ids = set(metadata["groups"].df.group_id)
+        palette_group_ids = set(metadata["palette"].df.group_id)
 
         unknown_experiment_groups = experiment_group_ids - groups_group_ids
         unknown_palette_groups = palette_group_ids - groups_group_ids
@@ -72,9 +83,20 @@ class ProjectMetadata(ExcelCachedDataFrame):
             "statistics": Statistics.generate(),
         }
 
+    def load(self):
+        metadata = {
+            "datasets": Datasets(self.project),
+            "groups": Groups(self.project),
+            "experiments": Experiments(self.project),
+            "palette": Palette(self.project),
+            "statistics": Statistics(self.project),
+        }
+        self.validate_consistency(metadata)
+        return metadata
+
     def initialize(self):
         """
-        Same as chacheable initialize but also makes user edit as setting are user editable
+        Same as cacheable initialize but also makes user edit as setting are user editable
         """
         super().initialize()
         self.make_user_edit_excel()
@@ -95,7 +117,7 @@ class ProjectMetadata(ExcelCachedDataFrame):
                 self.delete()
                 print("System interuption, deleting file")
             except Exception as e:
-                question = "Error reading file. Press any key and ENTER when done correcting file"
+                question = f"Correct errors in metadata.xlsx file: {e}. Press any key and ENTER when done correcting file"
                 user_finished = False
 
     def save(self, content: Dict[str, pd.DataFrame]):
@@ -103,6 +125,25 @@ class ProjectMetadata(ExcelCachedDataFrame):
         with pd.ExcelWriter(self.filepath) as writer:
             for sheet_name, df in content.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+
+def convert_list(values: list | tuple, value_type: type):
+    values = values.replace(" ", "").split(",") if values else []
+    return [value_type(value) for value in values]
+
+
+def convert_to_bool(value):
+    return bool(strtobool(str(value)))
+
+
+def get_converter(col_info):
+    if col_info["type"] in [list, tuple]:
+        converter = partial(convert_list, value_type=col_info["subtype"])
+    elif col_info["type"] is bool:
+        converter = convert_to_bool
+    else:
+        converter = col_info["type"]
+    return converter
 
 
 @dataclass
@@ -124,31 +165,27 @@ class SubSetting(ExcelCachedDataFrame):
 
     def convert_dtypes(self, df):
         errors = []
-        for col_name, col_info in self._types.items():
+        if missing_columns := [col for col in self._types if col not in df]:
+            errors.append(
+                f"Sheet '{self.sheet_name}': missing columns: {missing_columns}"
+            )
+
+        for col_name in set(self._types.keys()) - set(missing_columns):
+            col_types = self._types[col_name]
+            values = []
+            converter = get_converter(col_types)
             try:
-                if col_info["type"] in [list, tuple]:
-                    df[col_name] = df[col_name].apply(
-                        lambda val: col_info["type"](
-                            [
-                                col_info["subtype"](subval)
-                                for subval in (
-                                    val.replace(" ", "").split(",") if val else []
-                                )
-                            ]
-                        )
-                    )
-                elif col_info["type"] is bool:
-                    df[col_name] = (
-                        df[col_name]
-                        .apply(lambda val: bool(strtobool(str(val))))
-                        .astype(bool)
-                    )
-                else:
-                    df[col_name] = df[col_name].astype(col_info["type"])
-            except KeyError as e:
-                errors.append(f"Missing column {e}")
-            except ValueError as e:
-                errors.append(f"Wrong data types, please correct {self.filename}")
+                for value in df[col_name]:
+                    value = converter(value)
+                    values.append(value)
+                df[col_name] = values
+            except ValueError as _:
+                type_hint = col_types["type"].__name__
+                if "subtype" in col_types:
+                    type_hint = f"{type_hint}[{col_types['subtype'].__name__}]"
+                errors.append(
+                    f"Sheet '{self.sheet_name}', column '{col_name}': '{value}' should be {type_hint}"
+                )
         if errors:
             raise ValidationError(errors)
         return df
@@ -170,7 +207,9 @@ class SubSetting(ExcelCachedDataFrame):
 
     @property
     def df(self):
-        return self.convert_dtypes(super().df.replace(np.nan, ""))
+        return self.convert_dtypes(
+            super(ExcelCachedDataFrame, self).df.replace(np.nan, "")
+        )
 
 
 class Datasets(SubSetting):
@@ -184,12 +223,21 @@ class Datasets(SubSetting):
         "measurement_columns": {"type": list, "subtype": str},
     }
 
+    def select_one(self, **selector) -> SelectableDataFrame:
+        try:
+            return super().select_one(**selector)
+        except SelectionError as e:
+            if "'label'" in str(e):
+                raise ValueError(
+                    f"Unknown dataset: {selector['label']}, add to metadata"
+                ) from e
+
 
 class Experiments(SubSetting):
     sheet_name: ClassVar[str] = "experiments"
     _default: ClassVar[dict] = {
         "label": ["agonist_antagonist"],
-        "group_ids": ["1, 5, 3, 4"],
+        "group_ids": ["1, 3, 5, 6"],
         "independant_variables": ["TCB2, MDL"],
         "paired": [False],
         "parametric": [True],
@@ -230,12 +278,12 @@ class Experiments(SubSetting):
 class Groups(SubSetting):  # TODO: generalize to Groups?
     sheet_name: ClassVar[str] = "groups"
     _default: ClassVar[dict] = {
-        "group_id": [1, 5, 3, 4],
+        "group_id": [1, 3, 5, 6],
         "group_name": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
         "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
         "subject_ids": [
             "2, 5, 7, 9, 11, 17, 20, 28, 32, 59, 67",
-            "13, 14, 15, 26, 29, 34, 42, 48, 63, 65",
+            "16, 18, 19, 22, 27, 30, 37, 39, 46, 53, 55",
             "23, 24, 31, 36, 38, 40, 44, 50, 51, 57",
             "21, 25, 35, 41, 45, 49, 52, 58, 61, 66, 69",
         ],
@@ -275,7 +323,7 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
 class Palette(SubSetting):
     sheet_name: ClassVar[str] = "palette"
     _default: ClassVar[dict] = {
-        "group_id": [1, 5, 3, 4],
+        "group_id": [1, 3, 5, 6],
         "color": ["white", "pink", "orange", "red"],
         "significance_symbol": ["*", "", "$", ""],
     }

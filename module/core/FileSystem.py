@@ -1,4 +1,5 @@
 import os
+import shutil
 
 
 class FileSystem:
@@ -50,3 +51,8 @@ class FileSystem:
         if path_elements.get("filename"):
             location = os.path.join(location, path_elements["filename"])
         return location
+
+    @staticmethod
+    def delete_project(project):
+        project_folder = os.path.join(FileSystem.PROJECTS, project)
+        shutil.rmtree(project_folder)

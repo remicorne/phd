@@ -15,7 +15,7 @@ from statannotations.Annotator import Annotator
 from module.core.Dataset import ExcelCachedDataFrame, SelectableDataFrame
 from module.core.Matrix import Matrix, NetworkGroup
 from module.core.Statistics import QuantitativeStatistic
-from module.core.Constants import DatasetColumn
+from module.core.enums import DatasetColumn
 
 
 @dataclass
@@ -380,7 +380,7 @@ class NetworkFigure(MultiAxFigure):
         network = self.networks[i]
 
         if not self.positions:  # If positions are not already set, use default
-            self.positions = nx.circular_layout(network.G)
+            self.positions = nx.circular_layout(network.matrix.corr_masked.columns)
 
         nx.draw_networkx_nodes(
             network.G,
@@ -657,7 +657,6 @@ class Correlation(Figure):
         )
 
         plt.tight_layout()
-        plt.show()
 
 
 # @dataclass

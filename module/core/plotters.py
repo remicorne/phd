@@ -1,9 +1,8 @@
-import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from module.core.ProjectDataset import Dataset, MergedDatasets
+from module.core.ProjectDataset import ProjectDataset, MergedDatasets
 from module.core.Figure import (
     Histogram,
     SummaryHistogram,
@@ -17,30 +16,27 @@ from module.core.Metadata import ProjectMetadata
 from module.core.Matrix import MatrixGroup, NetworkGroup
 from module.core.Registry import Registry
 from module.core.Statistics import QuantitativeStatistic
-from module.core.Constants import DatasetColumn
+from module.core.enums import DatasetColumn
 
 
-def get_dataset(project, request):
+def get_dataset(project, request) -> ProjectDataset | MergedDatasets:
     datasets = request["datasets"]
     if len(datasets) == 1:
         dataset, selector = next(iter(request["datasets"].items()))
-        dataset = Dataset(project=project, filename=dataset).select(**selector)
+        dataset = ProjectDataset(project=project, filename=dataset).select(**selector)
     else:
         dataset = MergedDatasets(
             [
-                Dataset(project=project, filename=dataset).select(**selector)
+                ProjectDataset(project=project, filename=dataset).select(**selector)
                 for dataset, selector in request["datasets"].items()
             ]
         )
-    return dataset.select(**request.get("selector", {}))
+    if "experiment" in request:
+        dataset = dataset.select(experiment=request.get("experiment"))
+    return dataset
 
 
-def histogram(project, request, title=None, filename=None, custom_params=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
-    filepath = FileSystem.get_location(
-        project=project, figure_type="histogram", filename=filename or title
-    )
+def histogram(project, request, filename=None, custom_params=None):
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     x = hue = custom_params.get("x", "group_name")
@@ -52,13 +48,17 @@ def histogram(project, request, title=None, filename=None, custom_params=None):
     custom_params["order"] = ProjectMetadata(project).groups.select(
         group_id=dataset.data.group_id.unique()
     )[x]
-    if "experiment" in dataset.selector:
+    if "experiment" in request:
         dataset.calculate_quantitative_statistics()
         statistic = dataset.statistics[0]
     else:
         statistic = []
+    filename = filename or dataset.get_selection_string()
+    filepath = FileSystem.get_location(
+        project=project, figure_type="histogram", filename=filename
+    )
     Histogram(
-        title or filename,
+        filename,
         filepath,
         dataset.data,
         x,
@@ -70,13 +70,8 @@ def histogram(project, request, title=None, filename=None, custom_params=None):
 
 
 def summary_histogram(
-    project, request, title=None, filename=None, invert_hue=False, custom_params=None
+    project, request, filename=None, invert_hue=False, custom_params=None
 ):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
-    filepath = FileSystem.get_location(
-        project=project, figure_type="summary_histogram", filename=filename or title
-    )
     dataset = get_dataset(project, request)
     custom_params = custom_params or {}
     if isinstance(dataset, MergedDatasets):
@@ -107,7 +102,7 @@ def summary_histogram(
     custom_params["significance_palette"] = custom_params.get(
         "significance_palette", dataset.get_palette("significance_symbol")
     )
-    if "experiment" in dataset.selector:
+    if "experiment" in request:
         dataset.calculate_quantitative_statistics()
         statistics = dataset.statistics
     else:
@@ -118,8 +113,12 @@ def summary_histogram(
 
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
+    filename = filename or dataset.get_selection_string()
+    filepath = FileSystem.get_location(
+        project=project, figure_type="summary_histogram", filename=filename
+    )
     SummaryHistogram(
-        title or filename,
+        filename,
         filepath,
         dataset.data,
         x,
@@ -130,9 +129,16 @@ def summary_histogram(
     return dataset
 
 
-def correlogram(project, request, between, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None,  custom_params=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
+def correlogram(
+    project,
+    request,
+    between,
+    filename=None,
+    pvalue_threshold=0.05,
+    fdr_correction=None,
+    density_thresholding=None,
+    custom_params=None,
+):
     custom_params = custom_params or {}
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
@@ -144,16 +150,25 @@ def correlogram(project, request, between, title=None, filename=None,  pvalue_th
         fdr_correction=fdr_correction,
         density_thresholding=density_thresholding,
     )
+    filename = filename or dataset.get_selection_string()
     filepath = FileSystem.get_location(
-        project=project, figure_type="correlogram", filename=filename or title
+        project=project, figure_type="correlogram", filename=filename
     )
-    Correlogram(title or filename, filepath, matrices.matrices, custom_params=custom_params)
+    Correlogram(filename, filepath, matrices.matrices, custom_params=custom_params)
     return matrices
 
 
-def network(project, request, between, title=None, filename=None, layout=None, pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
+def network(
+    project,
+    request,
+    between,
+    filename=None,
+    layout=None,
+    pvalue_threshold=0.05,
+    fdr_correction=None,
+    density_thresholding=None,
+    custom_params=None,
+):
     custom_params = custom_params or {}
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
@@ -166,15 +181,16 @@ def network(project, request, between, title=None, filename=None, layout=None, p
         density_thresholding=density_thresholding,
     )
     networks = NetworkGroup(matrices)
-    filepath = FileSystem.get_location(
-        project=project, figure_type="network", filename=filename or title
-    )
     positions = Registry.get_registry(name="region_classes_positions").get(layout)
     if positions:
         if missing_positions := set(networks.nodes) - set(positions.keys()):
             raise ValueError(f"Missing positions for {missing_positions}")
+    filename = filename or dataset.get_selection_string()
+    filepath = FileSystem.get_location(
+        project=project, figure_type="network", filename=filename
+    )
     NetworkFigure(
-        title or filename,
+        filename,
         filepath,
         networks,
         positions=positions,
@@ -183,9 +199,16 @@ def network(project, request, between, title=None, filename=None, layout=None, p
     return dataset
 
 
-def network_degrees(project, request, between, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
+def network_degrees(
+    project,
+    request,
+    between,
+    filename=None,
+    pvalue_threshold=0.05,
+    fdr_correction=None,
+    density_thresholding=None,
+    custom_params=None,
+):
     custom_params = custom_params or {}
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
@@ -198,11 +221,12 @@ def network_degrees(project, request, between, title=None, filename=None,  pvalu
         density_thresholding=density_thresholding,
     )
     networks = NetworkGroup(matrices).networks
+    filename = filename or dataset.get_selection_string()
     filepath = FileSystem.get_location(
-        project=project, figure_type="network_degrees", filename=filename or title
+        project=project, figure_type="network_degrees", filename=filename
     )
     NetworkDegreesFigure(
-        title or filename,
+        filename,
         filepath,
         networks,
         custom_params=custom_params or {},
@@ -210,11 +234,21 @@ def network_degrees(project, request, between, title=None, filename=None,  pvalu
     return dataset
 
 
-def network_summary(project, request, between, measurement: str, title=None, filename=None,  pvalue_threshold=0.05, fdr_correction=None, density_thresholding=None, custom_params=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
+def network_summary(
+    project,
+    request,
+    between,
+    measurement: str,
+    filename=None,
+    pvalue_threshold=0.05,
+    fdr_correction=None,
+    density_thresholding=None,
+    custom_params=None,
+):
     custom_params = custom_params or {}
     custom_params["plot_bar"] = custom_params.get("plot_bar", False)
+    if len(request["datasets"]) > 1:
+        raise NotImplementedError("Multiple datasets not yet supported")
     dataset = get_dataset(project, request)
     matrices = MatrixGroup(
         dataset.data,
@@ -233,7 +267,7 @@ def network_summary(project, request, between, measurement: str, title=None, fil
         .select(measurement=measurement)
     )
     # TODO generalize stats logic + dataset logic for when mouse_id not there
-    if "experiment" in request.get("selector", {}):
+    if "experiment" in request:
         statistic = QuantitativeStatistic(
             data=network_summary_df,
             group_column="group_name",
@@ -271,11 +305,11 @@ def network_summary(project, request, between, measurement: str, title=None, fil
     custom_params["ylabel"] = measurement
     custom_params["swarm_hue"] = next(iter(between.keys()))
     filepath = FileSystem.get_location(
-        project=project, figure_type="network_summary", filename=filename or title
+        project=project, figure_type="network_summary", filename=filename
     )
 
     Histogram(
-        title or filename,
+        filename,
         filepath,
         network_summary_df,
         x,
@@ -286,8 +320,13 @@ def network_summary(project, request, between, measurement: str, title=None, fil
     return network_summary_df
 
 
-def summary_network_summary(    # NOT FUNCTIONAL
-    project, request, between, title=None, filename=None, measurement: list[str] = None, custom_params=dict()
+def summary_network_summary(  # NOT FUNCTIONAL
+    project,
+    request,
+    between,
+    filename=None,
+    measurement: list[str] = None,
+    custom_params=None,
 ):
     custom_params = custom_params or {}
     custom_params["plot_bar"] = False
@@ -307,17 +346,18 @@ def summary_network_summary(    # NOT FUNCTIONAL
     x = "measurement"
 
     custom_params["swarm_hue"] = next(iter(between.keys()))
-    filepath = FileSystem.get_location(
-        project=project, figure_type="summary_network_summary", filename=filename or title
-    )
 
     custom_params["significance_palette"] = custom_params.get(
         "palette", dataset.get_palette("significance_symbol")
     )
     custom_params["ylabel"] = "AU"
     custom_params["hue_order"] = dataset.data.group_name.unique()
+    filename = filename or dataset.get_selection_string()
+    filepath = FileSystem.get_location(
+        project=project, figure_type="summary_network_summary", filename=filename
+    )
     SummaryHistogram(
-        title or filename,
+        filename,
         filepath,
         network_summary_df,
         x,
@@ -327,11 +367,11 @@ def summary_network_summary(    # NOT FUNCTIONAL
     return network_summary_df
 
 
-def correlation(project, x, y, grouper, title=None, filename=None, custom_params=None):
+def correlation(project, x, y, grouper, filename=None, custom_params=None):
     custom_params = custom_params or {}
     data = []
     for selector in [x, y]:
-        dataset = Dataset(project=project, filename=selector.pop("dataset"))
+        dataset = ProjectDataset(project=project, filename=selector.pop("dataset"))
         dataset.select(**selector, **grouper)
         data.append(dataset)
     subject_column = DatasetColumn.SUBJECT_ID
@@ -346,30 +386,31 @@ def correlation(project, x, y, grouper, title=None, filename=None, custom_params
     x_label = data[0].get_selection_string() + " " + ", ".join(data[0].get_units())
     y_label = data[1].get_selection_string() + " " + ", ".join(data[1].get_units())
 
-    Correlation(
-        title or filename,
-        FileSystem.get_location(
-            project=project, figure_type="correlation", filename=filename or title
-        ),
+    filename = next(iter(grouper.values()))
+    filepath = FileSystem.get_location(
+        project=project, figure_type="correlation", filename=filename
+    )
+    return Correlation(
+        filename,
+        filepath,
         {"data": x_data, "label": x_label},
         {"data": y_data, "label": y_label},
     )
 
 
-def statistics_table(project, request, title=None, filename=None):
-    if not (title or filename):
-        raise Exception("Must specify parameter filename or title")
+def statistics_table(project, request, filename=None):
     if len(request["datasets"]) > 1:
         raise NotImplementedError("Multiple datasets not supported")
-    dataset = get_dataset(project, request)
-    if "experiment" in dataset.selector:
-        dataset.calculate_quantitative_statistics()
-        statistics = dataset.statistics
-    else:
-        statistics = []
+    if "experiment" not in request:
+        request["experiment"] = "default"
+        print(
+            "No experiment specified, using default: unpaired, parametric, 1 independant variable"
+        )
 
+    dataset = get_dataset(project, request)
+    dataset.calculate_quantitative_statistics()
     stats_results = []
-    for statistic in statistics:
+    for statistic in dataset.statistics:
         data = statistic.results
         data = data[data["test"] == statistic.statistical_test][
             ["test", *dataset.measurement_columns, "result_string"]
@@ -392,7 +433,9 @@ def statistics_table(project, request, title=None, filename=None):
     stats_table = stats_table.sort_index()
 
     filepath = FileSystem.get_location(
-        project=project, figure_type="statistics_table", filename=(filename or title) + ".xlsx"
+        project=project,
+        figure_type="statistics_table",
+        filename=(filename or dataset.get_selection_string()) + ".xlsx",
     )
     stats_table.to_excel(filepath)
     print(f"Saved {filepath}")

@@ -6,11 +6,11 @@ class DatasetColumn(StrEnum):
     UNIT = "unit"
     SUBJECT_ID = "subject_id"
     GROUP_ID = "group_id"
-    GROUP_NAME = "group_id"
+    GROUP_NAME = "group_name"
 
     @classmethod
     def get_mandatory_columns(cls):
-        return [cls.SUBJECT_ID, cls.VALUE, cls.UNIT]
+        return [cls.SUBJECT_ID.value, cls.VALUE.value, cls.UNIT.value]
 
 
 class SelectorColumns(StrEnum):

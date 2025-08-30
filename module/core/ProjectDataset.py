@@ -17,7 +17,7 @@ from module.core.questions import input_escape, yes_or_no
 from module.core.utils import parallel_process, is_array_like
 from module.core.Statistics import QuantitativeStatisticBatch
 from module.core.Ratio import Ratio
-from module.core.constants import DatasetColumn, SelectorColumns
+from module.core.enums import DatasetColumn, SelectorColumns
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -66,7 +66,7 @@ OUTLIER_TESTS = {"grubbs": grubbs_test, "iqr": iqr_test}
 
 
 @dataclass
-class Dataset(
+class ProjectDataset(
     PickleCachedDataFrame
 ):  # TODO seems to me that there is a confusion between a dataset and its linked onfo (outliers, stats..)
     project: str = field(kw_only=True)
@@ -98,11 +98,17 @@ class Dataset(
         self.is_generic = False
 
     def generate(self):
+        if not yes_or_no(
+            f"Initialize new dataset '{self.filename}' for '{self.project}' project?"
+        ):
+            raise ValueError(f"Unknwon dataset {self.filename}")
         filepath = input_escape(
             f"Enter {self.filename} filepath for {self.project} project"
         )
         if filepath.endswith(".xlsx"):
             df = pd.read_excel(filepath, keep_default_na=False)
+        if filepath.endswith(".csv"):
+            df = pd.read_csv(filepath, keep_default_na=False)
         elif filepath.endswith(".pkl"):
             df = pd.read_pickle(filepath)
         else:
@@ -127,14 +133,15 @@ class Dataset(
         """
         df_columns = df.columns
         mandatory_columns = DatasetColumn.get_mandatory_columns()
-        if not all(col in df_columns for col in mandatory_columns):
+        if missing_columns := [
+            col for col in mandatory_columns if col not in df_columns
+        ]:
             raise ValueError(
-                f"{mandatory_columns} columns are mandatory, modify file and retry"
+                f"{missing_columns} columns are missing, modify file and retry"
             )
-        valid_subject_ids = self.metadata.subject_ids
-        df_subject_ids = df[self.subject_column].unique()
-        invalid_subject_ids = set(df_subject_ids) - set(valid_subject_ids)
-        if invalid_subject_ids:
+        if invalid_subject_ids := set(df[self.subject_column].unique()) - set(
+            self.metadata.subject_ids
+        ):
             raise ValueError(
                 f"Invalid mouse ids: {invalid_subject_ids}, modify file and retry"
             )
@@ -282,7 +289,9 @@ class Dataset(
                     for group_id in self.selected_experiment.group_ids
                 ]
         for col in set.intersection(set(self.measurement_columns), set(selection)):
-            if ClassRegistry.exists(element_type=col):
+            if callable(selection[col]):
+                selection[col] = list(filter(selection[col], self.data[col].unique()))
+            elif ClassRegistry.exists(element_type=col):
                 registry = ClassRegistry.get_registry(element_type=col)
                 if selection[col] in registry:
                     selection[col] = registry[selection[col]]
@@ -394,7 +403,7 @@ class Dataset(
 
 @dataclass
 class MergedDatasets:
-    datasets: list[Dataset]
+    datasets: list[ProjectDataset]
 
     def __post_init__(self):
         self.datasets = [dataset.to_generic() for dataset in self.datasets]
