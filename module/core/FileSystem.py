@@ -17,27 +17,17 @@ class FileSystem:
 
     @staticmethod
     def list_projects():
-        projects = os.listdir(FileSystem.PROJECTS)
-        return [project.split("/")[-1] for project in projects]
-
-    @staticmethod
-    def list_experiments(project=None):
-        if project:
-            experiments = []
-            for file in os.listdir(project):
-                if os.path.isdir(file):
-                    experiments.append(file.split("/")[-1])
-            return experiments
-        else:
-            experiments = {}
-            for project in FileSystem.list_projects():
-                experiments[project] = FileSystem.list_experiments(project)
-            return experiments
+        if os.path.exists(FileSystem.PROJECTS):
+            projects = os.listdir(FileSystem.PROJECTS)
+            return [project.split("/")[-1] for project in projects]
+        return []
 
     @staticmethod
     def list_datasets(project):
-        files = os.listdir(f"{FileSystem.PROJECTS}/{project}")
-        return [file.split("/")[-1] for file in files if file.endswith(".pkl")]
+        if os.path.exists(f"{FileSystem.PROJECTS}/{project}"):
+            files = os.listdir(f"{FileSystem.PROJECTS}/{project}")
+            return [file.split("/")[-1] for file in files if file.endswith(".pkl")]
+        return []
 
     @staticmethod
     def get_location(**path_elements):
