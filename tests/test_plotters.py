@@ -280,15 +280,15 @@ class TestPlotters(unittest.TestCase):
 
     def test_zz_correlation(self):
         correlation(
-            project="TCB2",
+            project=self.project_name,
             x={
-                "dataset": "hplc",
+                "dataset": self.dataset_name,
                 "compound": "DA",
                 "region": "SN",
                 "remove_outliers": {"grubbs": "calculated"},
             },
             y={
-                "dataset": "hplc",
+                "dataset": self.dataset_name,
                 "compound": "5HT",
                 "region": "OF",
                 "remove_outliers": {"grubbs": "calculated"},
