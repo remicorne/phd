@@ -168,11 +168,6 @@ class ProjectDataset(
 
     def calculate_outliers(self, test: str):
         cases = []
-        try:
-            self.data[self.measurement_columns]
-        except KeyError:
-            print("outliersé", self.data, self.data.columns)
-            raise
         for _, subset_df in self.data[
             [
                 self.subject_column,
