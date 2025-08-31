@@ -278,7 +278,7 @@ class TestPlotters(unittest.TestCase):
         )
         self.assert_image_similar(expected_file, actual_file, 0)
 
-    def test_correlation(self):
+    def test_zz_correlation(self):
         correlation(
             project="TCB2",
             x={
@@ -295,11 +295,10 @@ class TestPlotters(unittest.TestCase):
             },
             grouper={"group_name": "vehicles"},
         )
-        # Note: correlation might not return a result object, adjust as needed
 
-        # expected_file = "./tests/results/correlation/vehicles.png"
-        # actual_file = "./PROJECTS/tcb2/correlation/vehicles.png"
-        # self.assert_image_similar(expected_file, actual_file, 0.1)
+        expected_file = "./tests/results/correlation/vehicles.png"
+        actual_file = "./PROJECTS/tcb2/correlation/vehicles.png"
+        self.assert_image_similar(expected_file, actual_file, 0.1)
 
     def test_statistics_table(self):
         result = statistics_table(
