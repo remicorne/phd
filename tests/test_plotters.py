@@ -126,47 +126,47 @@ class TestPlotters(unittest.TestCase):
         actual_file = "./PROJECTS/tcb2/histogram/DA in OF.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
-    # def test_summary_histogram(self):
-    #     result = summary_histogram(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "compound": ["DA", "NA"],
-    #                     "region": ["OF", "PL"],
-    #                     "remove_outliers": {"grubbs": "calculated"},
-    #                 },
-    #             },
-    #             "experiment": "agonist_antagonist",
-    #         },
-    #     )
-    #     self.assertIsNotNone(result)
-    #     self.assertTrue(hasattr(result, "data"))
-    #     self.assertTrue(hasattr(result, "statistics"))
+    def test_summary_histogram(self):
+        result = summary_histogram(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "compound": ["DA", "NA"],
+                        "region": ["OF", "PL"],
+                        "remove_outliers": {"grubbs": "calculated"},
+                    },
+                },
+                "experiment": "agonist_antagonist",
+            },
+        )
+        self.assertIsNotNone(result)
+        self.assertTrue(hasattr(result, "data"))
+        self.assertTrue(hasattr(result, "statistics"))
 
-    #     expected_file = "./tests/results/summary_histogram/DA, NA in OF, PL.png"
-    #     actual_file = "./PROJECTS/tcb2/summary_histogram/DA, NA in OF, PL.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0)
+        expected_file = "./tests/results/summary_histogram/DA, NA in OF, PL.png"
+        actual_file = "./PROJECTS/tcb2/summary_histogram/DA, NA in OF, PL.png"
+        self.assert_image_similar(expected_file, actual_file, 0)
 
-    # def test_correlogram(self):
-    #     result = correlogram(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "region": "all",
-    #                     "remove_outliers": {"grubbs": "calculated"},
-    #                 },
-    #             },
-    #             "experiment": "agonist_antagonist",
-    #         },
-    #         between={"compound": [["5HT", "DA"]]},
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_correlogram(self):
+        result = correlogram(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "region": "all",
+                        "remove_outliers": {"grubbs": "calculated"},
+                    },
+                },
+                "experiment": "agonist_antagonist",
+            },
+            between={"compound": [["5HT", "DA"]]},
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = "./tests/results/correlogram/all compounds in all.png"
-    #     actual_file = "./PROJECTS/tcb2/correlogram/all compounds in all.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0)
+        expected_file = "./tests/results/correlogram/all compounds in all.png"
+        actual_file = "./PROJECTS/tcb2/correlogram/all compounds in all.png"
+        self.assert_image_similar(expected_file, actual_file, 0)
 
     # def test_correlogram_multiple_datasets(self):
     #     result = correlogram(
