@@ -20,6 +20,7 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     selected = df.index.notna()  # Select all
     absent_columns = set(mask_conditions) - set([*df.columns, "index"])
     if absent_columns:
+        print("mask", df, df.columns)
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )

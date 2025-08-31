@@ -168,6 +168,11 @@ class ProjectDataset(
 
     def calculate_outliers(self, test: str):
         cases = []
+        try:
+            self.data[self.measurement_columns]
+        except KeyError:
+            print("outliersé", self.data, self.data.columns)
+            raise
         for _, subset_df in self.data[
             [
                 self.subject_column,
@@ -299,7 +304,6 @@ class ProjectDataset(
                     selection[col] = [selection[col]]
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
-        print(data_with_ratios)
         data_selected = data_with_ratios.select(**selection)
         self.data = self.sort_values(data_selected, selection)
         if outlier_config:
