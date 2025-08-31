@@ -168,70 +168,70 @@ class TestPlotters(unittest.TestCase):
         actual_file = "./PROJECTS/tcb2/correlogram/all compounds in all.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
-    # def test_correlogram_multiple_datasets(self):
-    #     result = correlogram(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "region": "all",
-    #                     "remove_outliers": {"grubbs": "calculated"},
-    #                 },
-    #                 "behavior": {},
-    #             },
-    #             "experiment": "agonist_antagonist",
-    #         },
-    #         between={"dataset": [["hplc", "behavior"]]},
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_correlogram_multiple_datasets(self):
+        result = correlogram(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "region": "all",
+                        "remove_outliers": {"grubbs": "calculated"},
+                    },
+                    "behavior": {},
+                },
+                "experiment": "agonist_antagonist",
+            },
+            between={"dataset": [["hplc", "behavior"]]},
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = (
-    #         "./tests/results/correlogram/all compounds in all and all measures.png"
-    #     )
-    #     actual_file = (
-    #         "./PROJECTS/tcb2/correlogram/all compounds in all and all measures.png"
-    #     )
-    #     self.assert_image_similar(expected_file, actual_file, 0)
+        expected_file = (
+            "./tests/results/correlogram/all compounds in all and all measures.png"
+        )
+        actual_file = (
+            "./PROJECTS/tcb2/correlogram/all compounds in all and all measures.png"
+        )
+        self.assert_image_similar(expected_file, actual_file, 0)
 
-    # def test_network(self):
-    #     result = network(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "region": "all",
-    #                     "compound": ["5HT", "DA"],
-    #                 },
-    #             },
-    #         },
-    #         between={"compound": [["5HT", "DA"]]},
-    #         layout="all_regions",
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_network(self):
+        result = network(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "region": "all",
+                        "compound": ["5HT", "DA"],
+                    },
+                },
+            },
+            between={"compound": [["5HT", "DA"]]},
+            layout="all_regions",
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = "./tests/results/network/5HT, DA in all.png"
-    #     actual_file = "./PROJECTS/tcb2/network/5HT, DA in all.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0.015)
+        expected_file = "./tests/results/network/5HT, DA in all.png"
+        actual_file = "./PROJECTS/tcb2/network/5HT, DA in all.png"
+        self.assert_image_similar(expected_file, actual_file, 0.015)
 
-    # def test_network_circular(self):
-    #     result = network(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "region": "all",
-    #                     "compound": ["5HT", "DA"],
-    #                 },
-    #             },
-    #         },
-    #         between={"compound": [["5HT", "DA"]]},
-    #         filename="network_circular",
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_network_circular(self):
+        result = network(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "region": "all",
+                        "compound": ["5HT", "DA"],
+                    },
+                },
+            },
+            between={"compound": [["5HT", "DA"]]},
+            filename="network_circular",
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = "./tests/results/network/network_circular.png"
-    #     actual_file = "./PROJECTS/tcb2/network/network_circular.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0.05)
+        expected_file = "./tests/results/network/network_circular.png"
+        actual_file = "./PROJECTS/tcb2/network/network_circular.png"
+        self.assert_image_similar(expected_file, actual_file, 0.05)
 
     # def test_network_degrees(self):
     #     result = network_degrees(
