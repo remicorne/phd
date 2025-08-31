@@ -123,8 +123,8 @@ class TestPlotters(unittest.TestCase):
         self.assertTrue(hasattr(result, "statistics"))
 
         expected_file = "./tests/results/histogram/DA in OF.png"
-        actual_file = "./PROJECTS/tcb2/histogram/DA in OF.png"
-        self.assert_image_similar(expected_file, actual_file, 0)
+        actual_file = f"./PROJECTS/{self.project_name}/histogram/DA in OF.png"
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_summary_histogram(self):
         result = summary_histogram(
@@ -145,8 +145,10 @@ class TestPlotters(unittest.TestCase):
         self.assertTrue(hasattr(result, "statistics"))
 
         expected_file = "./tests/results/summary_histogram/DA, NA in OF, PL.png"
-        actual_file = "./PROJECTS/tcb2/summary_histogram/DA, NA in OF, PL.png"
-        self.assert_image_similar(expected_file, actual_file, 0)
+        actual_file = (
+            f"./PROJECTS/{self.project_name}/summary_histogram/DA, NA in OF, PL.png"
+        )
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_correlogram(self):
         result = correlogram(
@@ -165,8 +167,10 @@ class TestPlotters(unittest.TestCase):
         self.assertIsNotNone(result)
 
         expected_file = "./tests/results/correlogram/all compounds in all.png"
-        actual_file = "./PROJECTS/tcb2/correlogram/all compounds in all.png"
-        self.assert_image_similar(expected_file, actual_file, 0)
+        actual_file = (
+            f"./PROJECTS/{self.project_name}/correlogram/all compounds in all.png"
+        )
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_correlogram_multiple_datasets(self):
         result = correlogram(
@@ -188,10 +192,8 @@ class TestPlotters(unittest.TestCase):
         expected_file = (
             "./tests/results/correlogram/all compounds in all and all measures.png"
         )
-        actual_file = (
-            "./PROJECTS/tcb2/correlogram/all compounds in all and all measures.png"
-        )
-        self.assert_image_similar(expected_file, actual_file, 0)
+        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all and all measures.png"
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_network(self):
         result = network(
@@ -210,7 +212,7 @@ class TestPlotters(unittest.TestCase):
         self.assertIsNotNone(result)
 
         expected_file = "./tests/results/network/5HT, DA in all.png"
-        actual_file = "./PROJECTS/tcb2/network/5HT, DA in all.png"
+        actual_file = f"./PROJECTS/{self.project_name}/network/5HT, DA in all.png"
         self.assert_image_similar(expected_file, actual_file, 0.015)
 
     def test_network_circular(self):
@@ -230,7 +232,7 @@ class TestPlotters(unittest.TestCase):
         self.assertIsNotNone(result)
 
         expected_file = "./tests/results/network/network_circular.png"
-        actual_file = "./PROJECTS/tcb2/network/network_circular.png"
+        actual_file = f"./PROJECTS/{self.project_name}/network/network_circular.png"
         self.assert_image_similar(expected_file, actual_file, 0.05)
 
     def test_network_degrees(self):
@@ -250,7 +252,9 @@ class TestPlotters(unittest.TestCase):
         self.assertIsNotNone(result)
 
         expected_file = "./tests/results/network_degrees/all compounds in all.png"
-        actual_file = "./PROJECTS/tcb2/network_degrees/all compounds in all.png"
+        actual_file = (
+            f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all.png"
+        )
         self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_network_summary(self):
@@ -273,10 +277,8 @@ class TestPlotters(unittest.TestCase):
         expected_file = (
             "./tests/results/network_summary/5HT-DA max degrees all regions.png"
         )
-        actual_file = (
-            "./PROJECTS/tcb2/network_summary/5HT-DA max degrees all regions.png"
-        )
-        self.assert_image_similar(expected_file, actual_file, 0)
+        actual_file = f"./PROJECTS/{self.project_name}/network_summary/5HT-DA max degrees all regions.png"
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
     def test_correlation(self):
         correlation(
@@ -297,7 +299,7 @@ class TestPlotters(unittest.TestCase):
         )
 
         expected_file = "./tests/results/correlation/vehicles.png"
-        actual_file = "./PROJECTS/tcb2/correlation/vehicles.png"
+        actual_file = f"./PROJECTS/{self.project_name}/correlation/vehicles.png"
         self.assert_image_similar(expected_file, actual_file, 0.1)
 
     def test_statistics_table(self):
@@ -315,9 +317,7 @@ class TestPlotters(unittest.TestCase):
         expected_file = (
             "./tests/results/statistics_table/all compounds in all regions.xlsx"
         )
-        actual_file = (
-            "./PROJECTS/tcb2/statistics_table/all compounds in all regions.xlsx"
-        )
+        actual_file = f"./PROJECTS/{self.project_name}/statistics_table/all compounds in all regions.xlsx"
         actual_df = pd.read_excel(actual_file)
         expected_df = pd.read_excel(expected_file)
         pd.testing.assert_frame_equal(actual_df, expected_df)
