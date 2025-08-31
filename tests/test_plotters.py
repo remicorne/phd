@@ -233,95 +233,95 @@ class TestPlotters(unittest.TestCase):
         actual_file = "./PROJECTS/tcb2/network/network_circular.png"
         self.assert_image_similar(expected_file, actual_file, 0.05)
 
-    # def test_network_degrees(self):
-    #     result = network_degrees(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "region": "all",
-    #                 },
-    #             },
-    #             "experiment": "agonist_antagonist",
-    #         },
-    #         between={"compound": [["DA", "5HT"]]},
-    #         custom_params={"width": 15, "height": 120},
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_network_degrees(self):
+        result = network_degrees(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "region": "all",
+                    },
+                },
+                "experiment": "agonist_antagonist",
+            },
+            between={"compound": [["DA", "5HT"]]},
+            custom_params={"width": 15, "height": 120},
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = "./tests/results/network_degrees/all compounds in all.png"
-    #     actual_file = "./PROJECTS/tcb2/network_degrees/all compounds in all.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0.01)
+        expected_file = "./tests/results/network_degrees/all compounds in all.png"
+        actual_file = "./PROJECTS/tcb2/network_degrees/all compounds in all.png"
+        self.assert_image_similar(expected_file, actual_file, 0.01)
 
-    # def test_network_summary(self):
-    #     result = network_summary(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {
-    #                     "remove_outliers": {"grubbs": "calculated"},
-    #                 },
-    #             },
-    #         },
-    #         filename="5HT-DA max degrees all regions",
-    #         between={"compound": [["DA", "5HT"]]},
-    #         measurement="max_degree",
-    #         custom_params={"size": 15},
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_network_summary(self):
+        result = network_summary(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {
+                        "remove_outliers": {"grubbs": "calculated"},
+                    },
+                },
+            },
+            filename="5HT-DA max degrees all regions",
+            between={"compound": [["DA", "5HT"]]},
+            measurement="max_degree",
+            custom_params={"size": 15},
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = (
-    #         "./tests/results/network_summary/5HT-DA max degrees all regions.png"
-    #     )
-    #     actual_file = (
-    #         "./PROJECTS/tcb2/network_summary/5HT-DA max degrees all regions.png"
-    #     )
-    #     self.assert_image_similar(expected_file, actual_file, 0)
+        expected_file = (
+            "./tests/results/network_summary/5HT-DA max degrees all regions.png"
+        )
+        actual_file = (
+            "./PROJECTS/tcb2/network_summary/5HT-DA max degrees all regions.png"
+        )
+        self.assert_image_similar(expected_file, actual_file, 0)
 
-    # def test_correlation(self):
-    #     correlation(
-    #         project="TCB2",
-    #         x={
-    #             "dataset": "hplc",
-    #             "compound": "DA",
-    #             "region": "SN",
-    #             "remove_outliers": {"grubbs": "calculated"},
-    #         },
-    #         y={
-    #             "dataset": "hplc",
-    #             "compound": "5HT",
-    #             "region": "OF",
-    #             "remove_outliers": {"grubbs": "calculated"},
-    #         },
-    #         grouper={"group_name": "vehicles"},
-    #     )
-    #     # Note: correlation might not return a result object, adjust as needed
+    def test_correlation(self):
+        correlation(
+            project="TCB2",
+            x={
+                "dataset": "hplc",
+                "compound": "DA",
+                "region": "SN",
+                "remove_outliers": {"grubbs": "calculated"},
+            },
+            y={
+                "dataset": "hplc",
+                "compound": "5HT",
+                "region": "OF",
+                "remove_outliers": {"grubbs": "calculated"},
+            },
+            grouper={"group_name": "vehicles"},
+        )
+        # Note: correlation might not return a result object, adjust as needed
 
-    #     expected_file = "./tests/results/correlation/vehicles.png"
-    #     actual_file = "./PROJECTS/tcb2/correlation/vehicles.png"
-    #     self.assert_image_similar(expected_file, actual_file, 0.1)
+        expected_file = "./tests/results/correlation/vehicles.png"
+        actual_file = "./PROJECTS/tcb2/correlation/vehicles.png"
+        self.assert_image_similar(expected_file, actual_file, 0.1)
 
-    # def test_statistics_table(self):
-    #     result = statistics_table(
-    #         project=self.project_name,
-    #         request={
-    #             "datasets": {
-    #                 self.dataset_name: {},
-    #             },
-    #             "experiment": "agonist_antagonist",
-    #         },
-    #     )
-    #     self.assertIsNotNone(result)
+    def test_statistics_table(self):
+        result = statistics_table(
+            project=self.project_name,
+            request={
+                "datasets": {
+                    self.dataset_name: {},
+                },
+                "experiment": "agonist_antagonist",
+            },
+        )
+        self.assertIsNotNone(result)
 
-    #     expected_file = (
-    #         "./tests/results/statistics_table/all compounds in all regions.xlsx"
-    #     )
-    #     actual_file = (
-    #         "./PROJECTS/tcb2/statistics_table/all compounds in all regions.xlsx"
-    #     )
-    #     actual_df = pd.read_excel(actual_file)
-    #     expected_df = pd.read_excel(expected_file)
-    #     pd.testing.assert_frame_equal(actual_df, expected_df)
+        expected_file = (
+            "./tests/results/statistics_table/all compounds in all regions.xlsx"
+        )
+        actual_file = (
+            "./PROJECTS/tcb2/statistics_table/all compounds in all regions.xlsx"
+        )
+        actual_df = pd.read_excel(actual_file)
+        expected_df = pd.read_excel(expected_file)
+        pd.testing.assert_frame_equal(actual_df, expected_df)
 
 
 if __name__ == "__main__":
