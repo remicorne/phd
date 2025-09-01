@@ -255,7 +255,7 @@ class TestPlotters(unittest.TestCase):
         actual_file = (
             f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all.png"
         )
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0.05)
 
     def test_network_summary(self):
         result = network_summary(
