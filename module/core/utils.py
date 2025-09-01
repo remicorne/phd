@@ -85,3 +85,20 @@ def parallel_process(
         )
     )
     return list(chain(*results)) if is_batched else results
+
+
+def strtobool(val: str) -> int:
+    """
+    Convert a string to a boolean represented as 1 (true) or 0 (false).
+
+    Accepted true values are: 'y', 'yes', 't', 'true', 'on', '1'
+    Accepted false values are: 'n', 'no', 'f', 'false', 'off', '0'
+
+    Raises ValueError if 'val' is anything else.
+    """
+    val = val.strip().lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return 1
+    if val in ("n", "no", "f", "false", "off", "0"):
+        return 0
+    raise ValueError(f"invalid truth value {val!r}")

@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from distutils.util import (
-    strtobool,
-)  # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
+from module.core.utils import strtobool
 from typing import ClassVar, Dict
 from functools import partial
 import numpy as np
