@@ -1,4 +1,4 @@
-# Neurobehavioral Data Analysis
+# Data Analysis Tool
 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
@@ -18,7 +18,6 @@ I don't recommend extending the code as I've implemented some things in bordelin
 1. Clone the repository:
    ```bash
    git clone https://github.com/remicorne/phd.git
-   cd neurobehavioral-analysis
    ```
 
 2. Create and activate a virtual environment:
@@ -50,7 +49,7 @@ A jupyter notebook 'INTERFACE.ipynb' is provided to guide you through the proces
 Run a cell (any plotter) in INTERFACE.ipynb and follow the instructions:
 1. User is prompted on whether to initialize a project if the project name is not recognized (y/n)
 2. Project is initialized (folder created and metadata.xlsx created)
-3. The metadata.xlsx file is opened in the default editor. User is requested to edit metadata.xlsx (necessary before adding datasets, see **Metadata** section. Edit unnecesary for example as the automatically generated metadata.xlsx template works with the example data)
+3. The metadata.xlsx file is opened in the default editor. User is requested to edit metadata.xlsx (necessary before adding datasets, see **Metadata** section). **Edit unnecesary when running the tutorial as the metadata file is already consistent with the example data.**
 4. The user is prompted whether to add dataset (y/n) (see **Dataset** section)
 5. User must input raw dataset filepath (use 'module/example_project/tcb2_hplc_data.csv' for example)
 6. The dataset is loaded, validated and a copy is save in the project's folder
