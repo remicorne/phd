@@ -45,7 +45,7 @@ class ProjectMetadata(ExcelCachedDataFrame):
         self.max_outliers = self.statistics.max_outliers
 
     def check_new_project(self):
-        if self.project not in FileSystem.list_projects():
+        if not FileSystem.project_exists(self.project):
             if not yes_or_no(
                 f"Project '{self.project}' not found. Initialize new project {self.project}?"
             ):

@@ -16,11 +16,8 @@ class FileSystem:
     PATH_ELEMENT_ORDER = ["project", "experiment", "figure_type"]
 
     @staticmethod
-    def list_projects():
-        if os.path.exists(FileSystem.PROJECTS):
-            projects = os.listdir(FileSystem.PROJECTS)
-            return [project.split("/")[-1] for project in projects]
-        return []
+    def project_exists(project_name):
+        return os.path.exists(os.path.join(FileSystem.PROJECTS, project_name))
 
     @staticmethod
     def list_datasets(project):
