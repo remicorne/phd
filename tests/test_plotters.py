@@ -20,10 +20,9 @@ from module.core.plotters import (
 class TestPlotters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.project_name = "tcb2"
+        cls.project_name = "tcb2_test_project"
         cls.dataset_name = "hplc"
 
-        # Patch where the names are actually used
         cls.p_yes_meta = patch("module.core.Metadata.yes_or_no", return_value=True)
         cls.p_yes_ds = patch("module.core.ProjectDataset.yes_or_no", return_value=True)
         cls.p_input = patch(
@@ -38,7 +37,6 @@ class TestPlotters(unittest.TestCase):
             return_value=None,
         )
 
-        # Start patches
         cls.m_yes_meta = cls.p_yes_meta.start()
         cls.m_yes_ds = cls.p_yes_ds.start()
         cls.m_input = cls.p_input.start()
