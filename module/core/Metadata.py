@@ -125,9 +125,9 @@ class ProjectMetadata(ExcelCachedDataFrame):
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
-def convert_list(values: list | tuple, value_type: type):
+def convert_iterable(values: list | tuple, iterable_type: type, value_type: type):
     values = values.replace(" ", "").split(",") if values else []
-    return [value_type(value) for value in values]
+    return iterable_type([value_type(value) for value in values])
 
 
 def convert_to_bool(value):
@@ -136,7 +136,7 @@ def convert_to_bool(value):
 
 def get_converter(col_info):
     if col_info["type"] in [list, tuple]:
-        converter = partial(convert_list, value_type=col_info["subtype"])
+        converter = partial(convert_iterable, iterable_type=col_info["type"], value_type=col_info["subtype"])
     elif col_info["type"] is bool:
         converter = convert_to_bool
     else:
@@ -243,7 +243,7 @@ class Experiments(SubSetting):
     _types: ClassVar[dict] = {
         "label": {"type": str},
         "group_ids": {"type": list, "subtype": int},
-        "independant_variables": {"type": list, "subtype": str},
+        "independant_variables": {"type": tuple, "subtype": str},
         "paired": {"type": bool},
         "parametric": {"type": bool},
     }

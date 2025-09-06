@@ -107,7 +107,7 @@ class ProjectDataset(
         )
         if filepath.endswith(".xlsx"):
             df = pd.read_excel(filepath, keep_default_na=False)
-        if filepath.endswith(".csv"):
+        elif filepath.endswith(".csv"):
             df = pd.read_csv(filepath, keep_default_na=False)
         elif filepath.endswith(".pkl"):
             df = pd.read_pickle(filepath)

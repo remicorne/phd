@@ -214,7 +214,7 @@ class QuantitativeStatistic:
                 - A DataFrame with detailed ANOVA results including F-values and p-values for each effect.
         """
         data = self.filtered_data.copy()
-        data[self.independant_variables] = data.apply(
+        data[list(self.independant_variables)] = data.apply(
             lambda row: [
                 variable in row.independant_variables
                 for variable in self.independant_variables
@@ -225,7 +225,7 @@ class QuantitativeStatistic:
         results = pg.anova(
             data=data,
             dv=DatasetColumn.VALUE,
-            between=self.independant_variables,
+            between=list(self.independant_variables),
             detailed=True,
         ).round(3)
 
