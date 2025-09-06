@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
-import os, platform, subprocess
+import os
+import platform
+import subprocess
 from module.core.FileSystem import FileSystem
 from module.core.questions import input_escape
 import re

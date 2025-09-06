@@ -1,7 +1,8 @@
 from typing import Any, Type
 from module.core.JSON import JSONMapping
 from module.core.FileSystem import FileSystem
-import os, sys
+import os
+import sys
 from dataclasses import dataclass, field
 import difflib
 from module.core.questions import yes_or_no, select_one
