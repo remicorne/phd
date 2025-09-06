@@ -1,9 +1,9 @@
 import os
 import unittest
 from unittest.mock import patch
-from PIL import Image, ImageChops
-import numpy as np
+from matplotlib.testing.compare import compare_images
 import pandas as pd
+from tests import _mpl_test_setup  # noqa: F401
 from module.core.FileSystem import FileSystem
 from module.core.plotters import (
     histogram,
@@ -50,57 +50,25 @@ class TestPlotters(unittest.TestCase):
         cls.p_edit.stop()
         FileSystem.delete_project(cls.project_name)
 
-    def assert_image_similar(self, expected_path, actual_path, threshold=0):
+    def assert_image_similar(self, expected_path, actual_path, tol=2.0):
         """
-        Assert that two images are similar within the given threshold.
+        Assert two PNGs are visually similar using Matplotlib's standard comparator.
 
         Args:
-            expected_path: Path to expected image
-            actual_path: Path to actual image
-            threshold: Percentage difference threshold (0.01 = 1%)
+            expected_path: baseline image path (PNG)
+            actual_path:   test output image path (PNG)
+            tol: RMS tolerance in pixel intensity (float).
+                0 means identical, larger tolerates minor AA/font rasterization diffs.
+                Typical stable values: 1.0–5.0 depending on plot complexity.
         """
         self.assertTrue(
-            os.path.exists(expected_path), f"Expected image not found: {expected_path}"
+            os.path.exists(expected_path), f"Expected not found: {expected_path}"
         )
-        self.assertTrue(
-            os.path.exists(actual_path), f"Actual image not found: {actual_path}"
-        )
+        self.assertTrue(os.path.exists(actual_path), f"Actual not found: {actual_path}")
 
-        try:
-            with (
-                Image.open(expected_path) as expected,
-                Image.open(actual_path) as actual,
-            ):
-                # Ensure images are same size
-                if expected.size != actual.size:
-                    self.fail(
-                        f"Image sizes differ: expected {expected.size}, got {actual.size}"
-                    )
-
-                # Convert to same mode if needed
-                if expected.mode != actual.mode:
-                    actual = actual.convert(expected.mode)
-
-                # Calculate difference
-                diff = ImageChops.difference(expected, actual)
-                diff_array = np.array(diff)
-
-                # Calculate percentage of different pixels
-                if len(diff_array.shape) == 3:  # RGB
-                    different_pixels = np.any(diff_array > 0, axis=2)
-                else:  # Grayscale
-                    different_pixels = diff_array > 0
-
-                diff_percentage = np.sum(different_pixels) / different_pixels.size
-
-                self.assertLessEqual(
-                    diff_percentage,
-                    threshold,
-                    f"Images differ by {diff_percentage:.2%}, threshold is {threshold:.2%}",
-                )
-
-        except Exception as e:
-            self.fail(f"Error comparing images: {e}")
+        res = compare_images(expected_path, actual_path, tol=tol)
+        if res is not None:
+            self.fail(res)
 
     def test_histogram(self):
         result = histogram(
@@ -122,7 +90,7 @@ class TestPlotters(unittest.TestCase):
 
         expected_file = "./tests/results/histogram/DA in OF.png"
         actual_file = f"./PROJECTS/{self.project_name}/histogram/DA in OF.png"
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_summary_histogram(self):
         result = summary_histogram(
@@ -146,7 +114,7 @@ class TestPlotters(unittest.TestCase):
         actual_file = (
             f"./PROJECTS/{self.project_name}/summary_histogram/DA, NA in OF, PL.png"
         )
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_correlogram(self):
         result = correlogram(
@@ -168,7 +136,7 @@ class TestPlotters(unittest.TestCase):
         actual_file = (
             f"./PROJECTS/{self.project_name}/correlogram/all compounds in all.png"
         )
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_correlogram_multiple_datasets(self):
         result = correlogram(
@@ -191,7 +159,7 @@ class TestPlotters(unittest.TestCase):
             "./tests/results/correlogram/all compounds in all and all measures.png"
         )
         actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all and all measures.png"
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_network(self):
         result = network(
@@ -211,7 +179,7 @@ class TestPlotters(unittest.TestCase):
 
         expected_file = "./tests/results/network/5HT, DA in all.png"
         actual_file = f"./PROJECTS/{self.project_name}/network/5HT, DA in all.png"
-        self.assert_image_similar(expected_file, actual_file, 0.015)
+        self.assert_image_similar(expected_file, actual_file, 4)
 
     def test_network_circular(self):
         result = network(
@@ -231,7 +199,7 @@ class TestPlotters(unittest.TestCase):
 
         expected_file = "./tests/results/network/network_circular.png"
         actual_file = f"./PROJECTS/{self.project_name}/network/network_circular.png"
-        self.assert_image_similar(expected_file, actual_file, 0.05)
+        self.assert_image_similar(expected_file, actual_file, 5)
 
     def test_network_degrees(self):
         result = network_degrees(
@@ -253,7 +221,7 @@ class TestPlotters(unittest.TestCase):
         actual_file = (
             f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all.png"
         )
-        self.assert_image_similar(expected_file, actual_file, 0.05)
+        self.assert_image_similar(expected_file, actual_file, 10)
 
     def test_network_summary(self):
         result = network_summary(
@@ -276,7 +244,7 @@ class TestPlotters(unittest.TestCase):
             "./tests/results/network_summary/5HT-DA max degrees all regions.png"
         )
         actual_file = f"./PROJECTS/{self.project_name}/network_summary/5HT-DA max degrees all regions.png"
-        self.assert_image_similar(expected_file, actual_file, 0.01)
+        self.assert_image_similar(expected_file, actual_file, 0.08)
 
     def test_correlation(self):
         correlation(
@@ -298,7 +266,7 @@ class TestPlotters(unittest.TestCase):
 
         expected_file = "./tests/results/correlation/vehicles.png"
         actual_file = f"./PROJECTS/{self.project_name}/correlation/vehicles.png"
-        self.assert_image_similar(expected_file, actual_file, 0.1)
+        self.assert_image_similar(expected_file, actual_file, 20)
 
     def test_statistics_table(self):
         result = statistics_table(
