@@ -62,8 +62,8 @@ class Histogram(Figure):
     def generate_figure(self):
         self.fig, self.ax = plt.subplots(
             figsize=(
-                self.custom_params.get("width", 20),
-                self.custom_params.get("height", 10),
+                self.custom_params.get("fig_width", 20),
+                self.custom_params.get("fig_height", 10),
             )
         )
 
@@ -293,8 +293,8 @@ class MultiAxFigure(Figure):
             num_rows,
             num_cols,
             figsize=(
-                self.custom_params.get("width", num_cols * square_side),
-                self.custom_params.get("height", num_rows * square_side),
+                self.custom_params.get("fig_width", num_cols * square_side),
+                self.custom_params.get("fig_height", num_rows * square_side),
             ),
             constrained_layout=True,
         )
