@@ -68,7 +68,7 @@ class Matrix:
     grouping: str
     pivot_columns: list[str]
     # order: list[str] = None # TODO: use pdcategorical
-    between: dict = field(kw_only=True, default_factory=dict)
+    between: dict
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
@@ -168,7 +168,7 @@ class Matrix:
                 )
                 corr_flat = corr_values.abs().stack()
 
-            cutoff = np.quantile(corr_flat, 1 - self.density_thresholding)
+            cutoff = corr_flat.quantile(1 - self.density_thresholding)
             mask = self.correlations.abs() >= cutoff
 
         else:  #  P-value based masking
@@ -354,8 +354,12 @@ class Network:
             self.clust_coeff_unweighted, self.clust_coeff_weighted = (
                 self.calculate_clustering_coefficient()
             )
-            self.global_efficiency_weighted, self.global_efficiency_unweighted = self.calculate_global_efficiency()  # unweighted
-            self.local_efficiency_weighted, self.local_efficiency_unweighted = self.calculate_local_efficiency()  # unweighted
+            self.global_efficiency_weighted, self.global_efficiency_unweighted = (
+                self.calculate_global_efficiency()
+            )  # unweighted
+            self.local_efficiency_weighted, self.local_efficiency_unweighted = (
+                self.calculate_local_efficiency()
+            )  # unweighted
 
     def calculate_SD_node_degree_strength(self):
         """
@@ -482,18 +486,31 @@ class Network:
         # Weighted: convert weights to distances (larger weight = shorter distance).
         G_weighted = self.G.copy()
         for u, v, d in G_weighted.edges(data=True):
-            d['distance'] = 1 / max(d.get('weight', 1e-6), 1e-6)
+            d["distance"] = 1 / max(d.get("weight", 1e-6), 1e-6)
 
         # if directed shortest path respects directionality
-        weighted_lengths = dict(nx.all_pairs_dijkstra_path_length(G_weighted, weight='distance'))
+        weighted_lengths = dict(
+            nx.all_pairs_dijkstra_path_length(G_weighted, weight="distance")
+        )
         unweighted_lengths = dict(nx.all_pairs_shortest_path_length(self.G))
 
         # Unreachable pairs are skipped
-        weighted_vals = [1 / l for src in weighted_lengths for tgt, l in weighted_lengths[src].items() if src != tgt and l > 0]
-        unweighted_vals = [1 / l for src in unweighted_lengths for tgt, l in unweighted_lengths[src].items() if src != tgt and l > 0]
+        weighted_vals = [
+            1 / l
+            for src in weighted_lengths
+            for tgt, l in weighted_lengths[src].items()
+            if src != tgt and l > 0
+        ]
+        unweighted_vals = [
+            1 / l
+            for src in unweighted_lengths
+            for tgt, l in unweighted_lengths[src].items()
+            if src != tgt and l > 0
+        ]
 
-        return np.mean(weighted_vals) if weighted_vals else 0, np.mean(unweighted_vals) if unweighted_vals else 0
-
+        return np.mean(weighted_vals) if weighted_vals else 0, np.mean(
+            unweighted_vals
+        ) if unweighted_vals else 0
 
     def calculate_local_efficiency(self):
         """
@@ -529,9 +546,11 @@ class Network:
             # --- Weighted ---
             subgraph_w = subgraph.copy()
             for u, v, d in subgraph_w.edges(data=True):
-                d['distance'] = 1 / max(d.get('weight', 1e-6), 1e-6)
+                d["distance"] = 1 / max(d.get("weight", 1e-6), 1e-6)
 
-            weighted_lengths = dict(nx.all_pairs_dijkstra_path_length(subgraph_w, weight='distance'))
+            weighted_lengths = dict(
+                nx.all_pairs_dijkstra_path_length(subgraph_w, weight="distance")
+            )
             weighted_vals = [
                 1 / l
                 for src in weighted_lengths
@@ -541,11 +560,14 @@ class Network:
             if weighted_vals:
                 local_efficiency_weighted.append(np.mean(weighted_vals))
 
-        avg_local_unweighted = np.mean(local_efficiency_unweighted) if local_efficiency_unweighted else 0
-        avg_local_weighted = np.mean(local_efficiency_weighted) if local_efficiency_weighted else 0
+        avg_local_unweighted = (
+            np.mean(local_efficiency_unweighted) if local_efficiency_unweighted else 0
+        )
+        avg_local_weighted = (
+            np.mean(local_efficiency_weighted) if local_efficiency_weighted else 0
+        )
 
         return avg_local_weighted, avg_local_unweighted
-
 
 
 @dataclass
@@ -576,7 +598,7 @@ class MatrixGroup:
     data: pd.DataFrame
     group_by: str
     pivot_columns: list[str]
-    between: dict = field(kw_only=True, default_factory=dict)
+    between: dict
     # order: list[str] = None
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
