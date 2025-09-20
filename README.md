@@ -11,16 +11,20 @@ I don't recommend extending the code as I've implemented some things in bordelin
 ## Getting Started
 
 ### Prerequisites
+
 - Python 3.11
 - Jupyter Notebook/Lab
 
 ### Installation
+
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/remicorne/phd.git
    ```
 
 2. Create and activate a virtual environment:
+
    - **Windows**:
      ```powershell
      python -m venv venv
@@ -33,6 +37,7 @@ I don't recommend extending the code as I've implemented some things in bordelin
      ```
 
 3. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -42,11 +47,13 @@ I don't recommend extending the code as I've implemented some things in bordelin
 ## Usage
 
 ### Example use cases
+
 A sample of already published neurochemical data comes packaged with the code (module/example_project/tcb2_hplc_data.csv)
 
 A jupyter notebook 'INTERFACE.ipynb' is provided to guide you through the process of initializing a project, adding a dataset, editing metadata etc.
 
-Run a cell (any plotter) in INTERFACE.ipynb and follow the instructions:
+Run a cell in INTERFACE.ipynb and follow the instructions:
+
 1. User is prompted on whether to initialize a project if the project name is not recognized (y/n)
 2. Project is initialized (folder created and metadata.xlsx created)
 3. The metadata.xlsx file is opened in the default editor. User is requested to edit metadata.xlsx (necessary before adding datasets, see **Metadata** section). **Edit unnecesary when running the tutorial as the metadata file is already consistent with the example data.**
@@ -56,9 +63,73 @@ Run a cell (any plotter) in INTERFACE.ipynb and follow the instructions:
 7. The figure is generated and saved in PROJECTS/{project_name}/figure_type/figure_name.{svg|png|xlsx}
 
 ### Jupyter Notebook
+
 The primary way to use this code is through Jupyter notebooks (see INTERFACE.ipynb for examples)
 
+CELL 1: VIEW DATA
+Intalise ProjectDataset with the project name and filename (the database name):
+data.data acesses the raw data, **.subselect()** can be used to filter
+data.calculate_group_statistics().group_statistics fetches group-wise statistics (i.e. shapiro wilk F and p, mean, std, sem e.c.t.)
+data.calculate_quantitative_statistics().statistics_table fetches statistics accoring to treatments (**.statistics_table()** can be added to histogram plotter functions)
+
+CELL 2: SAVE DATA TABLE
+statistics_table example provided but the same functionality will be added for group_statistics
+
+CELL 3: HISTOGRAM
+Returns a histogram with bars for each treatment, stats plotted according to the metadata.xlsx (statistics and palette sheets).
+
+CELL 4: SUMMARY HISTOGRAM
+Returns a histogram with hues for treatment and bars for EITHER regions or compounds (one must be singular), statistics acording to metadata.xlsx.
+An example of custom prams is also shown here.
+
+CELL 5: CORRELATION
+Returns a single correlation (Pearson or Spearman according to metadata.xlsx) between two setx of data.
+
+CELL 6-8: CORRELOGRAM() Returns a correlogram of r values mapping the correlations betwene any two vairables.
+
+CORRELOGRAM - within compound (multiple comparisons)
+Most simple example shown here between the same compound resulting in a triangular correlogram, by default only significant correlations are shown with no correction for multiple comparisons. To perform multiple corrections via Benjamin Hopkins set fdr_correction=True, the FDR used will be set by the pvalue_threshold (defaults to metadata.xlsx). Example is with multiple corrections between 5HT across all regionswith an FDR of 20%.
+
+CORRELOGRAM - between compounds (density thresholding)
+Between compound correlations result in a square correlogram, density_threshold=0.5 allows you to set a density threshold for the correlogram, in this instance keeping the top 50% largest r values. Aditionaly custom_prams can be used with correlogram, examples shown here.
+
+CORRELOGRAM - between datasets
+Example of correlations between data from different datasets.
+
+CELL 9-11: NETWORK() Returns a network where the edges represent correlation r values according to the color bar. The same density_thresholding, pvalue_threshold and fdr_correction may be applied here. By default only significant correlations will be shown and nodes displayed in a circle.
+
+NETWORK - undirected weighted: correlations between 5HT across regions TCB2_regions, layout=TCB2_regions corresponds to the set node layout
+
+NETWORK - directed weighted: correlations between two different things i.e. compounds 5-HT and DA
+
+NETWORK - undirected weighted: correlation between regions i.e. monoamines that correlate within the OF \*example of reversability
+
+CELL 12: NETWORK SUMMARY
+summary histogram equilivent for network analysis, statistical analysis is linked to experiment selection.
+
+measurements available:
+"density",
+"total_edges",
+"pos_edges",
+"neg_edges",
+"neg_pos_edge_ratio",
+"max_degree",
+"average_degree",
+"min_degree",
+"SD_node_degree",
+"SD_node_strength",
+"clust_coeff_unweighted",
+"clust_coeff_weighted",
+"global_efficiency_weighted",
+"global_efficiency_unweighted",
+"local_efficiency_weighted",
+"local_efficiency_unweighted",
+
+CELL 13: NETWORK DEGREES
+Histogram of the distribution of node degree.
+
 ### Standalone Python Script
+
 Work as well for running as a standalone Python script but the multiprocessing may pose problems on window due to how child processes are spawned. You may have to use freeze support in this case:
 
 ```python
@@ -72,6 +143,7 @@ if __name__ == "__main__":
 ```
 
 ## Repository Structure
+
 ```
  phd/
  ├── module/                      # Core Python modules
@@ -85,6 +157,7 @@ if __name__ == "__main__":
  ├── tests/                       # Test suite (run with pytest)
  └── requirements.txt             # Project dependencies
 ```
+
 (\* gitignored)
 
 ## Project Management
@@ -92,20 +165,26 @@ if __name__ == "__main__":
 The `PROJECTS/` directory is the central location for storing project data and generated figures. Here's how it works:
 
 ### Project Initialization
+
 When you create a plot or analysis:
+
 1. The system checks for an existing project with the specified name
 2. If the project doesn't exist, you'll be prompted to initialize it
 3. A new project folder is created with a `metadata.xlsx` template (more on metadata later)
 
 ### Project Structure
+
 Each project follows this structure:
+
 - `{dataset_name}.pkl`: Your project's dataset files (manually added)
 - `metadata.xlsx`: Project metadata (auto-generated, requires user input)
 - `{figure_type}/`: Directories for different figure types (auto-created)
   - `{figure_name}.{svg|png|xlsx}`: Generated figures with automatic naming
 
 ### Workflow
+
 1. **Data Loading**:
+
    - If the requested dataset isn't found, you'll be prompted to provide the file path
    - The dataset is then loaded (more on datasets later)
    - The requested data is processed for figure generation/stats etc.. (more on requests later)
@@ -120,7 +199,9 @@ Each project follows this structure:
 Datasets represent collections of measurements collected using the same technique and sharing common identifying characteristics. They are designed with flexibility in mind while maintaining a consistent structure for analysis.
 
 ### Structure
+
 All datasets must include these required columns:
+
 - `subject_id`: Unique identifier for the subject being measured
 - `value`: The measurement value
 - `unit`: The measurement unit
@@ -129,6 +210,7 @@ All datasets must include these required columns:
 ### Examples
 
 #### Behavioral Study Example
+
 ```
 subject_id | behavior  | value | unit
 -----------|-----------|-------|------
@@ -139,6 +221,7 @@ mouse_2    | jumping   | 7.1   | s
 ```
 
 #### HPLC Study Example
+
 ```
 subject_id | compound  | location    | value | unit
 -----------|-----------|-------------|-------|------
@@ -149,6 +232,7 @@ rat_2      | serotonin | cerebellum  | 0.7   | nmol
 ```
 
 ### Important Notes
+
 - Each row represents a single measurement for a specific subject and characteristic combination
 - Subjects can have multiple rows (one per unique combination of measurement characteristic columns)
 - The combination of `subject_id` and measurement characteristic columns must be unique
@@ -157,9 +241,10 @@ rat_2      | serotonin | cerebellum  | 0.7   | nmol
 
 ## Requests
 
-Requests are used to specify what data to analyze and how to process it. They are passed as a dictionary to plotting functions via the ```request``` parameter.
+Requests are used to specify what data to analyze and how to process it. They are passed as a dictionary to plotting functions via the `request` parameter.
 
 ### Basic Structure
+
 ```python
 {
     "datasets": {
@@ -171,7 +256,7 @@ Requests are used to specify what data to analyze and how to process it. They ar
         }
     },
     "experiment": "experiment_name"  # Both selects the data and is used as a flag that group comparison should be performed (histogram, summary histogram, network summary, stats table)
-    # "experiment": "default" will keep all groups and treat them as unpaired, parametric, and with the group being the single independant variable. Used in cases where the experiments actual independant variables are not relevant to stats such as in network summary 
+    # "experiment": "default" will keep all groups and treat them as unpaired, parametric, and with the group being the single independant variable. Used in cases where the experiments actual independant variables are not relevant to stats such as in network summary
 }
 
 ```
@@ -179,6 +264,7 @@ Requests are used to specify what data to analyze and how to process it. They ar
 ### Key Components
 
 #### 1. Dataset Selection
+
 - The `datasets` key contains one or more dataset specifications
 - Each key in `datasets` should match a dataset name
 - Within each dataset specification, key-value pairs act as filters:
@@ -191,18 +277,22 @@ Requests are used to specify what data to analyze and how to process it. They ar
 - The program also support the selection of ratios of measurements. For example with {"compound": "dopamine/serotonin"} the program will compute on the fly the ratio of dopamine/serotonin and handle it as any other value. Only "simple" ratios are currently supported, development of complex ratios (eg dopamine in cortex / serotonin in cerebellum) is in progress.
 
 #### 2. Multiple Datasets
+
 When multiple datasets are specified:
+
 - Data is combined into a single dataset
 - A new `dataset` column is added to identify the source
 - Measurement characteristics are combined into tuples in the `measurement` column
-  *Note: This behavior may change in future versions to improve handling of datasets with different structures*
+  _Note: This behavior may change in future versions to improve handling of datasets with different structures_
 
 #### 3. Experiment Specification
+
 - The optional `experiment` key enables statistical comparisons
 - When present, the system will compute statistical comparisons between groups defined in the experiment's metadata
 - Requires an experiment name that matches an entry in the project's metadata
 
 ### Example
+
 ```python
 # Request for behavioral data from control and treated groups
 request = {
@@ -228,52 +318,58 @@ I understand that this is a bit complex, but I think it's the most flexible way 
 Metadata orchestrates all aspects of a project, defining datasets, experiments, groups, and visualization parameters. The metadata is stored in an Excel file with multiple sheets, each serving a specific purpose. Users with knowledge in data modeling will notice an effort to make the metadata as close to a database schema as possible. Development of a proper database is in progress.
 
 ### 1. Datasets Sheet
+
 Defines the structure of each dataset in the project.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `label` | string | Name of the dataset |
+| Column                | Type       | Description                                                                              |
+| --------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `label`               | string     | Name of the dataset                                                                      |
 | `measurement_columns` | CSV string | Column names that identify unique measurements (e.g., "behavior" or "compound,location") |
 
 ### 2. Experiments Sheet
+
 Configures experimental designs and statistical parameters. Statistical test pipeline is automaticcaly selected based on these parameters.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `label` | string | Name of the experiment |
-| `group_ids` | CSV list | IDs of groups included in this experiment |
-| `independant_variables` | bool (0/1) | Whether the experiment has independent variables |
-| `paired` | bool (0/1) | Whether groups are paired |
-| `parametric` | bool (0/1) | Whether to assume parametric distribution (future versions will auto-detect) |
+| Column                  | Type       | Description                                                                  |
+| ----------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `label`                 | string     | Name of the experiment                                                       |
+| `group_ids`             | CSV list   | IDs of groups included in this experiment                                    |
+| `independant_variables` | bool (0/1) | Whether the experiment has independent variables                             |
+| `paired`                | bool (0/1) | Whether groups are paired                                                    |
+| `parametric`            | bool (0/1) | Whether to assume parametric distribution (future versions will auto-detect) |
 
 ### 3. Groups Sheet
+
 Defines subject groups and their properties.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `label` | string | Name of the group |
-| `group_id` | int | Unique identifier for the group |
-| `independant_variables` | string | Independent variables in the group |
-| `subject_ids` | CSV list | List of subject IDs in this group |
+| Column                  | Type     | Description                        |
+| ----------------------- | -------- | ---------------------------------- |
+| `label`                 | string   | Name of the group                  |
+| `group_id`              | int      | Unique identifier for the group    |
+| `independant_variables` | string   | Independent variables in the group |
+| `subject_ids`           | CSV list | List of subject IDs in this group  |
 
 ### 4. Palette Sheet
+
 Controls visualization appearance for different groups.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `group_id` | int | Reference to group ID |
-| `color` | string | Color for bars/points in visualizations |
+| Column                | Type   | Description                                    |
+| --------------------- | ------ | ---------------------------------------------- |
+| `group_id`            | int    | Reference to group ID                          |
+| `color`               | string | Color for bars/points in visualizations        |
 | `significance_symbol` | string | Symbol used to denote statistical significance |
 
 ### 5. Statistics Sheet
+
 Configures default statistical parameters.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `max_outliers` | int | Maximum number of outliers to remove |
+| Column              | Type  | Description                            |
+| ------------------- | ----- | -------------------------------------- |
+| `max_outliers`      | int   | Maximum number of outliers to remove   |
 | `p_value_threshold` | float | Threshold for statistical significance |
 
 ### Example Metadata Structure
+
 ```yaml
 datasets:
   - label: "behavior"
@@ -302,8 +398,14 @@ statistics:
   p_value_threshold: 0.05
 ```
 
-
 ## Additionnal features (incomplete)
+
+A **custom prams** dict may be added for modification of graphical displays.
+
+i.e. for summary_histogram you can input a custom: palette, plot_swarm, swarm_size, fig_width, fig_height, ylabel_x (to adjust the y axis label)
+
+**JSON CLASSES** (region_classes.json, compound_classes.json and measure_classes.json):
+In place of a list input, the string corresponding to a subset of regions.compounds/measures may be feed into any function.
 
 ### Constants
 
@@ -321,7 +423,6 @@ These files store groupings of measurement characteristics. They enable the user
 
 A special case of classes that include locations. Only used in the network figure to position nodes.
 
-
 ## Future Development
 
 We're actively working on improvements to make this tool more powerful and user-friendly:
@@ -335,4 +436,5 @@ We're actively working on improvements to make this tool more powerful and user-
 These enhancements will maintain all current functionality while making the tool more robust and easier to use.
 
 ## License
+
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
