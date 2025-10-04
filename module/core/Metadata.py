@@ -259,11 +259,11 @@ class Datasets(SubSetting):
 class Experiments(SubSetting):
     sheet_name: ClassVar[str] = "experiments"
     _default: ClassVar[dict] = {
-        "label": ["agonist_antagonist"],
-        "group_ids": ["1, 3, 5, 6"],
-        "independant_variables": ["TCB2, MDL"],
-        "paired": [False],
-        "parametric": [True],
+        "label": ["dose_response", "agonist_antagonist"],
+        "group_ids": ["1, 2, 3, 4", "1, 5, 3, 6"],
+        "independant_variables": ["TCB2", "TCB2, MDL"],
+        "paired": [False, False],
+        "parametric": [True, True],
     }
     _types: ClassVar[dict] = {
         "label": {"type": str},
@@ -304,12 +304,21 @@ class Experiments(SubSetting):
 class Groups(SubSetting):  # TODO: generalize to Groups?
     sheet_name: ClassVar[str] = "groups"
     _default: ClassVar[dict] = {
-        "group_id": [1, 3, 5, 6],
-        "group_name": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
-        "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
+        "group_id": [1, 2, 3, 4, 5, 6],
+        "group_name": [
+            "vehicles",
+            "0,3mg/kg TCB",
+            "3mg/kg TCB",
+            "10mg/kg TCB",
+            "0,2mg/kg MDL",
+            "TCB2+MDL",
+        ],
+        "independant_variables": ["", "TCB2", "TCB2", "TCB2", "MDL", "TCB2, MDL"],
         "subject_ids": [
             "2, 5, 7, 9, 11, 17, 20, 28, 32, 59, 67",
+            "13, 14, 15, 26, 29, 34, 42, 48, 63, 65",
             "16, 18, 19, 22, 27, 30, 37, 39, 46, 53, 55",
+            "8, 10, 12, 47, 54, 56, 60, 62, 64, 68, 70",
             "23, 24, 31, 36, 38, 40, 44, 50, 51, 57",
             "21, 25, 35, 41, 45, 49, 52, 58, 61, 66, 69",
         ],
