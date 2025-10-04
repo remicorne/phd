@@ -43,7 +43,6 @@ def correlogram(
         project=project, figure_type="correlogram", filename=filename
     )
     Correlogram(filename, filepath, matrices.matrices, custom_params=custom_params)
-    return matrices
 
 
 def network(
@@ -84,7 +83,7 @@ def network(
         positions=positions,
         custom_params=custom_params,
     )
-    return dataset
+    return networks.get_summary_df()
 
 
 def network_degrees(
@@ -119,7 +118,6 @@ def network_degrees(
         networks,
         custom_params=custom_params or {},
     )
-    return dataset
 
 
 def network_summary(
@@ -206,7 +204,7 @@ def network_summary(
         statistic,
         custom_params=custom_params,
     )
-    return network_summary_df, statistic
+    return statistic.results
 
 
 # TODO
