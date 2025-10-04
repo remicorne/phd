@@ -31,7 +31,7 @@ def histogram(project, request, filename=None, custom_params=None):
         statistic,
         custom_params=custom_params,
     )
-    return dataset.quantitative_statistics_table
+    return dataset.quantitative_statistics_table if "experiment" in request else None
 
 
 def summary_histogram(
@@ -90,4 +90,4 @@ def summary_histogram(
         statistics,
         custom_params=custom_params,
     )
-    return dataset.quantitative_statistics_table
+    return dataset.quantitative_statistics_table if "experiment" in request else None
