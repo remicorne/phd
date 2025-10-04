@@ -1,16 +1,25 @@
 from dataclasses import dataclass, field
+from collections import UserList
 
 import numpy as np
 import pandas as pd
-
 import pingouin as pg
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
-from module.core.Dataset import SelectableDataFrame
+from module.core.Dataset import CustomDataFrame
 from module.core.enums import DatasetColumn
 from module.core.utils import is_array_like, parallel_process
+
+
+STATISTICS_PIPELINES = {
+    (False, False, False, True): ["ttest"],
+    (False, False, True, True): ["paired_ttest"],
+    (False, True, False, True): ["one_way_anova", "tukey"],
+    (False, True, True, True): ["repeated_measures_anova", "paired_ttest"],
+    (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
+}
 
 
 def get_quantitative_statistics_pipeline(
@@ -28,13 +37,13 @@ def get_quantitative_statistics_pipeline(
     Returns:
         list of str: A list of names representing the statistical tests to be applied based on the input parameters.
     """
-    return {
-        (False, False, False, True): ["ttest"],
-        (False, False, True, True): ["paired_ttest"],
-        (False, True, False, True): ["one_way_anova", "tukey"],
-        (False, True, True, True): ["repeated_measures_anova", "paired_ttest"],
-        (True, True, False, True): ["two_way_anova", "one_way_anova", "tukey"],
-    }[(multiple_factors, multiple_groups, paired, parametric)]
+    key = (multiple_factors, multiple_groups, paired, parametric)
+    if key not in STATISTICS_PIPELINES:
+        raise ValueError(
+            f"No registered statistics pipeline for multiple_factors={multiple_factors}, multiple_groups={multiple_groups}, paired={paired}, parametric={parametric}"
+        )
+
+    return STATISTICS_PIPELINES[key]
 
 
 @dataclass
@@ -58,7 +67,7 @@ class QuantitativeStatistic:
     is_paired: bool
     is_parametric: bool  ## TODO : aggregate stats/calculate (infer if None?)
     p_value_threshold: float
-    group_column: str = field(default="treatment", kw_only=True)
+    group_column: str = field(kw_only=True)
     delay_execution: bool = field(default=False, kw_only=True)
     metadata: dict = field(default_factory=dict, kw_only=True)
     pipeline: list = field(default=None, kw_only=True)
@@ -71,7 +80,7 @@ class QuantitativeStatistic:
             # check enough data
             self.has_enough_data = not self.filtered_data.empty and all(
                 [
-                    group_data.value.count() >= 5
+                    group_data.value.count() >= 2
                     for _, group_data in self.filtered_data.groupby(self.group_column)
                 ]
             )
@@ -84,14 +93,14 @@ class QuantitativeStatistic:
             self.statistical_test = self.pipeline[0]
             self.post_hoc_test = self.pipeline[-1]
             if self.has_enough_data:
-                self.results = SelectableDataFrame(self.execute_stats_pipeline())
+                self.results = CustomDataFrame(self.execute_stats_pipeline())
                 self.significant_pairs = (
                     self.results.select(test=self.post_hoc_test).iloc[0, :].p_value
                     if self.post_hoc_test in self.results.test.to_list()
                     else None
                 )
             else:
-                self.results = SelectableDataFrame(
+                self.results = CustomDataFrame(
                     [
                         {
                             "test": "validation",
@@ -240,15 +249,14 @@ class QuantitativeStatistic:
         }
 
 
-class QuantitativeStatisticBatch:
-    def __init__(self):
-        self.statistics = []
-        self.statistics_table = None
+class QuantitativeStatisticBatch(UserList[QuantitativeStatistic]):
+    table: pd.DataFrame
+    """table format of all statistics results"""
 
     def add(
         self, data, group_column, experiment, metadata=dict(), p_value_threshold=0.05
     ):
-        self.statistics.append(
+        self.append(
             QuantitativeStatistic(
                 data=data,
                 group_column=group_column,
@@ -262,14 +270,14 @@ class QuantitativeStatisticBatch:
         )
 
     def compute(self):
-        statistics = parallel_process(
-            self.statistics, description="Calculating statistics", optimize=True
+        self.data = parallel_process(
+            self.data, description="Calculating statistics", optimize=True
         )
 
         results = []
-        for statistic in statistics:
+        for statistic in self:
             result = statistic.results
             result["fully_significant"] = statistic.is_significant
             results.append(result)
 
-        return statistics, SelectableDataFrame(pd.concat(results))
+        self.table = CustomDataFrame(pd.concat(results))

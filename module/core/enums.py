@@ -13,6 +13,6 @@ class DatasetColumn(StrEnum):
         return [cls.SUBJECT_ID.value, cls.VALUE.value, cls.UNIT.value]
 
 
-class SelectorColumns(StrEnum):
+class ComputedSelectorColumns(StrEnum):
     EXPERIMENT = "experiment"
     REMOVE_OUTLIERS = "remove_outliers"

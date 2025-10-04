@@ -8,7 +8,7 @@ from itertools import chain
 from tqdm import tqdm
 
 from outliers import smirnov_grubbs as grubbs
-from module.core.Dataset import PickleCachedDataFrame, SelectableDataFrame
+from module.core.Dataset import PickleCachedDataFrame, CustomDataFrame
 from module.core.Registry import Registry, ClassRegistry
 from module.core.Metadata import (
     ProjectMetadata,
@@ -17,7 +17,7 @@ from module.core.questions import input_escape, yes_or_no
 from module.core.utils import parallel_process, is_array_like
 from module.core.Statistics import QuantitativeStatisticBatch
 from module.core.Ratio import Ratio
-from module.core.enums import DatasetColumn, SelectorColumns
+from module.core.enums import DatasetColumn, ComputedSelectorColumns
 
 
 def label_group_outliers(df__test__p_value_threshold__max_outliers):
@@ -72,6 +72,14 @@ class ProjectDataset(
     project: str = field(kw_only=True)
     filename: str = field(kw_only=True)  # ClassVar[str] = "base"
 
+    selector: dict = field(init=False, default_factory=dict)
+    selection: dict = field(init=False, default_factory=dict)
+    _quantitative_statistics: QuantitativeStatisticBatch = field(
+        init=False, default_factory=QuantitativeStatisticBatch
+    )
+    _group_statistics: pd.DataFrame = field(init=False, default=None)
+    is_generic: bool = field(init=False, default=False)
+
     # Necessary to avoir infinite recursion with self.df -> self.data before data is init
     # Only problem in debug mode because debugger wants to display self.df
     # This mostly solves the issue but the debugger will still fail between self init and data init
@@ -82,20 +90,15 @@ class ProjectDataset(
 
     def __post_init__(self):
         self.metadata = ProjectMetadata(self.project)
-        self.measurement_columns = self.metadata.datasets.select_one(
-            label=self.filename
+        self.measurement_columns = self.metadata.select(
+            select_one=True, dataset=self.filename
         ).measurement_columns
         self.subject_column = DatasetColumn.SUBJECT_ID
         self.group_column = DatasetColumn.GROUP_ID
         super().__post_init__()
-        self.data: SelectableDataFrame = self.validate(self.load())
+        self.data: CustomDataFrame = self.validate(self.load())
         self.columns = self.data.columns
         self.data = self.metadata.groups.extend_dataset(self.data)
-        self.selector = {}
-        self.selection = {}
-        self.statistics = []
-        self.statistics_table = []
-        self.is_generic = False
 
     def generate(self):
         if not yes_or_no(
@@ -123,7 +126,7 @@ class ProjectDataset(
         )
         return self.validate(df)
 
-    def validate(self, df: pd.DataFrame) -> SelectableDataFrame:
+    def validate(self, df: pd.DataFrame) -> CustomDataFrame:
         """
         Validate that the dataframe has the required columns and that the values
         in these columns are valid according to the Registry.
@@ -143,7 +146,7 @@ class ProjectDataset(
             self.metadata.subject_ids
         ):
             raise ValueError(
-                f"Invalid mouse ids: {invalid_subject_ids}, modify file and retry"
+                f"Unknown {DatasetColumn.SUBJECT_ID} in {self.filename} dataset: {invalid_subject_ids}, add to metadata and retry"
             )
 
         for measurement_col in set(df_columns) - set(mandatory_columns):
@@ -166,7 +169,7 @@ class ProjectDataset(
         df.value = df.value.astype(float)
         return df
 
-    def calculate_outliers(self, test: str):
+    def get_outliers(self, test: str):
         cases = []
         for _, subset_df in self.data[
             [
@@ -194,10 +197,8 @@ class ProjectDataset(
             label_group_outliers,
             description="Calculating outliers",
             optimize=True,
-        )  # TODO check what happens with nan
-        self.outliers = pd.concat(results).drop(
-            columns=[self.group_column, DatasetColumn.VALUE]
         )
+        return pd.concat(results).drop(columns=[self.group_column, DatasetColumn.VALUE])
 
     def calculate_group_statistics(self):
         result_ls = []
@@ -236,7 +237,7 @@ class ProjectDataset(
                     values,
                 ]
             )
-        self.group_statistics = pd.DataFrame(
+        self._group_statistics = pd.DataFrame(
             result_ls,
             columns=[
                 *group_columns,
@@ -249,27 +250,23 @@ class ProjectDataset(
                 "values",
             ],
         )
-        return self
 
     def calculate_quantitative_statistics(self, p_value_threshold=None):
         p_value_threshold = p_value_threshold or self.metadata.p_value_threshold
-        stats_batch = QuantitativeStatisticBatch()
         measurement_cols = (
             ["measurement"] if self.is_generic else self.measurement_columns
         )
         for measurement, data in self.data.groupby(measurement_cols, observed=True):
             metadata = dict(zip(measurement_cols, measurement))
             metadata["experiment"] = self.selected_experiment.label
-            stats_batch.add(
+            self._quantitative_statistics.add(
                 data,
                 "group_name",
                 self.selected_experiment,
                 metadata,
                 p_value_threshold,
             )
-
-        self.statistics, self.statistics_table = stats_batch.compute()
-        return self
+        self._quantitative_statistics.compute()
 
     def select(self, **selector):
         self.selector = {**self.selector, **selector}
@@ -280,12 +277,14 @@ class ProjectDataset(
             if not isinstance(selector["experiment"], str):
                 raise ValueError("Experiment must be a string")
             experiment = selection.pop("experiment")
-            self.selected_experiment = self.metadata.experiments.select_one(
-                label=experiment
+            self.selected_experiment = self.metadata.select(
+                select_one=True, experiment=experiment
             )
             if "group_name" not in selection:
                 selection["group_name"] = [
-                    self.metadata.groups.select_one(group_id=group_id).group_name
+                    self.metadata.groups.select(
+                        select_one=True, group_id=group_id
+                    ).group_name
                     for group_id in self.selected_experiment.group_ids
                 ]
         for col in set.intersection(set(self.measurement_columns), set(selection)):
@@ -311,16 +310,14 @@ class ProjectDataset(
 
     def remove_outliers(self, remove_outliers: dict[str, str]):
         test, how = next(iter(remove_outliers.items()))
-        self.calculate_outliers(test)
-        self.data = self.data.extend(self.outliers)
+        outliers = self.get_outliers(test)
+        self.data = self.data.extend(outliers)
         if how == "eliminated":
             raise NotImplementedError("Manual outlier selection not implemented")
         elif how == "calculated":
             return self.data.select(is_outlier=lambda x: x is not True)
 
-    def build_ratios(
-        self, data: SelectableDataFrame, selection: dict
-    ) -> SelectableDataFrame:
+    def build_ratios(self, data: CustomDataFrame, selection: dict) -> CustomDataFrame:
         ratios = []
         for col in self.measurement_columns:
             for value in selection.get(col, []):
@@ -400,6 +397,22 @@ class ProjectDataset(
     def df(self):
         return self.data
 
+    @property
+    def quantitative_statistics(self):
+        if not self._quantitative_statistics:
+            self.calculate_quantitative_statistics()
+        return self._quantitative_statistics
+
+    @property
+    def quantitative_statistics_table(self):
+        return self.quantitative_statistics.table
+
+    @property
+    def group_statistics(self):
+        if self._group_statistics is None:
+            self.calculate_group_statistics()
+        return self._group_statistics
+
 
 @dataclass
 class MergedDatasets:
@@ -407,10 +420,6 @@ class MergedDatasets:
 
     def __post_init__(self):
         self.datasets = [dataset.to_generic() for dataset in self.datasets]
-        self.selector = {}
-        self.selection = {}
-        self.statistics = []
-        self.statistics_table = []
         self.measurement_columns = ["dataset", "measurement"]
 
     def select(self, **selector):
@@ -418,23 +427,40 @@ class MergedDatasets:
             selector = {
                 col: val
                 for col, val in selector.items()
-                if col in dataset.columns.union(list(SelectorColumns))
+                if col in dataset.columns.union(list(ComputedSelectorColumns))
             }
             dataset.select(**selector)
-            self.selection = {**self.selection, **dataset.selection}
-            self.selector = {**self.selector, **dataset.selector}
         return self
 
-    def calculate_quantitative_statistics(self):
-        for dataset in self.datasets:
-            dataset.calculate_quantitative_statistics()
-        self.statistics_table = pd.concat(
-            [dataset.statistics_table for dataset in self.datasets]
+    @property
+    def selector(self):
+        return {
+            col: val
+            for dataset in self.datasets
+            for col, val in dataset.selector.items()
+        }
+
+    @property
+    def selection(self):
+        return {
+            col: val
+            for dataset in self.datasets
+            for col, val in dataset.selection.items()
+        }
+
+    @property
+    def quantitative_statistics(self):
+        return [
+            quantitative_statistic
+            for dataset in self.datasets
+            for quantitative_statistic in dataset.quantitative_statistics
+        ]
+
+    @property
+    def quantitativ_statistics_table(self):
+        return pd.concat(
+            [dataset.quantitative_statistics_table for dataset in self.datasets]
         )
-        self.statistics = list(
-            chain.from_iterable([dataset.statistics for dataset in self.datasets])
-        )
-        return self
 
     @property
     def data(self):

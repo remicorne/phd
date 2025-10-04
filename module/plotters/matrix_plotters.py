@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from module.plotters.utils import get_dataset
-from module.core.Matrix import MatrixGroup, NetworkGroup
+from module.core.Matrix import MatrixGroup, NetworkGroup, NetworkCharacteristic
 from module.core.Figure import (
     Histogram,
     SummaryHistogram,
@@ -93,7 +93,7 @@ def network_degrees(
     between,
     filename=None,
     pvalue_threshold=0.05,
-    fdr_correction=False,
+    fdr_correction=None,
     density_thresholding=None,
     custom_params=None,
 ):
@@ -126,7 +126,7 @@ def network_summary(
     project,
     request,
     between,
-    measurement: str,
+    measurement: NetworkCharacteristic,
     filename=None,
     pvalue_threshold=0.05,
     fdr_correction=False,
@@ -154,6 +154,8 @@ def network_summary(
         .get_summary_df()
         .select(measurement=measurement)
     )
+    # Reintroduce group infos
+    network_summary_df = ProjectMetadata(project).groups.extend(network_summary_df)
     # TODO generalize stats logic + dataset logic for when mouse_id not there
     if "experiment" in request:
         statistic = QuantitativeStatistic(
@@ -168,7 +170,6 @@ def network_summary(
         )  # TODO fix by generalizing concept of dataset further DerivedDataset?
     else:
         statistic = None
-    network_summary_df = ProjectMetadata(project).groups.extend(network_summary_df)
     x = hue = custom_params.get("x", "group_name")
 
     # colormapping by vehicle rank #REMI CLEAN ME
@@ -205,7 +206,7 @@ def network_summary(
         statistic,
         custom_params=custom_params,
     )
-    return network_summary_df
+    return network_summary_df, statistic
 
 
 # TODO

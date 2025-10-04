@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Iterable, Callable
 from abc import ABC, abstractmethod
 from module.core.Cacheable import Cacheable
 from module.core.utils import is_array_like
@@ -13,19 +13,22 @@ class SelectionError(Exception):
     pass
 
 
-def mask(df: pd.DataFrame, mask_conditions: dict):
+def mask(df: pd.DataFrame, mask_conditions: dict[str, str | Iterable | Callable]):
+    """
+    Select rows in df based on mask_conditions.
+    None is considered a wildcard and selects everything
+    'na' and 'notna' are supported using strings.
+    """
     selected = df.index.notna()  # Select all
-    absent_columns = set(mask_conditions) - set([*df.columns, "index"])
+    absent_columns = set(mask_conditions) - set(df.columns)
     if absent_columns:
         raise ValueError(
             f"Unknown columns: {absent_columns}, possible columns are {df.columns}"
         )
     for key, value in mask_conditions.items():  # Refine selection
-        column = pd.Series(df.index) if key == "index" else df[key]
+        column = df[key]
         if value is None:
-            print(
-                f"Skipping {column.name}, .select() ignores None for practical purpose s, use 'nan' (str) instead."
-            )
+            continue
         else:
             if callable(value):
                 sub_selection = column.apply(value)
@@ -43,50 +46,70 @@ def mask(df: pd.DataFrame, mask_conditions: dict):
     return selected
 
 
-def sub_select(df: "SelectableDataFrame", selector: dict) -> "SelectableDataFrame":
+def sub_select(df: "CustomDataFrame", selector: dict) -> "CustomDataFrame":
     df = df.loc[mask(df, selector)]
     return df.copy()
 
 
-class SelectableDataFrame(pd.DataFrame):
+class CustomDataFrame(pd.DataFrame):
     @property
     def _constructor(self):
-        return SelectableDataFrame
+        return CustomDataFrame
 
-    def select(self, **selector) -> "SelectableDataFrame":
+    def select(
+        self, *, select_one=False, **selector: dict[str, str | Iterable | Callable]
+    ) -> "CustomDataFrame":
         """
-        Filter the DataFrame based on a selector.
+        Filter rows using a column → condition mapping.
+
+        Applies one or more **selectors** to return only the rows that satisfy *all*
+        conditions (logical AND). Each selector targets a column (or the special key
+        `"index"`) and supports several matching modes:
+
+        - **Literal**: `col=value` keeps rows where `col == value`.
+        - **Iterable**: `col=[v1, v2, ...]` uses membership (`.isin(...)`).
+        - **Null checks**: `col="na"` keeps `NA/NaN`; `col="notna"` keeps non-nulls.
+        - **Wildcard**: `col=None` is ignored (selects everything for that key).
+        - **Predicate**: `col=lambda x: <bool>` keeps rows where the function returns `True`.
 
         Args:
-            selector (dict): A dictionary of column conditions to filter by.
-            'nan' and 'notna' are supported using strings.
-            None is ignored for dict unpacking purposes and because it is not a valid value.
+            select_one (bool, optional): If True, returns only one row. Defaults to False.
+                Raises SelectionError if no rows are found or if multiple rows are found.
+            **selector: dict[str, Any]
+                Mapping of column names (or `"index"`) to selector values as described above.
 
         Returns:
-            SelectableDataFrame: Filtered DataFrame that also includes the select method.
-            Series: if selection conditions result in a single row
+            SelectableDataFrame
+                A new DataFrame of the same type as the input containing rows that match
+                all selectors. For categorical columns included in `selector`, unused
+                categories are removed.
+
+        Raises:
+            ValueError: If any key in `selector` does not refer to an existing column.
+
+        Examples:
+            >>> df.select(status="open", priority=[1, 2, 3])
+            >>> df.select(score=lambda s: s > 0)
+            >>> df.select(category="na")  # keep rows where 'category' is missing
+            >>> df.select(index=lambda i: i.str.startswith("A"))
         """
         if unknown_cols := set(selector.keys()) - set(self.columns):
             raise ValueError(f"Unknown columns: {unknown_cols}")
         catgorical_cols = [col for col in selector if self[col].dtype == "category"]
         sub_selection = sub_select(self, selector)
+        if sub_selection.empty:
+            raise SelectionError(f"No rows found for selector: {selector}")
+        if select_one and len(sub_selection) > 1:
+            raise SelectionError(f"Multiple rows found for selector: {selector}")
         for col in catgorical_cols:
             sub_selection.loc[:, col] = sub_selection[
                 col
             ].cat.remove_unused_categories()
-        return sub_selection
-
-    def select_one(self, **selector):
-        sub_selection = self.select(**selector)
-        if sub_selection.empty:
-            raise SelectionError(f"No rows found for selector: {selector}")
-        if len(sub_selection) > 1:
-            raise SelectionError(f"Multiple rows found for selector: {selector}")
-        return sub_selection.iloc[0]
+        return sub_selection.iloc[0] if select_one else sub_selection
 
     def extend(
-        self, other: "CachedDataFrame|SelectableDataFrame|pd.DataFrame"
-    ) -> "SelectableDataFrame":
+        self, other: "CachedDataFrame|CustomDataFrame|pd.DataFrame"
+    ) -> "CustomDataFrame":
         """
         Extend the DataFrame with another DataFrame. Automatically selects common columns.
 
@@ -94,7 +117,7 @@ class SelectableDataFrame(pd.DataFrame):
             other (_type_): the other to left join to self
 
         Returns:
-            SelectableDataFrame:  Resulting DataFrame of left join
+            CustomDataFrame:  Resulting DataFrame of left join
         """
         if isinstance(other, CachedDataFrame):
             other = other.df
@@ -114,11 +137,42 @@ class DataframeWrapperMixin(ABC):
         CachedDataFrame: Wrapper for dataframes
     """
 
-    def select(self, **selector) -> SelectableDataFrame:
-        return self.df.select(**selector)
+    def select(self, *, select_one=False, **selector) -> CustomDataFrame:
+        """
+        Filter rows using a column → condition mapping.
 
-    def select_one(self, **selector):
-        return self.df.select_one(**selector)
+        Applies one or more **selectors** to return only the rows that satisfy *all*
+        conditions (logical AND). Each selector targets a column (or the special key
+        `"index"`) and supports several matching modes:
+
+        - **Literal**: `col=value` keeps rows where `col == value`.
+        - **Iterable**: `col=[v1, v2, ...]` uses membership (`.isin(...)`).
+        - **Null checks**: `col="na"` keeps `NA/NaN`; `col="notna"` keeps non-nulls.
+        - **Wildcard**: `col=None` is ignored (selects everything for that key).
+        - **Predicate**: `col=lambda x: <bool>` keeps rows where the function returns `True`.
+
+        Args:
+            select_one (bool, optional): If True, returns only one row. Defaults to False.
+                Raises SelectionError if no rows are found or if multiple rows are found.
+            **selector: dict[str, Any]
+                Mapping of column names (or `"index"`) to selector values as described above.
+
+        Returns:
+            SelectableDataFrame
+                A new DataFrame of the same type as the input containing rows that match
+                all selectors. For categorical columns included in `selector`, unused
+                categories are removed.
+
+        Raises:
+            ValueError: If any key in `selector` does not refer to an existing column.
+
+        Examples:
+            >>> df.select(status="open", priority=[1, 2, 3])
+            >>> df.select(score=lambda s: s > 0)
+            >>> df.select(category="na")  # keep rows where 'category' is missing
+            >>> df.select(index=lambda i: i.str.startswith("A"))
+        """
+        return self.df.select(select_one=select_one, **selector)
 
     @property
     def list(self):
@@ -126,10 +180,10 @@ class DataframeWrapperMixin(ABC):
 
     @property
     @abstractmethod
-    def df(self) -> SelectableDataFrame:
+    def df(self) -> CustomDataFrame:
         """The dataframe property that must be implemented by subclasses."""
 
-    def extend(self, other) -> SelectableDataFrame:
+    def extend(self, other) -> CustomDataFrame:
         """
         Extend the DataFrame with another DataFrame. Automatically selects common columns.
 
@@ -137,7 +191,7 @@ class DataframeWrapperMixin(ABC):
             df (_type_): the df to left join to self
 
         Returns:
-            SelectableDataFrame:  Resulting DataFrame of left join
+            CustomDataFrame:  Resulting DataFrame of left join
         """
         return self.df.extend(other)
 
@@ -154,17 +208,17 @@ class CachedDataFrame(Cacheable, DataframeWrapperMixin):
         pass
 
     @abstractmethod
-    def load(self, **kwargs) -> SelectableDataFrame:
+    def load(self, **kwargs) -> CustomDataFrame:
         pass
 
-    def select_one(self, **selector) -> SelectableDataFrame:
+    def select(self, *, select_one=False, **selector) -> CustomDataFrame:
         try:
-            return super().select_one(**selector)
+            return super().select(select_one=select_one, **selector)
         except SelectionError as e:
             raise SelectionError(f"{e} for {self.filename}")
 
     @property
-    def df(self) -> SelectableDataFrame:
+    def df(self) -> CustomDataFrame:
         return self.load()
 
 
@@ -180,8 +234,8 @@ class PickleCachedDataFrame(CachedDataFrame):
     def save(self, data: pd.DataFrame, filepath=None):
         data.to_pickle(filepath or self.filepath)
 
-    def load(self, **kwargs) -> SelectableDataFrame:
-        return SelectableDataFrame(pd.read_pickle(self.filepath, **kwargs))
+    def load(self, **kwargs) -> CustomDataFrame:
+        return CustomDataFrame(pd.read_pickle(self.filepath, **kwargs))
 
 
 @dataclass
@@ -197,13 +251,13 @@ class ExcelCachedDataFrame(CachedDataFrame):
     def save(self, data: pd.DataFrame):
         data.to_excel(self.filepath, index=False)
 
-    def load(self, **kwargs) -> SelectableDataFrame:
+    def load(self, **kwargs) -> CustomDataFrame:
         data = pd.read_excel(self.filepath, sheet_name=self.sheet_name, **kwargs)
-        return SelectableDataFrame(data) if isinstance(data, pd.DataFrame) else data
+        return CustomDataFrame(data) if isinstance(data, pd.DataFrame) else data
 
-    def select_one(self, **selector) -> SelectableDataFrame:
+    def select(self, *, select_one=False, **selector) -> CustomDataFrame:
         try:
-            return super().select_one(**selector)
+            return super().select(select_one=select_one, **selector)
         except SelectionError as e:
             raise SelectionError(
                 str(e) + f" - {self.sheet_name}" if self.sheet_name else e

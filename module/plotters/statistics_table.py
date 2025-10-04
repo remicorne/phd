@@ -1,5 +1,5 @@
 import pandas as pd
-from module.core.plotters import get_dataset
+from module.plotters.utils import get_dataset
 from module.core.FileSystem import FileSystem
 
 
@@ -13,9 +13,8 @@ def statistics_table(project, request, filename=None):
         )
 
     dataset = get_dataset(project, request)
-    dataset.calculate_quantitative_statistics()
     stats_results = []
-    for statistic in dataset.statistics:
+    for statistic in dataset.quantitative_statistics:
         data = statistic.results
         data = data[data["test"] == statistic.statistical_test][
             ["test", *dataset.measurement_columns, "result_string"]

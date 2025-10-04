@@ -1,11 +1,13 @@
+from collections import UserDict
 from itertools import chain
 from dataclasses import dataclass, field
+from enum import StrEnum
 import networkx as nx
 import scipy
 import pandas as pd
 import numpy as np
 from module.core.utils import parallel_process
-from module.core.Dataset import SelectableDataFrame
+from module.core.Dataset import CustomDataFrame
 from statsmodels.stats.multitest import fdrcorrection
 from module.core.enums import DatasetColumn
 
@@ -64,7 +66,7 @@ class Matrix:
 
     """
 
-    data: pd.DataFrame
+    df: pd.DataFrame
     grouping: str
     pivot_columns: list[str]
     # order: list[str] = None # TODO: use pdcategorical
@@ -83,6 +85,9 @@ class Matrix:
     pvalues: pd.DataFrame = field(init=False)
     missing_values: list = field(init=False)
     missing_overlap: list = field(init=False)
+    dropped: dict[str, set[str]] = field(
+        init=False, default_factory=lambda: {"index": set(), "columns": set()}
+    )
 
     def __call__(self):
         self.__post_init__()
@@ -97,11 +102,10 @@ class Matrix:
                 self.pivot_columns.remove(between)
                 self.pivot_columns.insert(0, between)
             else:
-                self.var1 = self.var2 = self.data[self.pivot_columns[0]].unique()[0]
+                self.var1 = self.var2 = self.df[self.pivot_columns[0]].unique()[0]
             self.is_square = self.var1 != self.var2
             self.filter_missing_values()
             self.pivot_data()
-            self.order_columns()
             self.correlate()
             self.find_missing_overlap()
             self.process_triangle_correlogram()
@@ -113,7 +117,7 @@ class Matrix:
         """
         self.missing_values = []
         data = []
-        for measurement_characteristics, df in self.data.groupby(by=self.pivot_columns):
+        for measurement_characteristics, df in self.df.groupby(by=self.pivot_columns):
             if df.value.notna().sum() < self.n_minimum:
                 self.missing_values.append(measurement_characteristics)
             else:
@@ -133,22 +137,6 @@ class Matrix:
             index="subject_id",
             columns=self.pivot_columns,
         )
-
-    def order_columns(self):
-        """
-        Orders the columns of the pivot table based on the provided column list.
-        """
-        # columns = (
-        #     sorted(
-        #         self.pivot.columns,
-        #         key=lambda x: (
-        #             self.order.index(x[1]) if x[1] in self.order else float("inf")
-        #         ),
-        #     )
-        #     if self.order
-        #     else self.pivot.columns
-        # )
-        # self.pivot = self.pivot[columns]
 
     def correlate(self):
         """
@@ -279,6 +267,34 @@ class Matrix:
 
     def get_title(self):
         return f"{self.var1 if self.var1 == self.var2 else '->'.join([self.var1, self.var2])} in {self.grouping}"
+
+    def drop_to_homogenize(self, rows, cols):
+        self.corr_masked = self.corr_masked.drop(index=rows)
+        self.corr_masked = self.corr_masked.drop(columns=cols)
+        self.dropped = {
+            "rows": rows,
+            "cols": cols,
+        }
+
+
+class NetworkCharacteristic(StrEnum):
+    DENSITY = "density"
+    NEG_EDGE_DENSITY = "neg_edge_density"
+    TOTAL_EDGES = "total_edges"
+    POS_EDGES = "pos_edges"
+    NEG_EDGES = "neg_edges"
+    NEG_POS_EDGE_RATIO = "neg_pos_edge_ratio"
+    MAX_DEGREE = "max_degree"
+    AVERAGE_DEGREE = "average_degree"
+    MIN_DEGREE = "min_degree"
+    SD_NODE_DEGREE = "SD_node_degree"
+    SD_NODE_STRENGTH = "SD_node_strength"
+    CLUST_COEFF_UNWEIGHTED = "clust_coeff_unweighted"
+    CLUST_COEFF_WEIGHTED = "clust_coeff_weighted"
+    GLOBAL_EFFICIENCY_WEIGHTED = "global_efficiency_weighted"
+    GLOBAL_EFFICIENCY_UNWEIGHTED = "global_efficiency_unweighted"
+    LOCAL_EFFICIENCY_WEIGHTED = "local_efficiency_weighted"
+    LOCAL_EFFICIENCY_UNWEIGHTED = "local_efficiency_unweighted"
 
 
 @dataclass
@@ -599,7 +615,6 @@ class MatrixGroup:
     group_by: str
     pivot_columns: list[str]
     between: dict
-    # order: list[str] = None
     n_minimum: int = field(kw_only=True, default=5)
     method: str = field(kw_only=True, default="pearson")
     pvalue_threshold: float = field(kw_only=True, default=0.05)
@@ -634,23 +649,22 @@ class MatrixGroup:
         self.matrices = parallel_process(batch, description="Building matrices")
 
     def homogenize_datasets(self):
-        conserved_rows = set.intersection(
+        self.common_rows = set.intersection(
             *(set(matrix.corr_masked.index) for matrix in self.matrices)
         )
-        conserved_cols = set.intersection(
+        self.common_cols = set.intersection(
             *(set(matrix.corr_masked.columns) for matrix in self.matrices)
         )
 
         for matrix in self.matrices:
             rows_to_drop = [
-                row for row in matrix.corr_masked.index if row not in conserved_rows
+                row for row in matrix.corr_masked.index if row not in self.common_rows
             ]
             cols_to_drop = [
-                col for col in matrix.corr_masked.columns if col not in conserved_cols
+                col for col in matrix.corr_masked.columns if col not in self.common_cols
             ]
-            matrix.corr_masked = matrix.corr_masked.drop(
-                index=rows_to_drop, columns=cols_to_drop
-            )
+
+            matrix.drop_to_homogenize(rows_to_drop, cols_to_drop)
 
     def __iter__(self):
         for matrix in self.matrices:
@@ -658,7 +672,7 @@ class MatrixGroup:
 
 
 @dataclass
-class NetworkGroup:
+class NetworkGroup(UserDict):
     matrix_group: MatrixGroup
 
     def __post_init__(self):
@@ -672,32 +686,14 @@ class NetworkGroup:
         data = []
         for network in self.networks:
             row = {self.matrix_group.group_by: network.grouping, **network.between}
-            for variable in [
-                "density",
-                "neg_edge_density",
-                "total_edges",
-                "pos_edges",
-                "neg_edges",
-                "neg_pos_edge_ratio",
-                "max_degree",
-                "average_degree",
-                "min_degree",
-                "SD_node_degree",
-                "SD_node_strength",
-                "clust_coeff_unweighted",
-                "clust_coeff_weighted",
-                "global_efficiency_weighted",
-                "global_efficiency_unweighted",
-                "local_efficiency_weighted",
-                "local_efficiency_unweighted",
-            ]:
+            for characteristic in NetworkCharacteristic:
                 row = {
                     **row,
-                    "measurement": variable,
-                    DatasetColumn.VALUE: getattr(network, variable),
+                    "measurement": characteristic,
+                    DatasetColumn.VALUE: getattr(network, characteristic),
                 }
                 data.append(row)
-        return SelectableDataFrame(data)
+        return CustomDataFrame(data)
 
     def __len__(self):
         return len(self.networks)

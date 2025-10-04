@@ -18,8 +18,7 @@ def histogram(project, request, filename=None, custom_params=None):
         group_id=dataset.data.group_id.unique()
     )[x]
     if "experiment" in request:
-        dataset.calculate_quantitative_statistics()
-        statistic = dataset.statistics[0]
+        statistic = dataset.quantitative_statistics[0]
     else:
         statistic = []
     filename = filename or dataset.get_selection_string()
@@ -72,8 +71,7 @@ def summary_histogram(
         "significance_palette", dataset.get_palette("significance_symbol")
     )
     if "experiment" in request:
-        dataset.calculate_quantitative_statistics()
-        statistics = dataset.statistics
+        statistics = dataset.quantitative_statistics
     else:
         statistics = []
 

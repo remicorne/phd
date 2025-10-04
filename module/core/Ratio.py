@@ -1,6 +1,6 @@
 import pandas as pd
 from module.core.enums import DatasetColumn
-from module.core.Dataset import SelectableDataFrame
+from module.core.Dataset import CustomDataFrame
 
 
 class Ratio:
@@ -19,7 +19,7 @@ class Ratio:
         components = value.split("/")
         return len(components) == len(set(components)) == 2
 
-    def compute(self, data: SelectableDataFrame) -> SelectableDataFrame:
+    def compute(self, data: CustomDataFrame) -> CustomDataFrame:
         """
         Compute the ratio DataFrame using the ratio, assuming:
         - 'value' column holds the numerical values

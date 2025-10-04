@@ -7,7 +7,7 @@ import pandas as pd
 
 from module.core.Dataset import (
     ExcelCachedDataFrame,
-    SelectableDataFrame,
+    CustomDataFrame,
 )
 from module.core.FileSystem import FileSystem
 from module.core.questions import yes_or_no
@@ -30,15 +30,21 @@ class ProjectMetadata(ExcelCachedDataFrame):
     project: str = field(default=None)
     filename: ClassVar[str] = "metadata"
 
+    datasets: "Datasets" = field(init=False)
+    groups: "Groups" = field(init=False)
+    experiments: "Experiments" = field(init=False)
+    palette: "Palette" = field(init=False)
+    statistics: "Statistics" = field(init=False)
+
     def __post_init__(self):
         self.check_new_project()
         super().__post_init__()
         metadata = self.load()
-        self.datasets = metadata["datasets"]
-        self.groups = metadata["groups"]
-        self.experiments = metadata["experiments"]
-        self.palette = metadata["palette"]
-        self.statistics = metadata["statistics"]
+        self.datasets: Datasets = metadata["datasets"]
+        self.groups: Groups = metadata["groups"]
+        self.experiments: Experiments = metadata["experiments"]
+        self.palette: Palette = metadata["palette"]
+        self.statistics: Statistics = metadata["statistics"]
 
         self.subject_ids = self.groups.subject_ids
         self.p_value_threshold = self.statistics.p_value_threshold
@@ -81,7 +87,7 @@ class ProjectMetadata(ExcelCachedDataFrame):
             "statistics": Statistics.generate(),
         }
 
-    def load(self):
+    def load(self) -> Dict[str, "SubSetting"]:
         metadata = {
             "datasets": Datasets(self.project),
             "groups": Groups(self.project),
@@ -124,6 +130,27 @@ class ProjectMetadata(ExcelCachedDataFrame):
             for sheet_name, df in content.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
+    def select(self, *, select_one=False, **kwarg):
+        """
+        Select a specific element from a subsetting based on its label
+
+        Args:
+            **kwarg: Keyword arguments with one key-value pair
+                example: select(dataset="dataset1")
+
+        Returns:
+            pd.Series: The element from the subsetting
+        """
+        if len(kwarg) != 1:
+            raise ValueError("Only one argument is allowed")
+        subsetting, label = kwarg.popitem()
+        if subsetting not in ["dataset", "group", "experiment"]:
+            raise ValueError(
+                "Method 'select' Only implemented for 'dataset', 'group' and 'experiment'"
+            )
+        subsetting: SubSetting = getattr(self, subsetting + "s")
+        return subsetting.select(select_one=select_one, label=label)
+
 
 def convert_iterable(values: list | tuple, iterable_type: type, value_type: type):
     values = values.replace(" ", "").split(",") if values else []
@@ -136,7 +163,11 @@ def convert_to_bool(value):
 
 def get_converter(col_info):
     if col_info["type"] in [list, tuple]:
-        converter = partial(convert_iterable, iterable_type=col_info["type"], value_type=col_info["subtype"])
+        converter = partial(
+            convert_iterable,
+            iterable_type=col_info["type"],
+            value_type=col_info["subtype"],
+        )
     elif col_info["type"] is bool:
         converter = convert_to_bool
     else:
@@ -197,11 +228,14 @@ class SubSetting(ExcelCachedDataFrame):
     def __iter__(self):
         return (row for _, row in self.df.iterrows())
 
-    def select(self, **selector) -> SelectableDataFrame:
-        df = super().select(**selector)
-        if df.empty:
-            raise ValueError(f"Empty selection for {self.filename}: {selector}")
-        return df
+    def get(self, *, label) -> CustomDataFrame:
+        try:
+            return self.select(select_one=True, label=label)
+        except SelectionError as e:
+            if "'label'" in str(e):
+                raise ValueError(
+                    f"Unknown {self.sheet_name.rstrip('s')}: {label}, add to metadata"
+                ) from e
 
     @property
     def df(self):
@@ -220,15 +254,6 @@ class Datasets(SubSetting):
         "label": {"type": str},
         "measurement_columns": {"type": list, "subtype": str},
     }
-
-    def select_one(self, **selector) -> SelectableDataFrame:
-        try:
-            return super().select_one(**selector)
-        except SelectionError as e:
-            if "'label'" in str(e):
-                raise ValueError(
-                    f"Unknown dataset: {selector['label']}, add to metadata"
-                ) from e
 
 
 class Experiments(SubSetting):
@@ -271,6 +296,9 @@ class Experiments(SubSetting):
         if "default" in df.label.values:
             raise ValueError("Default experiment is a reserved keyword")
         return pd.concat([df, self._get_default_experiment()])
+
+    def get_subjects(self, experiment):
+        return self.select(label=experiment).group_ids
 
 
 class Groups(SubSetting):  # TODO: generalize to Groups?
@@ -315,7 +343,7 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
         data = self.df.explode("subject_ids")
         data["subject_id"] = data.subject_ids.astype(int)
         data.drop(columns=["subject_ids"], inplace=True)
-        return SelectableDataFrame(data.extend(dataset))
+        return CustomDataFrame(data.extend(dataset))
 
 
 class Palette(SubSetting):
