@@ -358,9 +358,16 @@ class Groups(SubSetting):  # TODO: generalize to Groups?
 class Palette(SubSetting):
     sheet_name: ClassVar[str] = "palette"
     _default: ClassVar[dict] = {
-        "group_id": [1, 3, 5, 6],
-        "color": ["white", "pink", "orange", "red"],
-        "significance_symbol": ["*", "", "$", ""],
+        "group_id": [1, 2, 3, 4, 5, 6],
+        "color": [
+            "white",
+            "lightgreen",
+            "limegreen",
+            "darkgreen",
+            "lightgrey",
+            "darkseagreen",
+        ],
+        "significance_symbol": ["*", "", "$", "", "", "#"],
     }
     _types: ClassVar[dict] = {
         "group_id": {"type": int},
