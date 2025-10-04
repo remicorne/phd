@@ -14,9 +14,6 @@ def histogram(project, request, filename=None, custom_params=None):
     )
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)
-    custom_params["order"] = ProjectMetadata(project).groups.select(
-        group_id=dataset.data.group_id.unique()
-    )[x]
     if "experiment" in request:
         statistic = dataset.quantitative_statistics[0]
     else:
@@ -75,8 +72,8 @@ def summary_histogram(
     else:
         statistics = []
 
-    custom_params["order"] = list(dataset.data[x].cat.categories)
-    custom_params["hue_order"] = list(dataset.data[hue].cat.categories)
+    custom_params["order"] = dataset.data[x].unique()
+    custom_params["hue_order"] = dataset.data[hue].unique()
 
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)

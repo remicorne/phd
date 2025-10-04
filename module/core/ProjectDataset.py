@@ -95,6 +95,10 @@ class ProjectDataset(
         ).measurement_columns
         self.subject_column = DatasetColumn.SUBJECT_ID
         self.group_column = DatasetColumn.GROUP_ID
+        self.mandatory_categorical_columns = [
+            *self.measurement_columns,
+            DatasetColumn.GROUP_NAME,
+        ]
         super().__post_init__()
         self.data: CustomDataFrame = self.validate(self.load())
         self.columns = self.data.columns
@@ -331,6 +335,10 @@ class ProjectDataset(
         return data
 
     def sort_values(self, data, categoricals):
+        if not categoricals:
+            categoricals = {
+                col: data[col].unique() for col in self.mandatory_categorical_columns
+            }
         categories_to_create = {
             col: values
             for col, values in categoricals.items()
