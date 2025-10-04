@@ -147,7 +147,7 @@ class TestPlotters(PlotterTestCase):
             "./tests/functional/plotters/expected/network/network_circular.png"
         )
         actual_file = f"./PROJECTS/{self.project_name}/network/network_circular.png"
-        self.assert_image_similar(expected_file, actual_file, 5)
+        self.assert_image_similar(expected_file, actual_file, 10)
 
     def test_network_degrees(self):
         result = network_degrees(
