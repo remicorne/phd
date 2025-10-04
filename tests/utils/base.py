@@ -22,7 +22,6 @@ class PlotterTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Patches to avoid interactive behavior and external editors during tests
         cls.p_yes_meta = patch("module.core.Metadata.yes_or_no", return_value=True)
         cls.p_yes_ds = patch("module.core.ProjectDataset.yes_or_no", return_value=True)
         cls.p_input = patch(
@@ -44,13 +43,11 @@ class PlotterTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        # Stop patches
         cls.p_yes_meta.stop()
         cls.p_yes_ds.stop()
         cls.p_input.stop()
         cls.p_edit.stop()
-        # Remove any generated project artifacts
-        FileSystem.delete_project(cls.project_name)
+        # FileSystem.delete_project(cls.project_name)
 
     def assert_image_similar(self, expected_path, actual_path, tol=2.0):
         """

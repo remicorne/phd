@@ -204,7 +204,7 @@ def network_summary(
         statistic,
         custom_params=custom_params,
     )
-    return statistic.results
+    return statistic.results if statistic else None
 
 
 # TODO

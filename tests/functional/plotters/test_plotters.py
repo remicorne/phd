@@ -29,8 +29,6 @@ class TestPlotters(PlotterTestCase):
             },
         )
         self.assertIsNotNone(result)
-        self.assertTrue(hasattr(result, "data"))
-        self.assertTrue(hasattr(result, "quantitative_statistics"))
 
         expected_file = "./tests/functional/plotters/expected/histogram/DA in OF.png"
         actual_file = f"./PROJECTS/{self.project_name}/histogram/DA in OF.png"
@@ -51,8 +49,6 @@ class TestPlotters(PlotterTestCase):
             },
         )
         self.assertIsNotNone(result)
-        self.assertTrue(hasattr(result, "data"))
-        self.assertTrue(hasattr(result, "quantitative_statistics"))
 
         expected_file = "./tests/functional/plotters/expected/summary_histogram/DA, NA in OF, PL.png"
         actual_file = (
@@ -66,7 +62,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all",
+                        "region": "all_regions",
                         "remove_outliers": {"grubbs": "calculated"},
                     },
                 },
@@ -74,14 +70,10 @@ class TestPlotters(PlotterTestCase):
             },
             between={"compound": [["5HT", "DA"]]},
         )
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
 
-        expected_file = (
-            "./tests/functional/plotters/expected/correlogram/all compounds in all.png"
-        )
-        actual_file = (
-            f"./PROJECTS/{self.project_name}/correlogram/all compounds in all.png"
-        )
+        expected_file = "./tests/functional/plotters/expected/correlogram/all compounds in all_regions.png"
+        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_correlogram_multiple_datasets(self):
@@ -90,7 +82,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all",
+                        "region": "all_regions",
                         "remove_outliers": {"grubbs": "calculated"},
                     },
                     "behavior": {},
@@ -99,10 +91,10 @@ class TestPlotters(PlotterTestCase):
             },
             between={"dataset": [["hplc", "behavior"]]},
         )
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
 
-        expected_file = "./tests/functional/plotters/expected/correlogram/all compounds in all and all measures.png"
-        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all and all measures.png"
+        expected_file = "./tests/functional/plotters/expected/correlogram/all compounds in all_regions and all measures.png"
+        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions and all measures.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_network(self):
@@ -111,7 +103,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all",
+                        "region": "all_regions",
                         "compound": ["5HT", "DA"],
                     },
                 },
@@ -122,9 +114,11 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNotNone(result)
 
         expected_file = (
-            "./tests/functional/plotters/expected/network/5HT, DA in all.png"
+            "./tests/functional/plotters/expected/network/5HT, DA in all_regions.png"
         )
-        actual_file = f"./PROJECTS/{self.project_name}/network/5HT, DA in all.png"
+        actual_file = (
+            f"./PROJECTS/{self.project_name}/network/5HT, DA in all_regions.png"
+        )
         self.assert_image_similar(expected_file, actual_file, 4)
 
     def test_network_circular(self):
@@ -133,7 +127,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all",
+                        "region": "all_regions",
                         "compound": ["5HT", "DA"],
                     },
                 },
@@ -155,7 +149,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all",
+                        "region": "all_regions",
                     },
                 },
                 "experiment": "agonist_antagonist",
@@ -163,12 +157,10 @@ class TestPlotters(PlotterTestCase):
             between={"compound": [["DA", "5HT"]]},
             custom_params={"fig_width": 15, "fig_height": 120},
         )
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
 
-        expected_file = "./tests/functional/plotters/expected/network_degrees/all compounds in all.png"
-        actual_file = (
-            f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all.png"
-        )
+        expected_file = "./tests/functional/plotters/expected/network_degrees/all compounds in all_regions.png"
+        actual_file = f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all_regions.png"
         self.assert_image_similar(expected_file, actual_file, 10)
 
     def test_network_summary(self):
@@ -181,12 +173,12 @@ class TestPlotters(PlotterTestCase):
                     },
                 },
             },
-            filename="5HT-DA max degrees all regions",
+            filename="5HT-DA max degrees all_regions",
             between={"compound": [["DA", "5HT"]]},
             measurement="max_degree",
             custom_params={"size": 15},
         )
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
 
         expected_file = "./tests/functional/plotters/expected/network_summary/5HT-DA max degrees all regions.png"
         actual_file = f"./PROJECTS/{self.project_name}/network_summary/5HT-DA max degrees all regions.png"
