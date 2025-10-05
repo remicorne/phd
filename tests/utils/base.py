@@ -72,9 +72,6 @@ class PlotterTestCase(unittest.TestCase):
                 shutil.copyfile(actual_path, outdir / "actual.png")
             except Exception:
                 pass
-            diff_path = res.get("diff_image")
-            if diff_path and os.path.exists(diff_path):
-                shutil.copyfile(diff_path, outdir / "diff.png")
 
             # Also write a tiny summary (RMS, message)
             summary = outdir / "summary.txt"
@@ -82,8 +79,6 @@ class PlotterTestCase(unittest.TestCase):
                 fh.write(f"RMS: {res.get('rms')}\n")
                 fh.write(f"Message: {res.get('msg')}\n")
                 fh.write(f"Expected: {expected_path}\nActual:   {actual_path}\n")
-                if diff_path:
-                    fh.write(f"Diff:      {diff_path}\n")
 
             # Fail with a pointer to the artifact folder
             self.fail(
