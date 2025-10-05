@@ -33,6 +33,7 @@ jobs:
       - name: Print render environment (debug)
         run: |
           python - <<'PY'
+          import subprocess
           print("\n=== pip list ===")
           subprocess.run([sys.executable, "-m", "pip", "list"])
           PY
