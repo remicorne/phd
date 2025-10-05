@@ -81,6 +81,6 @@ class PlotterTestCase(unittest.TestCase):
 
             # Fail with a pointer to the artifact folder
             self.fail(
-                f"Image files did not match (RMS={res.get('rms')}). "
+                f"Image files did not match (RMS={res}). "
                 f"See artifacts in: {outdir.as_posix()}"
             )
