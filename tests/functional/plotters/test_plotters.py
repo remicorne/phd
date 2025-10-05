@@ -173,7 +173,7 @@ class TestPlotters(PlotterTestCase):
                     },
                 },
             },
-            filename="5HT-DA max degrees all_regions",
+            filename="5HT-DA max degrees all regions",
             between={"compound": [["DA", "5HT"]]},
             measurement="max_degree",
             custom_params={"size": 15},
