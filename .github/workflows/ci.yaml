@@ -7,23 +7,20 @@ on:
     branches: [main]
   schedule:
     - cron: '0 1 * * 0'
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: python:3.11-bookworm
     env:
-      MPLBACKEND: Agg            # headless + deterministic
-      MPLCONFIGDIR: /tmp/mpl     # avoid font cache perms weirdness
-
+      MPLBACKEND: Agg
+      MPLCONFIGDIR: /tmp/mpl
     steps:
-      - name: Checkout repository code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
+      - uses: actions/checkout@v4
+      - name: Install system fonts
+        run: |
+          apt-get update
+          apt-get install -y fonts-dejavu-core fontconfig
+          fc-cache -fv
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -33,9 +30,11 @@ jobs:
       - name: Print render environment (debug)
         run: |
           python - <<'PY'
-          import subprocess, sys
-          print("\n=== pip list ===")
-          subprocess.run([sys.executable, "-m", "pip", "list"])
+          import matplotlib as mpl; from matplotlib import ft2font
+          from matplotlib import font_manager
+          print("Matplotlib:", mpl.__version__, "Backend:", mpl.get_backend())
+          print("FreeType:", ft2font.__freetype_version__)
+          print("Selected font:", font_manager.findfont("DejaVu Sans", fallback_to_default=True))
           PY
 
       - name: Run tests (pytest-mpl)
