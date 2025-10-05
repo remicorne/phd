@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg            # headless + deterministic
+      MPLCONFIGDIR: /tmp/mpl     # avoid font cache perms weirdness
 
     steps:
       - name: Checkout repository code
@@ -27,19 +30,20 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov bandit
 
-      - name: Run Security Scan with Bandit
+      - name: Print render environment (debug)
         run: |
-          bandit -r module -ll -o bandit-report.txt -f txt
-        continue-on-error: true
+          python - <<'PY'
+          import matplotlib as mpl, numpy as np, PIL, sys
+          from matplotlib import ft2font
+          print("Python:", sys.version.split()[0])
+          print("Matplotlib:", mpl.__version__, "Backend:", mpl.get_backend())
+          print("NumPy:", np.__version__)
+          print("Pillow:", PIL.__version__)
+          print("FreeType:", ft2font.__freetype_version__)
+          print("Font family:", mpl.rcParams.get("font.family"))
+          PY
 
-      - name: Upload Bandit Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-report
-          path: bandit-report.txt
-          if-no-files-found: warn
-
-      - name: Run Tests with Pytest + Coverage
+      - name: Run tests (pytest-mpl)
         run: |
           pytest -q \
             --cov=module \
