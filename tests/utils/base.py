@@ -76,7 +76,7 @@ class PlotterTestCase(unittest.TestCase):
             # Also write a tiny summary (RMS, message)
             summary = outdir / "summary.txt"
             with summary.open("w", encoding="utf-8") as fh:
-                fh.write(f"RMS: {res")
+                fh.write(f"RMS: {res}\n")
                 fh.write(f"Expected: {expected_path}\nActual:   {actual_path}\n")
 
             # Fail with a pointer to the artifact folder
