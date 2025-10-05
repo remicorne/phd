@@ -1,8 +1,8 @@
 import os
 import unittest
 from unittest.mock import patch
-from matplotlib.testing.compare import compare_images
 from tests.utils import _mpl_test_setup  # noqa: F401
+from matplotlib.testing.compare import compare_images
 from module.core.FileSystem import FileSystem
 
 
