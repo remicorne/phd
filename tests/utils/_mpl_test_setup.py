@@ -13,6 +13,7 @@ mpl.rcParams.update(
         "savefig.dpi": 120,
         "savefig.facecolor": "white",
         "savefig.transparent": False,
+        "savefig.bbox": None,
         "font.family": "DejaVu Sans",
         "text.antialiased": False,
         "path.simplify": False,
