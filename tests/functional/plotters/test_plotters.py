@@ -68,7 +68,7 @@ class TestPlotters(PlotterTestCase):
                 },
                 "experiment": "agonist_antagonist",
             },
-            between={"compound": [["5HT", "DA"]]},
+            between={"compound": [["DA", "5HT"]]},
         )
         self.assertIsNone(result)
 
@@ -189,13 +189,13 @@ class TestPlotters(PlotterTestCase):
             project=self.project_name,
             x={
                 "dataset": self.dataset_name,
-                "compound": "DA",
-                "region": "SN",
+                "compound": "5HT",
+                "region": "OF",
                 "remove_outliers": {"grubbs": "calculated"},
             },
             y={
                 "dataset": self.dataset_name,
-                "compound": "5HT",
+                "compound": "DA",
                 "region": "OF",
                 "remove_outliers": {"grubbs": "calculated"},
             },
