@@ -47,7 +47,7 @@ class PlotterTestCase(unittest.TestCase):
         cls.p_yes_ds.stop()
         cls.p_input.stop()
         cls.p_edit.stop()
-        # FileSystem.delete_project(cls.project_name)
+        FileSystem.delete_project(cls.project_name)
 
     def assert_image_similar(self, expected_path, actual_path, tol=2.0):
         """
