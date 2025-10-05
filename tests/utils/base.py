@@ -1,9 +1,9 @@
 import os
+import shutil
 import unittest
 from unittest.mock import patch
-from tests.utils import _mpl_test_setup  # noqa: F401
 from matplotlib.testing.compare import compare_images
-from module.core.FileSystem import FileSystem
+from pathlib import Path
 
 
 class PlotterTestCase(unittest.TestCase):
@@ -19,6 +19,7 @@ class PlotterTestCase(unittest.TestCase):
 
     project_name = "tcb2_test_project"
     dataset_name = "hplc"
+    ARTIFACT_ROOT = Path("test_artifacts") / "result_images"
 
     @classmethod
     def setUpClass(cls):
@@ -47,18 +48,9 @@ class PlotterTestCase(unittest.TestCase):
         cls.p_yes_ds.stop()
         cls.p_input.stop()
         cls.p_edit.stop()
-        FileSystem.delete_project(cls.project_name)
+        # FileSystem.delete_project(cls.project_name)
 
     def assert_image_similar(self, expected_path, actual_path, tol=2.0):
-        """
-        Assert two PNGs are visually similar using Matplotlib's standard comparator.
-
-        Args:
-            expected_path: baseline image path (PNG)
-            actual_path:   test output image path (PNG)
-            tol: RMS tolerance in pixel intensity (float).
-                 0 means identical, larger tolerates minor AA/font rasterization diffs.
-        """
         self.assertTrue(
             os.path.exists(expected_path), f"Expected not found: {expected_path}"
         )
@@ -66,4 +58,35 @@ class PlotterTestCase(unittest.TestCase):
 
         res = compare_images(expected_path, actual_path, tol=tol)
         if res is not None:
-            self.fail(res)
+            # Build a per-test folder like test_artifacts/result_images/package_Class_test_method/
+            safe_name = self.id().replace(".", "_")
+            outdir = self.ARTIFACT_ROOT / safe_name
+            outdir.mkdir(parents=True, exist_ok=True)
+
+            # Copy the three images (expected, actual, diff) if present
+            try:
+                shutil.copyfile(expected_path, outdir / "expected.png")
+            except Exception:
+                pass
+            try:
+                shutil.copyfile(actual_path, outdir / "actual.png")
+            except Exception:
+                pass
+            diff_path = res.get("diff_image")
+            if diff_path and os.path.exists(diff_path):
+                shutil.copyfile(diff_path, outdir / "diff.png")
+
+            # Also write a tiny summary (RMS, message)
+            summary = outdir / "summary.txt"
+            with summary.open("w", encoding="utf-8") as fh:
+                fh.write(f"RMS: {res.get('rms')}\n")
+                fh.write(f"Message: {res.get('msg')}\n")
+                fh.write(f"Expected: {expected_path}\nActual:   {actual_path}\n")
+                if diff_path:
+                    fh.write(f"Diff:      {diff_path}\n")
+
+            # Fail with a pointer to the artifact folder
+            self.fail(
+                f"Image files did not match (RMS={res.get('rms')}). "
+                f"See artifacts in: {outdir.as_posix()}"
+            )
