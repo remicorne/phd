@@ -96,7 +96,7 @@ class TestCustomDataFrame:
 
 
 class TestDataFrameWrapperMixin:
-    class TestWrapper(DataframeWrapperMixin):
+    class DataframeWrapperMixinSubclass(DataframeWrapperMixin):
         """Concrete implementation for testing the mixin."""
 
         def __init__(self, df):
@@ -107,8 +107,8 @@ class TestDataFrameWrapperMixin:
             return self._df
 
     @pytest.fixture
-    def wrapper(self, sample_df) -> TestWrapper:
-        return self.TestWrapper(sample_df)
+    def wrapper(self, sample_df) -> DataframeWrapperMixinSubclass:
+        return self.DataframeWrapperMixinSubclass(sample_df)
 
     def test_select_through_wrapper(self, wrapper, sample_df):
         result = wrapper.select(active=True)
