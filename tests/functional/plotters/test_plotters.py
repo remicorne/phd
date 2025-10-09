@@ -14,10 +14,14 @@ from module.plotters import (
 )
 
 
-BASE_EXPECTED_PATH = "./tests/functional/plotters/expected"
+BASE_EXPECTED_IMAGES_PATH = ENVIRONMENT_EXPECTED_IMAGES_PATH = (
+    "./tests/functional/plotters/expected"
+)
 
 if os.getenv("GITHUB_ACTIONS") == "true":
-    BASE_EXPECTED_PATH = os.path.join(BASE_EXPECTED_PATH, "pipeline")
+    ENVIRONMENT_EXPECTED_IMAGES_PATH = os.path.join(
+        ENVIRONMENT_EXPECTED_IMAGES_PATH, "pipeline"
+    )
 
 
 class TestPlotters(PlotterTestCase):
@@ -235,7 +239,8 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNotNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "statistics_table/all compounds in all regions.xlsx"
+            BASE_EXPECTED_IMAGES_PATH,
+            "statistics_table/all compounds in all regions.xlsx",
         )
         actual_file = f"./PROJECTS/{self.project_name}/statistics_table/all compounds in all regions.xlsx"
         actual_df = pd.read_excel(actual_file)
