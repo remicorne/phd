@@ -57,7 +57,7 @@ jobs:
           path: |
             test_artifacts/result_images/**
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload coverage.xml
         uses: actions/upload-artifact@v4
