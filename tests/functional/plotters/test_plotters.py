@@ -41,7 +41,9 @@ class TestPlotters(PlotterTestCase):
         )
         self.assertIsNotNone(result)
 
-        expected_file = os.path.join(BASE_EXPECTED_PATH, "histogram/DA in OF.png")
+        expected_file = os.path.join(
+            ENVIRONMENT_EXPECTED_IMAGES_PATH, "histogram/DA in OF.png"
+        )
         actual_file = f"./PROJECTS/{self.project_name}/histogram/DA in OF.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
@@ -62,7 +64,7 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNotNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "summary_histogram/DA, NA in OF, PL.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH, "summary_histogram/DA, NA in OF, PL.png"
         )
         actual_file = (
             f"./PROJECTS/{self.project_name}/summary_histogram/DA, NA in OF, PL.png"
@@ -86,7 +88,8 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "correlogram/all compounds in all_regions.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH,
+            "correlogram/all compounds in all_regions.png",
         )
         actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions.png"
         self.assert_image_similar(expected_file, actual_file, 0)
@@ -109,7 +112,7 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH,
+            ENVIRONMENT_EXPECTED_IMAGES_PATH,
             "correlogram/all compounds in all_regions and all measures.png",
         )
         actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions and all measures.png"
@@ -132,7 +135,7 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNotNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "network/5HT, DA in all_regions.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH, "network/5HT, DA in all_regions.png"
         )
         actual_file = (
             f"./PROJECTS/{self.project_name}/network/5HT, DA in all_regions.png"
@@ -155,7 +158,9 @@ class TestPlotters(PlotterTestCase):
         )
         self.assertIsNotNone(result)
 
-        expected_file = os.path.join(BASE_EXPECTED_PATH, "network/network_circular.png")
+        expected_file = os.path.join(
+            ENVIRONMENT_EXPECTED_IMAGES_PATH, "network/network_circular.png"
+        )
         actual_file = f"./PROJECTS/{self.project_name}/network/network_circular.png"
         self.assert_image_similar(expected_file, actual_file, 10)
 
@@ -176,7 +181,8 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "network_degrees/all compounds in all_regions.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH,
+            "network_degrees/all compounds in all_regions.png",
         )
         actual_file = f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all_regions.png"
         self.assert_image_similar(expected_file, actual_file, 10)
@@ -199,7 +205,8 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNone(result)
 
         expected_file = os.path.join(
-            BASE_EXPECTED_PATH, "network_summary/5HT-DA max degrees all regions.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH,
+            "network_summary/5HT-DA max degrees all regions.png",
         )
         actual_file = f"./PROJECTS/{self.project_name}/network_summary/5HT-DA max degrees all regions.png"
         self.assert_image_similar(expected_file, actual_file, 0.08)
@@ -222,7 +229,9 @@ class TestPlotters(PlotterTestCase):
             grouper={"group_name": "vehicles"},
         )
 
-        expected_file = os.path.join(BASE_EXPECTED_PATH, "correlation/vehicles.png")
+        expected_file = os.path.join(
+            ENVIRONMENT_EXPECTED_IMAGES_PATH, "correlation/vehicles.png"
+        )
         actual_file = f"./PROJECTS/{self.project_name}/correlation/vehicles.png"
         self.assert_image_similar(expected_file, actual_file, 20)
 
