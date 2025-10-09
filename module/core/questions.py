@@ -21,7 +21,7 @@ def select_one(question, options):
     )
     while choice not in options:
         choice = input_escape(
-            f"""Invalid choice, possibilities are:\{pretty_choices}\n"""
+            f"""Invalid choice, possibilities are:\n{pretty_choices}\n"""
         )
     return choice if return_key else options[choice]
 
