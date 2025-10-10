@@ -77,7 +77,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all_regions",
+                        "region": "alzehimers_regions",
                         "remove_outliers": {"grubbs": "calculated"},
                     },
                 },
@@ -100,7 +100,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all_regions",
+                        "region": "alzehimers_regions",
                         "remove_outliers": {"grubbs": "calculated"},
                     },
                     "behavior": {},
@@ -124,7 +124,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all_regions",
+                        "region": "alzehimers_regions",
                         "compound": ["5HT", "DA"],
                     },
                 },
@@ -148,7 +148,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all_regions",
+                        "region": "alzehimers_regions",
                         "compound": ["5HT", "DA"],
                     },
                 },
@@ -170,7 +170,7 @@ class TestPlotters(PlotterTestCase):
             request={
                 "datasets": {
                     self.dataset_name: {
-                        "region": "all_regions",
+                        "region": "alzehimers_regions",
                     },
                 },
                 "experiment": "agonist_antagonist",
