@@ -351,27 +351,27 @@ class ProjectDataset(
         return data.sort_values(by=list(categories_to_create))
 
     def to_generic(self):
-        if not self.is_generic:
-            ordered_measurement = [
-                # "dataset",
-                *sorted(
-                    self.measurement_columns,
-                    key=lambda col: len(self.data[col].unique()),
-                ),
-            ]
+        if self.is_generic:
+            raise ValueError("Dataset is already generic")
+        ordered_measurement = [
+            *sorted(
+                self.measurement_columns,
+                key=lambda col: len(self.data[col].unique()),
+            ),
+        ]
 
-            self.data["measurement"] = self.data[self.measurement_columns].apply(
-                ", ".join, axis=1
-            )
+        measurements = (
+            self.data[self.measurement_columns].astype("string").agg(", ".join, axis=1)
+        )
 
-            self.data["measurement"] = pd.Categorical(
-                self.data["measurement"],
-                categories=self.data["measurement"].unique(),
-                ordered=True,
-            )
-            self.data["dataset"] = self.filename
-            self.data = self.data.drop(columns=ordered_measurement, axis=1)
-            self.is_generic = True
+        cat = pd.CategoricalDtype(categories=pd.unique(measurements), ordered=True)
+
+        self.data = self.data.assign(
+            measurement=pd.Series(measurements, index=self.data.index).astype(cat),
+            dataset=self.filename,
+        ).drop(columns=ordered_measurement)
+
+        self.is_generic = True
         return self
 
     def get_palette(self, palette_type):
