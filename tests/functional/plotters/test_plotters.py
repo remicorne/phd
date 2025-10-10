@@ -228,6 +228,7 @@ class TestPlotters(PlotterTestCase):
                 "group_name": "vehicles",
                 "remove_outliers": {"grubbs": "calculated"},
             },
+            filename="vehicles",
         )
 
         expected_file = os.path.join(
