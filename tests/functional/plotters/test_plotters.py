@@ -89,9 +89,9 @@ class TestPlotters(PlotterTestCase):
 
         expected_file = os.path.join(
             ENVIRONMENT_EXPECTED_IMAGES_PATH,
-            "correlogram/all compounds in all_regions.png",
+            "correlogram/all compounds in alzehimers_regions.png",
         )
-        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions.png"
+        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in alzehimers_regions.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_correlogram_multiple_datasets(self):
@@ -113,9 +113,9 @@ class TestPlotters(PlotterTestCase):
 
         expected_file = os.path.join(
             ENVIRONMENT_EXPECTED_IMAGES_PATH,
-            "correlogram/all compounds in all_regions and all measures.png",
+            "correlogram/all compounds in alzehimers_regions and all measures.png",
         )
-        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in all_regions and all measures.png"
+        actual_file = f"./PROJECTS/{self.project_name}/correlogram/all compounds in alzehimers_regions and all measures.png"
         self.assert_image_similar(expected_file, actual_file, 0)
 
     def test_network(self):
@@ -135,10 +135,11 @@ class TestPlotters(PlotterTestCase):
         self.assertIsNotNone(result)
 
         expected_file = os.path.join(
-            ENVIRONMENT_EXPECTED_IMAGES_PATH, "network/5HT, DA in all_regions.png"
+            ENVIRONMENT_EXPECTED_IMAGES_PATH,
+            "network/5HT, DA in alzehimers_regions.png",
         )
         actual_file = (
-            f"./PROJECTS/{self.project_name}/network/5HT, DA in all_regions.png"
+            f"./PROJECTS/{self.project_name}/network/5HT, DA in alzehimers_regions.png"
         )
         self.assert_image_similar(expected_file, actual_file, 4)
 
@@ -182,9 +183,9 @@ class TestPlotters(PlotterTestCase):
 
         expected_file = os.path.join(
             ENVIRONMENT_EXPECTED_IMAGES_PATH,
-            "network_degrees/all compounds in all_regions.png",
+            "network_degrees/all compounds in alzehimers_regions.png",
         )
-        actual_file = f"./PROJECTS/{self.project_name}/network_degrees/all compounds in all_regions.png"
+        actual_file = f"./PROJECTS/{self.project_name}/network_degrees/all compounds in alzehimers_regions.png"
         self.assert_image_similar(expected_file, actual_file, 10)
 
     def test_network_summary(self):
