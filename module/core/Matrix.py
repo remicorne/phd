@@ -167,21 +167,6 @@ class Matrix:
             mask = self.pvalues < self.pvalue_threshold
         self.corr_masked = self.correlations.where(mask, other=np.nan)
 
-    # def correlate(self): # REMI CHECK I have replaed the bellow with the function above
-    #     """
-    #     Calculates and stores correlation and p-value matrices.
-    #     """
-    #     self.pvalues = self.create_corr_matrix("pvalues")
-    #     self.correlations = self.create_corr_matrix("correlations")
-    #     # self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
-
-    #     if self.fdr_correction:
-    #         self.uncorrected_pvalues = self.pvalues
-    #         self.pvalues = self.apply_fdr_correction()
-
-    #     mask = self.pvalues < self.pvalue_threshold
-    #     self.corr_masked = self.correlations.where(mask, other=np.nan)
-
     def apply_fdr_correction(self):
         """
         Applies Benjamini-Hochberg FDR correction to p-values.

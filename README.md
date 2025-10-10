@@ -52,85 +52,11 @@ A sample of already published neurochemical data comes packaged with the code (m
 
 A jupyter notebook 'INTERFACE.ipynb' is provided to guide you through the process of initializing a project, adding a dataset, editing metadata etc.
 
-Run a cell in INTERFACE.ipynb and follow the instructions:
-
-1. User is prompted on whether to initialize a project if the project name is not recognized (y/n)
-2. Project is initialized (folder created and metadata.xlsx created)
-3. The metadata.xlsx file is opened in the default editor. User is requested to edit metadata.xlsx (necessary before adding datasets, see **Metadata** section). **Edit unnecesary when running the tutorial as the metadata file is already consistent with the example data.**
-4. The user is prompted whether to add dataset (y/n) (see **Dataset** section)
-5. User must input raw dataset filepath (use 'module/example_project/tcb2_hplc_data.csv' for example)
-6. The dataset is loaded, validated and a copy is save in the project's folder
-7. The figure is generated and saved in PROJECTS/{project_name}/figure_type/figure_name.{svg|png|xlsx}
-
-### Jupyter Notebook
-
-The primary way to use this code is through Jupyter notebooks (see INTERFACE.ipynb for examples)
-
-CELL 1: VIEW DATA
-Intalise ProjectDataset with the project name and filename (the database name):
-data.data acesses the raw data, **.subselect()** can be used to filter
-data.calculate_group_statistics().group_statistics fetches group-wise statistics (i.e. shapiro wilk F and p, mean, std, sem e.c.t.)
-data.calculate_quantitative_statistics().statistics_table fetches statistics accoring to treatments (**.statistics_table()** can be added to histogram plotter functions)
-
-CELL 2: SAVE DATA TABLE
-statistics_table example provided but the same functionality will be added for group_statistics
-
-CELL 3: HISTOGRAM
-Returns a histogram with bars for each treatment, stats plotted according to the metadata.xlsx (statistics and palette sheets).
-
-CELL 4: SUMMARY HISTOGRAM
-Returns a histogram with hues for treatment and bars for EITHER regions or compounds (one must be singular), statistics acording to metadata.xlsx.
-An example of custom prams is also shown here.
-
-CELL 5: CORRELATION
-Returns a single correlation (Pearson or Spearman according to metadata.xlsx) between two setx of data.
-
-CELL 6-8: CORRELOGRAM() Returns a correlogram of r values mapping the correlations betwene any two vairables.
-
-CORRELOGRAM - within compound (multiple comparisons)
-Most simple example shown here between the same compound resulting in a triangular correlogram, by default only significant correlations are shown with no correction for multiple comparisons. To perform multiple corrections via Benjamin Hopkins set fdr_correction=True, the FDR used will be set by the pvalue_threshold (defaults to metadata.xlsx). Example is with multiple corrections between 5HT across all regionswith an FDR of 20%.
-
-CORRELOGRAM - between compounds (density thresholding)
-Between compound correlations result in a square correlogram, density_threshold=0.5 allows you to set a density threshold for the correlogram, in this instance keeping the top 50% largest r values. Aditionaly custom_prams can be used with correlogram, examples shown here.
-
-CORRELOGRAM - between datasets
-Example of correlations between data from different datasets.
-
-CELL 9-11: NETWORK() Returns a network where the edges represent correlation r values according to the color bar. The same density_thresholding, pvalue_threshold and fdr_correction may be applied here. By default only significant correlations will be shown and nodes displayed in a circle.
-
-NETWORK - undirected weighted: correlations between 5HT across regions TCB2_regions, layout=TCB2_regions corresponds to the set node layout
-
-NETWORK - directed weighted: correlations between two different things i.e. compounds 5-HT and DA
-
-NETWORK - undirected weighted: correlation between regions i.e. monoamines that correlate within the OF \*example of reversability
-
-CELL 12: NETWORK SUMMARY
-summary histogram equilivent for network analysis, statistical analysis is linked to experiment selection.
-
-measurements available:
-"density",
-"total_edges",
-"pos_edges",
-"neg_edges",
-"neg_pos_edge_ratio",
-"max_degree",
-"average_degree",
-"min_degree",
-"SD_node_degree",
-"SD_node_strength",
-"clust_coeff_unweighted",
-"clust_coeff_weighted",
-"global_efficiency_weighted",
-"global_efficiency_unweighted",
-"local_efficiency_weighted",
-"local_efficiency_unweighted",
-
-CELL 13: NETWORK DEGREES
-Histogram of the distribution of node degree.
+See **INTERFACE.ipynb** for general usage and use cases
 
 ### Standalone Python Script
 
-Work as well for running as a standalone Python script but the multiprocessing may pose problems on window due to how child processes are spawned. You may have to use freeze support in this case:
+Work as well for running as a standalone Python script to generate figure without using notebooks but the multiprocessing may pose problems on window due to how child processes are spawned. You may have to use freeze support in this case:
 
 ```python
 if __name__ == "__main__":
@@ -138,8 +64,8 @@ if __name__ == "__main__":
     mp.freeze_support()
 
     # Your plotting or analysis code here
-    from module.core import your_analysis_function
-    your_analysis_function(*parameters)
+    from module.plotters import some_plotter
+    some_plotter(*parameters)
 ```
 
 ## Repository Structure
@@ -310,8 +236,12 @@ request = {
     "experiment": "lsd_dose_response"
 }
 ```
+When selecting multiple datasets that therefore do not share measurement characteristics ('region', 'compound' for 'hplc' dataset and 'measure' for 'behavior' dataset) datasets are made generic. 
+This consists in aggregating measurement characteristics in a tuple (region: OF, compound: DA -> (OF, DA), measure: sniffing -> (sniffing,)) in a new column named 'measurement'. A 'dataset' column is added to distinguish datsets. 
+This transformation enable manipulating mutliple datasets with different shapes together.
 
-I understand that this is a bit complex, but I think it's the most flexible way to specify what data to analyze. I'm working on a more user-friendly interface to make it easier to create requests.
+I understand that this is a bit complex, but I think it's the most flexible way to specify what data to analyze. I'm working on a more user-friendly interface to make it easier to create requests as well as a database to have a more robust & flexible way of handling data selection.
+
 
 ## Metadata
 
@@ -400,16 +330,13 @@ statistics:
 
 ## Additionnal features (incomplete)
 
-A **custom prams** dict may be added for modification of graphical displays.
+A **custom params** dict may be added for modification of graphical displays.
 
-i.e. for summary_histogram you can input a custom: palette, plot_swarm, swarm_size, fig_width, fig_height, ylabel_x (to adjust the y axis label)
-
-**JSON CLASSES** (region_classes.json, compound_classes.json and measure_classes.json):
-In place of a list input, the string corresponding to a subset of regions.compounds/measures may be feed into any function.
+i.e. for summary_histogram you can input a custom: palette, plot_swarm, swarm_size, fig_width, fig_height, ylabel_x (to adjust the y axis label). Custom params is also used as an interface for seaborn plotting parameters (see Figure.py).
 
 ### Constants
 
-There exists a number of files in module.json. These work with the classes in module.core.Registry and are simply mapping that may be used to store information that is more persistent than a single project. Obviously this is a very poor setup and should be part of project metadata, it was just simpler to do it this way. Proper implementation will wait for the database backend.
+There exists a number of files in module.json. These work with the classes in module.core.Registry and are simply mapping that may be used to store information that is more persistent than a single project. For example region_classes.json, compound_classes.json and measure_classes.json enable to select data using 'classes' (lists of regions, compounds, or measures) instead of a list input. Obviously this is a very poor setup and thee categories should be part of project metadata, it was just simpler to do it this way. Proper implementation will wait for the database backend.
 
 #### Measurements
 

@@ -361,7 +361,7 @@ class ProjectDataset(
             ]
 
             self.data["measurement"] = self.data[self.measurement_columns].apply(
-                tuple, axis=1
+                ", ".join, axis=1
             )
 
             self.data["measurement"] = pd.Categorical(

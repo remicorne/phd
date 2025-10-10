@@ -42,17 +42,17 @@ def summary_histogram(
     if isinstance(dataset, MergedDatasets):
         x = "measurement"
     else:
-        multiple_measurement_columns = list(
+        measurement_cols_with_multiple_measurements = list(
             filter(
                 lambda col: len(dataset.data[col].unique()) > 1,
                 dataset.measurement_columns,
             )
         )
-        if len(multiple_measurement_columns) > 1:
+        if len(measurement_cols_with_multiple_measurements) > 1:
             dataset.to_generic()
             x = "measurement"
-        elif len(multiple_measurement_columns) == 1:
-            x = next(iter(multiple_measurement_columns))
+        elif len(measurement_cols_with_multiple_measurements) == 1:
+            x = next(iter(measurement_cols_with_multiple_measurements))
         else:
             x = dataset.measurement_columns[0]
 
@@ -72,8 +72,8 @@ def summary_histogram(
     else:
         statistics = []
 
-    custom_params["order"] = dataset.data[x].unique()
-    custom_params["hue_order"] = dataset.data[hue].unique()
+    custom_params["order"] = dataset.data[x].unique().tolist()
+    custom_params["hue_order"] = dataset.data[hue].unique().tolist()
 
     ylabel = ", ".join(dataset.get_units())
     custom_params["ylabel"] = custom_params.get("ylabel", ylabel)

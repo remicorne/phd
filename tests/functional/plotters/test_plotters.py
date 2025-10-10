@@ -218,15 +218,16 @@ class TestPlotters(PlotterTestCase):
                 "dataset": self.dataset_name,
                 "compound": "5HT",
                 "region": "OF",
+                "group_name": "vehicles",
                 "remove_outliers": {"grubbs": "calculated"},
             },
             y={
                 "dataset": self.dataset_name,
                 "compound": "DA",
                 "region": "OF",
+                "group_name": "vehicles",
                 "remove_outliers": {"grubbs": "calculated"},
             },
-            grouper={"group_name": "vehicles"},
         )
 
         expected_file = os.path.join(
