@@ -1,40 +1,109 @@
-import pandas as pd
-import numpy as np
-import os
-from module.core.Dataset import ExcelDataset, SelectableDataFrame
-from module.core.questions import select_one
 from dataclasses import dataclass, field
-from typing import ClassVar
-from distutils.util import strtobool # Deprecated 3.12 https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python
+from module.core.utils import strtobool
+from typing import ClassVar, Dict
+from functools import partial
+import numpy as np
+import pandas as pd
+
+from module.core.Dataset import (
+    ExcelCachedDataFrame,
+    CustomDataFrame,
+)
+from module.core.FileSystem import FileSystem
+from module.core.questions import yes_or_no
+from module.core.Dataset import SelectionError
+
+
+class ValidationError(Exception):
+    pass
 
 
 @dataclass(repr=False)
-class _ProjectSettings(ExcelDataset):
+class ProjectMetadata(ExcelCachedDataFrame):
     """Base class for project settings.
     Handles loading, saving, and editing of project settings (excel files)
 
     Returns:
-        ExcelDataset: Dataset with project settings
+        ExcelCachedDataFrame: Dataset with project settings
     """
 
     project: str = field(default=None)
-    _template: ClassVar[dict] = None
-    _template_types: ClassVar[dict] = None
-    
+    filename: ClassVar[str] = "metadata"
+
+    datasets: "Datasets" = field(init=False)
+    groups: "Groups" = field(init=False)
+    experiments: "Experiments" = field(init=False)
+    palette: "Palette" = field(init=False)
+    statistics: "Statistics" = field(init=False)
+
     def __post_init__(self):
-        """
-        Load data from template and set columns as attributes
-        """
+        self.check_new_project()
         super().__post_init__()
-        for key in self._template:
-            self.__setattr__(key, self.df[key])
+        metadata = self.load()
+        self.datasets: Datasets = metadata["datasets"]
+        self.groups: Groups = metadata["groups"]
+        self.experiments: Experiments = metadata["experiments"]
+        self.palette: Palette = metadata["palette"]
+        self.statistics: Statistics = metadata["statistics"]
+
+        self.subject_ids = self.groups.subject_ids
+        self.p_value_threshold = self.statistics.p_value_threshold
+        self.max_outliers = self.statistics.max_outliers
+
+    def check_new_project(self):
+        if not FileSystem.project_exists(self.project):
+            if not yes_or_no(
+                f"Project '{self.project}' not found. Initialize new project {self.project}?"
+            ):
+                raise ValueError(f"Unknown project: {self.project}")
+
+    def validate_consistency(self, metadata):
+        experiment_group_ids = set()
+        for experiment in metadata["experiments"]:
+            experiment_group_ids.update(experiment.group_ids)
+
+        groups_group_ids = set(metadata["groups"].df.group_id)
+        palette_group_ids = set(metadata["palette"].df.group_id)
+
+        unknown_experiment_groups = experiment_group_ids - groups_group_ids
+        unknown_palette_groups = palette_group_ids - groups_group_ids
+
+        if unknown_experiment_groups:
+            raise ValidationError(
+                f"Group IDs in experiments not found in groups: {unknown_experiment_groups}"
+            )
+
+        if unknown_palette_groups:
+            raise ValidationError(
+                f"Group IDs in palette not found in groups: {unknown_palette_groups}"
+            )
 
     def generate(self):
-        """
-        Generate template dataframe
+        return {
+            "datasets": Datasets.generate(),
+            "groups": Groups.generate(),
+            "experiments": Experiments.generate(),
+            "palette": Palette.generate(),
+            "statistics": Statistics.generate(),
+        }
 
+    def load(self) -> Dict[str, "SubSetting"]:
+        metadata = {
+            "datasets": Datasets(self.project),
+            "groups": Groups(self.project),
+            "experiments": Experiments(self.project),
+            "palette": Palette(self.project),
+            "statistics": Statistics(self.project),
+        }
+        self.validate_consistency(metadata)
+        return metadata
+
+    def initialize(self):
         """
-        return pd.DataFrame(self._template)
+        Same as cacheable initialize but also makes user edit as setting are user editable
+        """
+        super().initialize()
+        self.make_user_edit_excel()
 
     def make_user_edit_excel(self):
         """
@@ -46,251 +115,294 @@ class _ProjectSettings(ExcelDataset):
         while not user_finished:
             input(question)
             try:
-                self.validate(self.load())
+                self.load()
                 user_finished = True
             except SystemExit:
                 self.delete()
                 print("System interuption, deleting file")
-            except:
-                question = "Error reading file. Press any key and ENTER when done correcting file"
+            except Exception as e:
+                question = f"Correct errors in metadata.xlsx file: {e}. Press any key and ENTER when done correcting file"
                 user_finished = False
 
-    def initialize(self):
-        """
-        Same as chacheable initialize but also makes user edit as setting are user editable
-        """
-        super().initialize()
-        self.make_user_edit_excel()
+    def save(self, content: Dict[str, pd.DataFrame]):
+        """Save all sheet in content to multi sheet dataframe using keys as sheet names"""
+        with pd.ExcelWriter(self.filepath) as writer:
+            for sheet_name, df in content.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-    def load(self):
+    def select(self, *, select_one=False, **kwarg):
         """
-        Load data from template and handles type conversions for merges with raw data.
-        This process makes sure the template is both human and programatic friendly.
+        Select a specific element from a subsetting based on its label
 
-        Raises:
-            ValueError: If a cell is not of the correct type (ie user input unusable data)
+        Args:
+            **kwarg: Keyword arguments with one key-value pair
+                example: select(dataset="dataset1")
 
         Returns:
-            SelectableDataFrame: Contains the project settings
+            pd.Series: The element from the subsetting
         """
-        # vehicle.independant_var == nan, problem for "var in independant_var" (nan not iterable)
-        data = super().load().replace(np.nan, "")
-        try:
-            return self.convert_dtypes(data)
-        except:
-            raise ValueError(f"Wrong data types, please correct {self.filename}")
+        if len(kwarg) != 1:
+            raise ValueError("Only one argument is allowed")
+        subsetting, label = kwarg.popitem()
+        if subsetting not in ["dataset", "group", "experiment"]:
+            raise ValueError(
+                "Method 'select' Only implemented for 'dataset', 'group' and 'experiment'"
+            )
+        subsetting: SubSetting = getattr(self, subsetting + "s")
+        return subsetting.select(select_one=select_one, label=label)
+
+
+def convert_iterable(values: list | tuple, iterable_type: type, value_type: type):
+    values = values.replace(" ", "").split(",") if values else []
+    return iterable_type([value_type(value) for value in values])
+
+
+def convert_to_bool(value):
+    return bool(strtobool(str(value)))
+
+
+def get_converter(col_info):
+    if col_info["type"] in [list, tuple]:
+        converter = partial(
+            convert_iterable,
+            iterable_type=col_info["type"],
+            value_type=col_info["subtype"],
+        )
+    elif col_info["type"] is bool:
+        converter = convert_to_bool
+    else:
+        converter = col_info["type"]
+    return converter
+
+
+@dataclass
+class SubSetting(ExcelCachedDataFrame):
+    """Base class for project settings subsets.
+    Handles validation and data processing for individual sheets.
+    """
+
+    project: str = field(default=None)
+    filename: ClassVar[str] = ProjectMetadata.filename
+    sheet_name: ClassVar[str] = None
+    _default: ClassVar[dict] = None
+    _types: ClassVar[dict] = None
+
+    @classmethod
+    def generate(cls):
+        """Generate template dataframe"""
+        return pd.DataFrame(cls._default)
 
     def convert_dtypes(self, df):
-        for col_name, col_info in self._template_types.items():
-            if col_info["type"] == list:
-                df[col_name] = df[col_name].apply(
-                    lambda val: [
-                        col_info["subtype"](subval)
-                        for subval in val.replace(" ", "").split(",")
-                    ]
-                )
-            elif col_info["type"] == bool:
-                df[col_name] = df[col_name].apply(lambda val: bool(strtobool(str(val))))
-            else:
-                df[col_name] = df[col_name].apply(col_info["type"])
-        return df
-    
-    
-    
-    def __contains__(self, label):
-        return label in self.df.label        
+        errors = []
+        if missing_columns := [col for col in self._types if col not in df]:
+            errors.append(
+                f"Sheet '{self.sheet_name}': missing columns: {missing_columns}"
+            )
 
+        for col_name in set(self._types.keys()) - set(missing_columns):
+            col_types = self._types[col_name]
+            values = []
+            converter = get_converter(col_types)
+            try:
+                for value in df[col_name]:
+                    value = converter(value)
+                    values.append(value)
+                df[col_name] = values
+            except ValueError as _:
+                type_hint = col_types["type"].__name__
+                if "subtype" in col_types:
+                    type_hint = f"{type_hint}[{col_types['subtype'].__name__}]"
+                errors.append(
+                    f"Sheet '{self.sheet_name}', column '{col_name}': '{value}' should be {type_hint}"
+                )
+        if errors:
+            raise ValidationError(errors)
+        return df
+
+    def __contains__(self, label):
+        return label in self.df.label
 
     def __getitem__(self, label) -> pd.Series:
         return self.df.select(**{"label": label})
-    
-    
-    def select(self, **selector) -> SelectableDataFrame:
-        df = super().select(**selector)
-        return df.iloc[0] if len(df) == 1 else df
 
-    
+    def __iter__(self):
+        return (row for _, row in self.df.iterrows())
+
+    def get(self, *, label) -> CustomDataFrame:
+        try:
+            return self.select(select_one=True, label=label)
+        except SelectionError as e:
+            if "'label'" in str(e):
+                raise ValueError(
+                    f"Unknown {self.sheet_name.rstrip('s')}: {label}, add to metadata"
+                ) from e
+
+    @property
+    def df(self):
+        return self.convert_dtypes(
+            super(ExcelCachedDataFrame, self).df.replace(np.nan, "")
+        )
 
 
-@dataclass(repr=False)
-class TreatmentInformation(_ProjectSettings):  # TODO: generalize to GroupInformation?
-
-    filename: ClassVar[str] = "treatment_information"
-    _template: ClassVar[dict] = {
-        "group_id": [1, 5, 3, 4],
-        "label": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
-        "independant_variables": ["", "MDL", "TCB2", "TCB2, MDL"],
+class Datasets(SubSetting):
+    sheet_name: ClassVar[str] = "datasets"
+    _default: ClassVar[dict] = {
+        "label": ["hplc", "tissue_weight", "behavior"],
+        "measurement_columns": ["compound, region", "region", "measure"],
     }
-    _template_types: ClassVar[dict] = {
-        "group_id": {"type": int},
+    _types: ClassVar[dict] = {
         "label": {"type": str},
-        "independant_variables": {"type": list, "subtype": str},
-    }
-    control_group: ClassVar[list] = "vehicles"
-
-    @property
-    def palette(self):
-        return {t.label: t.color for t in self}
-
-    def get_hue_order(self):
-        return self.df.sort_values(by="group_id").treatment.tolist()
-    
-    def load(self):
-        data = super().load()
-        data["treatment"] = data.label
-        return data
-    
-    @property
-    def treatments(self):
-        return list(self.df.label)
-    
-    
-@dataclass(repr=False)
-class Palette(_ProjectSettings):  # TODO: generalize to GroupInformation?
-
-    filename: ClassVar[str] = "palette"
-    _template: ClassVar[dict] = {
-        "treatment": ["vehicles", "MDL", "TCB2", "TCB2+MDL"],
-        "color": ["white", "pink", "orange", "red"],
-        "significance": ["*", "", "$", ""],
-    }
-    _template_types: ClassVar[dict] = {
-        "treatment": {"type": str},
-        "color": {"type": str},
-        "significance": {"type": str},
+        "measurement_columns": {"type": list, "subtype": str},
     }
 
-    @property
-    def dict(self):
-        return {t.treatment: t.color for t in self}
-    
-    
-    def __contains__(self, value):
-        return value in self.df.treatment
-    
-    def __getitem__(self, treatment) -> pd.Series:
-        return self.df.select(**{"treatment": treatment})
-    
 
-
-@dataclass(repr=False)
-class ExperimentInformation(_ProjectSettings):
-
-    filename: ClassVar[str] = "experiment_information"
-    _template: ClassVar[dict] = {
-        "label": ["agonist_antagonist"],
-        "groups": ["1, 5, 3, 4"],
-        "independant_variables": ["TCB2, MDL"],
-        "paired": [False],
-        "parametric": [True],        
-        "control_group_id": [1]
+class Experiments(SubSetting):
+    sheet_name: ClassVar[str] = "experiments"
+    _default: ClassVar[dict] = {
+        "label": ["dose_response", "agonist_antagonist"],
+        "group_ids": ["1, 2, 3, 4", "1, 5, 3, 6"],
+        "independant_variables": ["TCB2", "TCB2, MDL"],
+        "paired": [False, False],
+        "parametric": [True, True],
     }
-    _template_types: ClassVar[dict] = {
+    _types: ClassVar[dict] = {
         "label": {"type": str},
-        "groups": {"type": list, "subtype": int},
-        "independant_variables": {"type": list, "subtype": str},
+        "group_ids": {"type": list, "subtype": int},
+        "independant_variables": {"type": tuple, "subtype": str},
         "paired": {"type": bool},
         "parametric": {"type": bool},
-        "control_group_id": {"type": int}
-    }        
+    }
 
-    def load(self):
-        data = super().load()
-        treatment_information = TreatmentInformation(self.project).df
-        palette = Palette(self.project).dict
-        full_experiment_info = []
-        for _, experiment in data.iterrows():
-            experiment["experiment"] = experiment.label
-            experiment["treatments"] = treatment_information.select(group_id=experiment.groups).label.to_list()
-            experiment["control_treatment"] = experiment.treatments[experiment.groups.index(experiment["control_group_id"])]
-            experiment["palette"] = {t: palette[t] for t in experiment.treatments}
-            full_experiment_info.append(experiment)
-        return SelectableDataFrame(full_experiment_info)
-    
-    
     @property
     def experiments(self):
         return list(self.df.label)
 
-def is_valid_file(file_path):
-    if not os.path.isfile(file_path):
-        print("Not found", file_path)
-        return False
-    extension = os.path.splitext(file_path)[1].lower()
-    if extension not in [".xlsx", ".csv"]:
-        print("Invalid extension:", extension)
-        return False
-
-    return True
-
-@dataclass(repr=False)
-class ProjectInformation(_ProjectSettings):
-
-    filename: ClassVar[str] = "project_information"
-    _template: ClassVar[dict] = {
-        "label": ["TCB2"],
-        "outlier_test": ["grubbs"],
-        "p_value_threshold": [0.05],
-        "raw_data_filename": ["raw_data.csv"],
-    }
-    _template_types: ClassVar[dict] = {
-        "label": {"type": str},
-        "outlier_test": {"type": str},
-        "p_value_threshold": {"type": float},
-        "raw_data_filename": {"type": str},
-    }
-    
-    def generate(self):
-        from module.core.HPLC import OUTLIER_TESTS
-        data = super().generate()
-        data["label"] = self.project
-        data["outlier_test"] = select_one("Select outlier test", OUTLIER_TESTS.keys())
-        data["p_value_threshold"] = float(input("Enter p value threshold"))
-        data["raw_data_filename"] = self.get_valid_filename()
-        return data
-
-    def get_valid_filename(self):
-        # raw_data_filename = easygui.fileopenbox(title="Select raw HPLC file", filetypes=["*.xls", "*.xlsx"])
-        raw_data_filename = input("Enter HPLC excel filename (must be in phd/)")
-        file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        while not is_valid_file(file_path):
-            print(raw_data_filename, "NOT FOUND")
-            raw_data_filename = input("Enter excel HPLC filename (must be in phd/)")
-            file_path = f"{os.getcwd()}/{raw_data_filename}"
-
-        return file_path
+    def _get_default_experiment(self):
+        return pd.DataFrame(
+            [
+                dict(
+                    independant_variables=["group_id"],
+                    group_ids=Groups(self.project).df.group_id.values,
+                    paired=False,
+                    parametric=True,
+                    label="default",
+                )
+            ]
+        )
 
     @property
     def df(self):
-        data = super().df
-        return data.iloc[0] if len(data) == 1 else data
+        df = super().df
+        if "default" in df.label.values:
+            raise ValueError("Default experiment is a reserved keyword")
+        return pd.concat([df, self._get_default_experiment()])
 
-    def _repr_html_(self) -> str:
-        return f"""
-            <b>Project Information:</b><br>
-            <ul>
-                <li>Project: {self.project}</li>
-                <li>Raw Data Filename: {self.raw_data_filename}</li>
-                <li>Outlier Test: {self.outlier_test}</li>
-                <li>P-Value Threshold: {self.p_value_threshold}</li>
-            </ul>
-        """
+    def get_subjects(self, experiment):
+        return self.select(label=experiment).group_ids
 
 
-@dataclass(repr=False)
-class DatasetInformation(_ProjectSettings):
-
-    filename: ClassVar[str] = "dataset_information"
-    _template: ClassVar[dict] = {
-        "label": ["hplc", "tissue_weight"],
-        "grouping_variables": ["treatment, compound, region", "treatment, region"],
-        "independant_variables": ["TCB2, MDL", ""],
-        "raw_data_filename": ["raw_data.csv"],
+class Groups(SubSetting):  # TODO: generalize to Groups?
+    sheet_name: ClassVar[str] = "groups"
+    _default: ClassVar[dict] = {
+        "group_id": [1, 2, 3, 4, 5, 6],
+        "group_name": [
+            "vehicles",
+            "0,3mg/kg TCB",
+            "3mg/kg TCB",
+            "10mg/kg TCB",
+            "0,2mg/kg MDL",
+            "TCB2+MDL",
+        ],
+        "independant_variables": ["", "TCB2", "TCB2", "TCB2", "MDL", "TCB2, MDL"],
+        "subject_ids": [
+            "2, 5, 7, 9, 11, 17, 20, 28, 32, 59, 67",
+            "13, 14, 15, 26, 29, 34, 42, 48, 63, 65",
+            "16, 18, 19, 22, 27, 30, 37, 39, 46, 53, 55",
+            "8, 10, 12, 47, 54, 56, 60, 62, 64, 68, 70",
+            "23, 24, 31, 36, 38, 40, 44, 50, 51, 57",
+            "21, 25, 35, 41, 45, 49, 52, 58, 61, 66, 69",
+        ],
     }
-    _template_types: ClassVar[dict] = {
-        "label": {"type": str},
-        "outlier_test": {"type": str},
+    _types: ClassVar[dict] = {
+        "group_id": {"type": int},
+        "group_name": {"type": str},
+        "independant_variables": {
+            "type": tuple,
+            "subtype": str,
+        },  # tuple because list unhashable in pandas
+        "subject_ids": {"type": list, "subtype": int},
+    }
+    control_group: ClassVar[list] = "vehicles"
+
+    @property
+    def treatments(self):
+        return list(self.df.group_name)
+
+    @property
+    def subject_ids(self):
+        subject_ids_type = self._types["subject_ids"]["subtype"]
+        return (
+            self.df["subject_ids"]
+            .explode("subject_ids")
+            .astype(subject_ids_type)
+            .to_list()
+        )
+
+    def extend_dataset(self, dataset):
+        data = self.df.explode("subject_ids")
+        data["subject_id"] = data.subject_ids.astype(int)
+        data.drop(columns=["subject_ids"], inplace=True)
+        return CustomDataFrame(data.extend(dataset))
+
+
+class Palette(SubSetting):
+    sheet_name: ClassVar[str] = "palette"
+    _default: ClassVar[dict] = {
+        "group_id": [1, 2, 3, 4, 5, 6],
+        "color": [
+            "white",
+            "lightgreen",
+            "limegreen",
+            "darkgreen",
+            "lightgrey",
+            "darkseagreen",
+        ],
+        "significance_symbol": ["*", "", "$", "", "", "#"],
+    }
+    _types: ClassVar[dict] = {
+        "group_id": {"type": int},
+        "color": {"type": str},
+        "significance_symbol": {"type": str},
+    }
+
+    def get_significance_palette(self):
+        return self._get_palette("significance")
+
+    def get_color_palette(self):
+        return self._get_palette("color")
+
+    def _get_palette(self, palette_type):
+        return {row.group_id: row[palette_type] for _, row in self.df.iterrows()}
+
+    def __contains__(self, value):
+        return value in self.df.group_id
+
+    def __getitem__(self, group_id) -> pd.Series:
+        return self.df.select(**{"group_id": group_id})
+
+
+class Statistics(SubSetting):
+    sheet_name: ClassVar[str] = "statistics"
+    _default: ClassVar[dict] = {
+        "p_value_threshold": [0.05],
+        "max_outliers": [2],
+    }
+    _types: ClassVar[dict] = {
         "p_value_threshold": {"type": float},
-        "raw_data_filename": {"type": str},
+        "max_outliers": {"type": int},
     }
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.p_value_threshold = self.df.p_value_threshold[0]
+        self.max_outliers = self.df.max_outliers[0]

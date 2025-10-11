@@ -1,9 +1,15 @@
+from collections import UserDict
+from itertools import chain
 from dataclasses import dataclass, field
+from enum import StrEnum
 import networkx as nx
 import scipy
 import pandas as pd
 import numpy as np
 from module.core.utils import parallel_process
+from module.core.Dataset import CustomDataFrame
+from statsmodels.stats.multitest import fdrcorrection
+from module.core.enums import DatasetColumn
 
 
 def calculate_correlation(method, x, y):
@@ -21,7 +27,7 @@ def calculate_correlation(method, x, y):
         raise ValueError(f"Unknown method: {method}")
 
 
-def correlate(method, return_type):
+def get_correlation_callback(method, return_type):
     """Return a correlation function based on the specified method, p-value threshold, and return type."""
 
     def executor(x, y):
@@ -42,11 +48,9 @@ class Matrix:
     Creates a reusable matrix class for a given eperimnet.
     Args:
         data (pd.DataFrame):    The original dataset.
-        treatment (str):        Identifier for the treatment group.
-        between (str):          Variable type for correlation (e.g., 'compound' or 'region').
+        group (str):        Identifier for the group (logging purposes).
         variables (str):         'var1-var2' to correlate from type 'between'. If only one: self correlation.
-        accross (str): The column that will constitute the rows/cols of the matrix.
-        columns (list[str]): Columns to include in the analysis. If None, all columns are included.
+        pivot_columns (list[str]): Columns (orederd) used to pivot the data).
         n_minimum (int): Minumum occurnces of overlapping var1 and var2 to be correlated. Default = 5.
         method (str): Correlation method ('pearson', 'spearman', 'kendall'). Default = "pearson".
         pvalue_threshold (float): Threshold for significance in correlation. Defult = 0.05
@@ -62,16 +66,16 @@ class Matrix:
 
     """
 
-    data: pd.DataFrame
+    df: pd.DataFrame
     grouping: str
-    between: str
-    var1: str
-    var2: str
-    accross: str
-    order: list[str] = None
-    n_minimum: int = 5
-    method: str = "pearson"
-    pvalue_threshold: float = 0.05
+    pivot_columns: list[str]
+    # order: list[str] = None # TODO: use pdcategorical
+    between: dict
+    n_minimum: int = field(kw_only=True, default=5)
+    method: str = field(kw_only=True, default="pearson")
+    pvalue_threshold: float = field(kw_only=True, default=0.05)
+    fdr_correction: bool = field(kw_only=True, default=False)
+    density_thresholding: bool = field(kw_only=True, default=False)
     delay_execution: bool = field(default=True, kw_only=True)
 
     filtered_data: pd.DataFrame = field(init=False)
@@ -81,6 +85,9 @@ class Matrix:
     pvalues: pd.DataFrame = field(init=False)
     missing_values: list = field(init=False)
     missing_overlap: list = field(init=False)
+    dropped: dict[str, set[str]] = field(
+        init=False, default_factory=lambda: {"index": set(), "columns": set()}
+    )
 
     def __call__(self):
         self.__post_init__()
@@ -90,80 +97,113 @@ class Matrix:
         if self.delay_execution:
             self.delay_execution = False
         else:
+            if self.between:
+                between, (self.var1, self.var2) = next(iter(self.between.items()))
+                self.pivot_columns.remove(between)
+                self.pivot_columns.insert(0, between)
+            else:
+                self.var1 = self.var2 = self.df[self.pivot_columns[0]].unique()[0]
             self.is_square = self.var1 != self.var2
             self.filter_missing_values()
             self.pivot_data()
-            self.order_columns()
             self.correlate()
             self.find_missing_overlap()
             self.process_triangle_correlogram()
-            self.get_title
-
-    def get_title(self):
-        """
-        Generates a title for the correlogram based on the matrix configuration.
-
-        Returns:
-            str: A title string.
-        """
-        if self.is_square:
-            return f"{'-'.join([self.var1, self.var2])} in {self.grouping}"
-        return f"{self.var1} in {self.grouping}"
+            self.title = self.get_title()
 
     def filter_missing_values(self):
         """
         Filters out variables with occurrences less than n_minimum and updates missing_values list.
         """
         self.missing_values = []
-        missing_accross_vars = []
-        for (between_var, accross_var), df in self.data.groupby(
-            by=[self.between, self.accross]
-        ):
+        data = []
+        for measurement_characteristics, df in self.df.groupby(by=self.pivot_columns):
             if df.value.notna().sum() < self.n_minimum:
-                self.missing_values.append((between_var, accross_var))
-                missing_accross_vars.append(accross_var)
-        indices_to_eliminate = self.data.select(
-            **{self.accross: missing_accross_vars}
-        ).index
-        self.filtered_data = self.data.drop(indices_to_eliminate)
+                self.missing_values.append(measurement_characteristics)
+            else:
+                data.append(df)
         if self.missing_values:
             print(
-                f"{self.grouping} missing data for {self.missing_values}, deleted from analysis"
+                f"{self.grouping}, {self.between} missing data for {self.missing_values}, deleted from analysis"
             )
+        self.filtered_data = pd.concat(data)
 
     def pivot_data(self):
         """
         Creates a pivot table from the filtered data.
         """
         self.pivot = self.filtered_data.pivot_table(
-            values="value",
-            index=self.filtered_data["mouse_id"],
-            columns=[self.between, self.accross],
+            values=DatasetColumn.VALUE,
+            index="subject_id",
+            columns=self.pivot_columns,
         )
-
-    def order_columns(self):
-        """
-        Orders the columns of the pivot table based on the provided column list.
-        """
-        columns = (
-            sorted(
-                self.pivot.columns,
-                key=lambda x: (
-                    self.order.index(x[1]) if x[1] in self.order else float("inf")
-                ),
-            )
-            if self.order
-            else self.pivot.columns
-        )
-        self.pivot = self.pivot[columns]
 
     def correlate(self):
         """
-        Calculates and stores correlation and p-value matrices.
+        Creates self.correlations and self.pvalues self.corr_masked (specific to normalisation).
         """
         self.pvalues = self.create_corr_matrix("pvalues")
         self.correlations = self.create_corr_matrix("correlations")
-        self.corr_masked = self.correlations[self.pvalues < self.pvalue_threshold]
+
+        if (
+            self.density_thresholding is not None
+        ):  # Density-based masking (ignore p-values)
+            if self.between:
+                corr_flat = self.correlations.abs().stack()
+            else:
+                corr_values = self.correlations.where(
+                    ~np.eye(self.correlations.shape[0], dtype=bool)
+                )
+                corr_flat = corr_values.abs().stack()
+
+            cutoff = corr_flat.quantile(1 - self.density_thresholding)
+            mask = self.correlations.abs() >= cutoff
+
+        else:  #  P-value based masking
+            if self.fdr_correction:
+                self.uncorrected_pvalues = self.pvalues
+                self.pvalues = self.apply_fdr_correction()
+
+            mask = self.pvalues < self.pvalue_threshold
+        self.corr_masked = self.correlations.where(mask, other=np.nan)
+
+    def apply_fdr_correction(self):
+        """
+        Applies Benjamini-Hochberg FDR correction to p-values.
+        """
+        pvalues_corrected_matrix = np.full(
+            self.pvalues.shape, np.nan
+        )  # Start with NaN matrix
+
+        if self.is_square:  # apply FDR to the entire matrix
+            p_flat = self.pvalues.values.flatten()
+            _, p_corrected = fdrcorrection(p_flat, method="indep")
+            pvalues_corrected_matrix = p_corrected.reshape(
+                self.pvalues.shape
+            )  # Reshape back
+        else:
+            triu_indices = np.triu_indices_from(self.pvalues, k=1)
+            p_flat = self.pvalues.values[triu_indices]
+            _, p_corrected = fdrcorrection(p_flat, method="indep")
+
+            pvalues_corrected_matrix[triu_indices] = p_corrected
+            pvalues_corrected_matrix[triu_indices[::-1]] = (
+                p_corrected  # Copy symmetrically
+            )
+            np.fill_diagonal(pvalues_corrected_matrix, self.pvalues.values.diagonal())
+
+        print(f"Matrix for: {self.grouping}")
+        print(
+            f"Significant correlations before FDR correction: {np.sum(self.pvalues.values < self.pvalue_threshold)}"
+        )
+        print(
+            f"Significant correlations after FDR correction: {np.sum(pvalues_corrected_matrix < self.pvalue_threshold)}"
+        )
+        return pd.DataFrame(
+            pvalues_corrected_matrix,
+            index=self.pvalues.index,
+            columns=self.pvalues.columns,
+        )
 
     def create_corr_matrix(self, result_type):
         """
@@ -175,24 +215,25 @@ class Matrix:
         Returns:
             pd.DataFrame: A DataFrame containing the requested correlation matrix.
         """
-        method = correlate(self.method, result_type)
-        return self.pivot.corr(method=method, min_periods=self.n_minimum).loc[
+        method = get_correlation_callback(self.method, result_type)
+        matrix = self.pivot.corr(method=method, min_periods=self.n_minimum)
+        return matrix.loc[
             self.var1, self.var2
-        ]
+        ]  # IMPROVE: use .corrwith to only caluclate necessary correlation for square corr
 
     def find_missing_overlap(self):
         """
         Identifies and reports variable pairs with insufficient data overlap.
         """
-        self.missing_overlap = [
-            (row_idx, col_idx)
-            for row_idx in self.correlations.index
-            for col_idx in self.correlations.columns
-            if pd.isna(self.correlations.loc[row_idx, col_idx])
-        ]
-        if self.missing_overlap:
+        stack = self.correlations.stack(dropna=False)
+        stack.index = stack.index.rename(self.pivot_columns)
+        stack = pd.DataFrame(stack.reset_index())
+        stack.columns = list(stack.columns[:-1]) + [DatasetColumn.VALUE]
+        stack = stack[stack.value.isna()]
+        self.missing_overlap = stack[stack.value.isna()][self.pivot_columns].values
+        if len(self.missing_overlap):
             print(
-                f"{self.grouping} insuficient overlapp for {self.missing_overlap} pairs"
+                f"{self.grouping} {self.between} insuficient overlapp for {self.missing_overlap} pairs"
             )
             print("Inspect with self.corr to adjust {columns} and redo analysis")
 
@@ -204,10 +245,41 @@ class Matrix:
             mask = np.triu(np.ones(self.corr_masked.shape, dtype=bool), k=1)
             self.corr_masked[mask] = np.nan
             np.fill_diagonal(self.corr_masked.values, 1)
-            
+
     @property
     def significant_correlations(self):
         return self.corr_masked.stack().items()
+
+    def get_title(self):
+        return f"{self.var1 if self.var1 == self.var2 else '->'.join([self.var1, self.var2])} in {self.grouping}"
+
+    def drop_to_homogenize(self, rows, cols):
+        self.corr_masked = self.corr_masked.drop(index=rows)
+        self.corr_masked = self.corr_masked.drop(columns=cols)
+        self.dropped = {
+            "rows": rows,
+            "cols": cols,
+        }
+
+
+class NetworkCharacteristic(StrEnum):
+    DENSITY = "density"
+    NEG_EDGE_DENSITY = "neg_edge_density"
+    TOTAL_EDGES = "total_edges"
+    POS_EDGES = "pos_edges"
+    NEG_EDGES = "neg_edges"
+    NEG_POS_EDGE_RATIO = "neg_pos_edge_ratio"
+    MAX_DEGREE = "max_degree"
+    AVERAGE_DEGREE = "average_degree"
+    MIN_DEGREE = "min_degree"
+    SD_NODE_DEGREE = "SD_node_degree"
+    SD_NODE_STRENGTH = "SD_node_strength"
+    CLUST_COEFF_UNWEIGHTED = "clust_coeff_unweighted"
+    CLUST_COEFF_WEIGHTED = "clust_coeff_weighted"
+    GLOBAL_EFFICIENCY_WEIGHTED = "global_efficiency_weighted"
+    GLOBAL_EFFICIENCY_UNWEIGHTED = "global_efficiency_unweighted"
+    LOCAL_EFFICIENCY_WEIGHTED = "local_efficiency_weighted"
+    LOCAL_EFFICIENCY_UNWEIGHTED = "local_efficiency_unweighted"
 
 
 @dataclass
@@ -221,7 +293,6 @@ class Network:
     Methods:
     max_node_degree(): Returns the maximum degree of the nodes in the graph.
     is_directed(): Property that checks if the network is directed (based on the matrix being square).
-    get_title(): Generates a title for the network graph.
     plot_ax(ax): Plots the network graph on the given matplotlib axis.
     """
 
@@ -240,20 +311,22 @@ class Network:
         if self.delay_execution:
             self.delay_execution = False
         else:
+            self.title = self.matrix.title
+            self.grouping = self.matrix.grouping
+            self.between = self.matrix.between
             self.is_directed = self.matrix.is_square
             self.G = nx.MultiDiGraph() if self.matrix.is_square else nx.Graph()
             # directed edge -  to_correlate[0] --> to_correlate[1]
             self.G.clear()
 
             self.G.add_nodes_from(
-                self.matrix.corr_masked.columns.tolist()
-            )  # adds every BR as a node
+                set(
+                    self.matrix.corr_masked.columns.tolist()
+                    + self.matrix.corr_masked.index.tolist()
+                )
+            )
             self.edge_labels = {}
-            for (row, col), correlation in (
-                self.matrix.significant_correlations
-            ):
-                # Add edge to the graph with edge weight and color
-                # Avoid self sorrelation
+            for (row, col), correlation in self.matrix.significant_correlations:
                 if not (row == col and not self.is_directed):
                     self.G.add_edge(
                         row,
@@ -261,73 +334,78 @@ class Network:
                         weight=correlation,
                         color="red" if correlation > 0 else "blue",
                     )
-
                     self.edge_labels[(row, col)] = f"{correlation:.2f}"
 
-            angles = np.linspace(
-                0, 2 * np.pi, len(self.matrix.corr_masked.columns), endpoint=False
-            )
-            self.pos = {
-                col: (np.cos(angles[i]), np.sin(angles[i]))
-                for i, col in enumerate(self.matrix.corr_masked.columns)
-            }
-
-            self.total_edges, self.pos_edges, self.neg_edges = self.edge_count()
             self.density = self.calculate_graph_density()
-            self.max_degree, self.average_degree = self.calculate_node_degree()
-            self.avg_clust_coeff_unweighted, self.avg_clust_coeff_weighted = (
+            (
+                self.total_edges,
+                self.pos_edges,
+                self.neg_edges,
+                self.neg_pos_edge_ratio,
+                self.neg_edge_density,
+            ) = self.calculate_edge_count()
+
+            self.max_degree, self.average_degree, self.min_degree = (
+                self.calculate_node_degree()
+            )
+            self.SD_node_degree, self.SD_node_strength = (
+                self.calculate_SD_node_degree_strength()
+            )
+
+            self.clust_coeff_unweighted, self.clust_coeff_weighted = (
                 self.calculate_clustering_coefficient()
             )
+            self.global_efficiency_weighted, self.global_efficiency_unweighted = (
+                self.calculate_global_efficiency()
+            )  # unweighted
+            self.local_efficiency_weighted, self.local_efficiency_unweighted = (
+                self.calculate_local_efficiency()
+            )  # unweighted
 
-            # self.local_efficiency = self.calculate_local_efficiency()
-            # self.global_efficiency = self.calculate_global_efficiency()
-            # self.characteristic_path_length = self.calculate_characteristic_path_length()
-
-    def get_title(self):
-        """Generates a formatted title for the network graph."""
-        title = self.matrix.get_title()
-        return title.replace("-", "->") if self.is_directed else title
-
-    def edge_count(self):
+    def calculate_SD_node_degree_strength(self):
         """
-        Returns the total number of edges, positive edges, and negative edges in the graph.
-
-        Returns:
-            total_edges (int): The total number of edges in the graph.
-            pos_edges (int): The number of edges with positive weights.
-            neg_edges (int): The number of edges with negative weights.
+        standard deviation of the node degrees (float)
         """
+        degrees = dict(self.G.degree())
+        strengths = dict(self.G.degree(weight="weight"))
+
+        return np.std(list(degrees.values())), np.std(list(strengths.values()))
+
+    def calculate_edge_count(self):
         total_edges = self.G.number_of_edges()
+        total_nodes = self.G.number_of_nodes()
+
         pos_edges = 0
         neg_edges = 0
-
         for u, v, data in self.G.edges(data=True):
             color = data.get("color")
             if color == "red":
                 pos_edges += 1
             elif color == "blue":
                 neg_edges += 1
-        return total_edges, pos_edges, neg_edges
+
+        if pos_edges > 0 and neg_edges > 0:
+            neg_pos_edge_ratio = neg_edges / total_edges
+        else:
+            neg_pos_edge_ratio = 0
+
+        neg_edge_density = neg_edges / (total_nodes * (total_nodes - 1))
+
+        return total_edges, pos_edges, neg_edges, neg_pos_edge_ratio, neg_edge_density
 
     def calculate_node_degree(self):
-        """
-        Returns:
-          max_degree(int): the maximum degree of the nodes in the graph.
-        """
-        # Calculate degrees for all nodes and find the maximum and mean
         degrees = dict(self.G.degree())
         max_degree = max(degrees.values())
+        min_degree = min(degrees.values())
         average_degree = np.mean(list(degrees.values()))
-        return max_degree, average_degree
+        return max_degree, average_degree, min_degree
 
     def calculate_graph_density(self):
         """
-        Returns:
-           graph_density (float): The density of the graph; edges/all_possible_edges.
+        graph_density (float) ie edges/all_possible_edges
         """
         num_edges = self.G.number_of_edges()
         num_nodes = self.G.number_of_nodes()
-
         if self.is_directed:  # directed graph have doubble possible edges
             max_edges = num_nodes * (num_nodes - 1)
         else:
@@ -336,23 +414,51 @@ class Network:
 
     def calculate_clustering_coefficient(self):
         """
-        Calculates the average unweighted and weighted clustering coefficients for the graph.
+        Calculates the average clustering coefficient for both directed and undirected graphs.
+        Handles both weighted and unweighted cases.
 
         Returns:
-            avg_clust_coeff_unweighted (float): The average unweighted clustering coefficient of the graph.
-            avg_clust_coeff_weighted (float): The average weighted clustering coefficient of the graph.
+            avg_clust_coeff_unweighted (float): Average unweighted clustering coefficient for the graph.
+            avg_clust_coeff_weighted (float): Average weighted clustering coefficient for the graph.
         """
-        if self.is_directed:
-            # For directed graphs, use nx.clustering with 'directed' and 'weight' parameters
-            clust_coeff_unweighted = (
-                None  # nx.clustering(self.G.to_undirected(), weight=None)  # Unweighted
-            )
-            clust_coeff_weighted = None  # nx.clustering(self.G.to_undirected(), weight='weight')  # Weighted
+        # For undirected graphs (Graph), we can directly use NetworkX's clustering function
+        if not self.is_directed:
+            clust_coeff_unweighted = nx.clustering(
+                self.G
+            )  # Unweighted clustering coefficient
+            clust_coeff_weighted = nx.clustering(
+                self.G, weight="weight"
+            )  # Weighted clustering coefficient
         else:
-            # For undirected graphs, use nx.clustering without 'directed' parameter
-            clust_coeff_unweighted = nx.clustering(self.G)  # Unweighted
-            clust_coeff_weighted = nx.clustering(self.G, weight="weight")  # Weighted
+            # For directed graphs (MultiDiGraph), clustering calculation requires special handling
+            if isinstance(self.G, nx.MultiDiGraph):
+                # Convert MultiDiGraph to DiGraph, as NetworkX doesn't support clustering on MultiDiGraph directly
+                # Here we take the first edge between each pair of nodes (if multiple edges exist)
+                simple_directed_G = (
+                    nx.DiGraph()
+                )  # Create a simple DiGraph from the MultiDiGraph
+                for u, v, data in self.G.edges(data=True):
+                    if not simple_directed_G.has_edge(
+                        u, v
+                    ):  # Only add the first edge between nodes
+                        simple_directed_G.add_edge(u, v, weight=data["weight"])
 
+                clust_coeff_unweighted = nx.clustering(
+                    simple_directed_G
+                )  # Unweighted clustering coefficient
+                clust_coeff_weighted = nx.clustering(
+                    simple_directed_G, weight="weight"
+                )  # Weighted clustering coefficient
+            else:
+                # For standard directed graphs (DiGraph), just use the regular directed clustering method
+                clust_coeff_unweighted = nx.clustering(
+                    self.G
+                )  # Unweighted clustering coefficient
+                clust_coeff_weighted = nx.clustering(
+                    self.G, weight="weight"
+                )  # Weighted clustering coefficient
+
+        # Calculate average clustering coefficient
         avg_clust_coeff_unweighted = (
             sum(clust_coeff_unweighted.values()) / len(clust_coeff_unweighted)
             if clust_coeff_unweighted
@@ -366,75 +472,216 @@ class Network:
 
         return avg_clust_coeff_unweighted, avg_clust_coeff_weighted
 
-    # def calculate_local_efficiency(self):
-    #     """
-    #     Returns:
-    #         avg_local_eff_unweighted (float):  average unweighted local efficiency for i nodes.
-    #         avg_local_eff_weighted (float):  average weighted local efficiency for i nodes.
-    #     """
-    #     local_eff_unweighted = 0
-    #     local_eff_weighted = 0
-    #     total_nodes = len(self.G.nodes())
+    def calculate_global_efficiency(self):
+        """
+        Calculates the global efficiency of the graph (unweighted only).
 
-    #     for node in self.G.nodes():
-    #         # Determine neighbors for directed and undirected graphs
-    #         if self.is_directed:
-    #             neighbors = list(set(nx.predecessors(self.G, node)) | set(nx.successors(self.G, node)))
-    #         else:
-    #             neighbors = list(nx.neighbors(self.G, node))
+        Returns:
+            global_efficiency_weighted (float): Global efficiency using edge weights.
+            global_efficiency_unweighted (float): Global efficiency for the unweighted graph.
+        """
+        n = self.G.number_of_nodes()
+        if n <= 1:
+            return 0, 0
 
-    #         if len(neighbors) > 1:
-    #             subgraph = self.G.subgraph(neighbors)
-    #             # Calculate unweighted local efficiency
-    #             local_eff_unweighted += nx.global_efficiency(subgraph)
+        # Weighted: convert weights to distances (larger weight = shorter distance).
+        G_weighted = self.G.copy()
+        for u, v, d in G_weighted.edges(data=True):
+            d["distance"] = 1 / max(d.get("weight", 1e-6), 1e-6)
 
-    #             # Calculate weighted local efficiency
-    #             # Ensure weights are considered in the subgraph efficiency calculation
-    #             local_eff_weighted += nx.global_efficiency(subgraph, weight='weight')
+        # if directed shortest path respects directionality
+        weighted_lengths = dict(
+            nx.all_pairs_dijkstra_path_length(G_weighted, weight="distance")
+        )
+        unweighted_lengths = dict(nx.all_pairs_shortest_path_length(self.G))
 
-    #     # Calculate average efficiencies
-    #     avg_local_eff_unweighted = local_eff_unweighted / total_nodes if total_nodes > 0 else 0
-    #     avg_local_eff_weighted = local_eff_weighted / total_nodes if total_nodes > 0 else 0
-    #     return avg_local_eff_unweighted, avg_local_eff_weighted
+        # Unreachable pairs are skipped
+        weighted_vals = [
+            1 / l
+            for src in weighted_lengths
+            for tgt, l in weighted_lengths[src].items()
+            if src != tgt and l > 0
+        ]
+        unweighted_vals = [
+            1 / l
+            for src in unweighted_lengths
+            for tgt, l in unweighted_lengths[src].items()
+            if src != tgt and l > 0
+        ]
 
-    # def calculate_global_efficiency(self):
-    #     """
-    #     Calculates the average unweighted and weighted global efficiency of the graph.
+        return np.mean(weighted_vals) if weighted_vals else 0, np.mean(
+            unweighted_vals
+        ) if unweighted_vals else 0
 
-    #     Returns:
-    #         avg_global_eff_unweighted (float): The average unweighted global efficiency of the graph.
-    #         avg_global_eff_weighted (float): The average weighted global efficiency of the graph.
-    #     """
-    #     # Unweighted Global Efficiency
-    #     avg_global_eff_unweighted = nx.global_efficiency(self.G)
+    def calculate_local_efficiency(self):
+        """
+        Calculates the local efficiency of the graph.
 
-    #     # Weighted Global Efficiency
-    #     # Inverting weights for efficiency calculation as smaller weights imply stronger connections
-    #     G_copy = self.G.copy()
-    #     inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
-    #     nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
-    #     avg_global_eff_weighted = nx.global_efficiency(nx.stochastic_graph(G_copy, weight='inverted_weight'))
+        Local efficiency is the average efficiency of each node’s neighbors.
+        Returns:
+            local_efficiency_weighted (float): Local efficiency using edge weights.
+            local_efficiency_unweighted (float): Local efficiency ignoring weights.
+        """
+        local_efficiency_unweighted = []
+        local_efficiency_weighted = []
 
-    #     return avg_global_eff_unweighted, avg_global_eff_weighted
+        for node in self.G.nodes():
+            neighbors = list(self.G.neighbors(node))
+            if len(neighbors) < 2:
+                continue  # Need at least two neighbors to compute efficiency
 
-    # def calculate_characteristic_path_length(self):
-    #     """
-    #     Calculates the average unweighted and weighted characteristic path length of the graph.
+            # Subgraph of neighbors
+            subgraph = self.G.subgraph(neighbors)
 
-    #     Returns:
-    #         avg_path_length_unweighted (float): The average unweighted characteristic path length of the graph.
-    #         avg_path_length_weighted (float): The average weighted characteristic path length of the graph.
-    #     """
-    #     if nx.is_connected(self.G):
-    #         avg_path_length_unweighted = nx.average_shortest_path_length(self.G)
+            # --- Unweighted ---
+            unweighted_lengths = dict(nx.all_pairs_shortest_path_length(subgraph))
+            unweighted_vals = [
+                1 / l
+                for src in unweighted_lengths
+                for tgt, l in unweighted_lengths[src].items()
+                if src != tgt and l > 0
+            ]
+            if unweighted_vals:
+                local_efficiency_unweighted.append(np.mean(unweighted_vals))
 
-    #         # Inverting weights for path length calculation as smaller weights imply stronger connections
-    #         G_copy = self.G.copy()
-    #         inverted_weights = {(u, v): 1 / data['weight'] for u, v, data in G_copy.edges(data=True)}
-    #         nx.set_edge_attributes(G_copy, inverted_weights, 'inverted_weight')
-    #         avg_path_length_weighted = nx.average_shortest_path_length(G_copy, weight='inverted_weight')
-    #     else:
-    #         avg_path_length_unweighted = None
-    #         avg_path_length_weighted = None
+            # --- Weighted ---
+            subgraph_w = subgraph.copy()
+            for u, v, d in subgraph_w.edges(data=True):
+                d["distance"] = 1 / max(d.get("weight", 1e-6), 1e-6)
 
-    #     return avg_path_length_unweighted, avg_path_length_weighted
+            weighted_lengths = dict(
+                nx.all_pairs_dijkstra_path_length(subgraph_w, weight="distance")
+            )
+            weighted_vals = [
+                1 / l
+                for src in weighted_lengths
+                for tgt, l in weighted_lengths[src].items()
+                if src != tgt and l > 0
+            ]
+            if weighted_vals:
+                local_efficiency_weighted.append(np.mean(weighted_vals))
+
+        avg_local_unweighted = (
+            np.mean(local_efficiency_unweighted) if local_efficiency_unweighted else 0
+        )
+        avg_local_weighted = (
+            np.mean(local_efficiency_weighted) if local_efficiency_weighted else 0
+        )
+
+        return avg_local_weighted, avg_local_unweighted
+
+
+@dataclass
+class MatrixGroup:
+    """
+    Creates a collection of Matrix objects from a larger dataset. This class
+    helps in processing and analyzing data by grouping, selecting relevant variables,
+    and building individual matrices for further analysis.
+
+    Attributes:
+        data (pd.DataFrame): The original dataframe containing the data.
+        group_by (str): The column name in 'data' to group by (generally 'experiment').
+        between (str): The first variable to correlate (e.g., compound or region).
+        variables (str): The specific variables to correlate from 'between'.
+        accross (str): The second variable to correlate against 'between'.
+        sub_selector (str): Additional filtering criteria for sub-selecting the data.
+        columns (list[str]): Columns to select from the 'accross' column. Defaults to None.
+        n_minimum (int): Minimum number of occurrences for a valid correlation. Defaults to 5.
+        method (str): Correlation method, one of 'pearson', 'kendall', 'spearman'. Defaults to "pearson".
+        pvalue_threshold (float): P-value threshold for significance. Defaults to 0.05.
+
+    Returns:
+        matrices (list[Matrix]): A list of Matrix objects created from the grouped data.
+        var1 (str): The first variable derived from 'variables'.
+        var2 (str): The second variable derived from 'variables'.
+    """
+
+    data: pd.DataFrame
+    group_by: str
+    pivot_columns: list[str]
+    between: dict
+    n_minimum: int = field(kw_only=True, default=5)
+    method: str = field(kw_only=True, default="pearson")
+    pvalue_threshold: float = field(kw_only=True, default=0.05)
+    fdr_correction: float = field(kw_only=True, default=None)
+    density_thresholding: bool = field(kw_only=True, default=False)
+
+    matrices: list[Matrix] = field(init=False)
+
+    def __post_init__(self):
+        self.build_matrices()
+        self.homogenize_datasets()
+
+    def build_matrices(self):
+        batch = []
+        col, cases = next(iter(self.between.items()))
+        for col, cases in self.between.items():
+            for group, group_df in self.data.groupby(by=self.group_by, sort=False):
+                for between in cases:
+                    batch.append(
+                        Matrix(
+                            group_df.select(**{col: between}),
+                            group,
+                            self.pivot_columns,
+                            between={col: tuple(between)},
+                            n_minimum=self.n_minimum,
+                            method=self.method,
+                            pvalue_threshold=self.pvalue_threshold,
+                            fdr_correction=self.fdr_correction,
+                            density_thresholding=self.density_thresholding,
+                        )
+                    )
+        self.matrices = parallel_process(batch, description="Building matrices")
+
+    def homogenize_datasets(self):
+        self.common_rows = set.intersection(
+            *(set(matrix.corr_masked.index) for matrix in self.matrices)
+        )
+        self.common_cols = set.intersection(
+            *(set(matrix.corr_masked.columns) for matrix in self.matrices)
+        )
+
+        for matrix in self.matrices:
+            rows_to_drop = [
+                row for row in matrix.corr_masked.index if row not in self.common_rows
+            ]
+            cols_to_drop = [
+                col for col in matrix.corr_masked.columns if col not in self.common_cols
+            ]
+
+            matrix.drop_to_homogenize(rows_to_drop, cols_to_drop)
+
+    def __iter__(self):
+        for matrix in self.matrices:
+            yield matrix
+
+
+@dataclass
+class NetworkGroup(UserDict):
+    matrix_group: MatrixGroup
+
+    def __post_init__(self):
+        self.networks = parallel_process(
+            [Network(matrix) for matrix in self.matrix_group],
+            description="Creating networks",
+        )
+        self.nodes = set(chain(*[network.G.nodes for network in self.networks]))
+
+    def get_summary_df(self):
+        data = []
+        for network in self.networks:
+            row = {self.matrix_group.group_by: network.grouping, **network.between}
+            for characteristic in NetworkCharacteristic:
+                row = {
+                    **row,
+                    "measurement": characteristic,
+                    DatasetColumn.VALUE: getattr(network, characteristic),
+                }
+                data.append(row)
+        return CustomDataFrame(data)
+
+    def __len__(self):
+        return len(self.networks)
+
+    def __getitem__(self, index):
+        return self.networks[index]

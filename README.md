@@ -1,41 +1,367 @@
-# Neurochemical Network Analysis
+# Data Analysis Tool
 
-* user must be careful to input without error for treatment / experimental mapping
-* * figures will always be generated for an experiment 
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
-Notebook is used to do the actual data processing
-Module contains all necessary functions
+A Python-based toolkit for analyzing data, calculating statistics and generating figures designed to run in Jupyter notebooks.
 
-getter (ie all functions strating with 'get') is used to get data. The getter will either generate the data or retrieve it from the cache if it exists
+The documentation covers only basic functionnalites currently, contact remi.corne@gmail.com or 01111996jasmine@gmail.com for suggestions or questions. I also recommend using free AI tools (in-editor agents) to explain the code.
 
-the cache
+I don't recommend extending the code as I've implemented some things in bordeline criminal ways to get them done fast. Future versions will try to avoid exotic design patterns.
 
-REMI: QUESTIONS FOR JASMINE JAS: i think this convention is ok - discuss
+## Getting Started
 
-- I'm wondering what to do with figure naming because potentially many figure for the grouping will we be built. Im currently using an automatic naming convention
-  {"histogram": 'f"{experiment}_for_{compound}_in_{region}"',
-  "correlogram": 'f"{experiment}_{correlogram_type}_{buildCorrelogramFilenmae(to*correlate, columns)}"',
-  "head_twitch_histogram": 'f"head_twitch_histogram*{experiment}_for_{to_plot}"',}
-  but maybe the user would want to pick the name themself? probably better for them to remember what is what in the case of multiple stats choices
+### Prerequisites
 
-##### TO USE:
+- Python 3.11
+- Jupyter Notebook/Lab
 
-add csv with columns : mouse_id , group_id , COMPOUND_REGION... or BEHAVIOR_TIME (e.g. HT_20) to input folder
+### Installation
 
-fill info in cell 1 of notebook (compound_ratio_mapping, ect)
+1. Clone the repository:
 
-perform outlier selection for experiment (including ratios chiosen in first cell)
+   ```bash
+   git clone https://github.com/remicorne/phd.git
+   ```
 
-generate quantitative histograms and aggregated stats table functions : REMI?
+2. Create and activate a virtual environment:
 
-generate correlograms (use case for all three in functions) : REMI?
-clasical_corellogram : getAndPlotSingleCorrelogram(filename, experiment='agonist_antagonist', correlogram_type='compound',  
- to_correlate='GLU', p_value_threshold=0.05, n_minimum=5, from_scratch= True)
+   - **Windows**:
+     ```powershell
+     python -m venv venv
+     .\venv\Scripts\activate
+     ```
+   - **macOS/Linux**:
+     ```bash
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
 
-    square_correlogram       :      getAndPlotSingleCorrelogram(filename, experiment='agonist_antagonist', correlogram_type='compound',
-                                                                to_correlate='GLU-GABA', p_value_threshold=0.05, n_minimum=5, from_scratch= True)
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Call a plotter function with the required parameters and the code will walk you through whatever might need to be done (initializing a project, adding a dataset, editing metadata etc.)
+
+## Usage
+
+### Example use cases
+
+A sample of already published neurochemical data comes packaged with the code (module/example_project/tcb2_hplc_data.csv)
+
+A jupyter notebook 'INTERFACE.ipynb' is provided to guide you through the process of initializing a project, adding a dataset, editing metadata etc.
+
+See **INTERFACE.ipynb** for general usage and use cases
+
+### Standalone Python Script
+
+Work as well for running as a standalone Python script to generate figure without using notebooks but the multiprocessing may pose problems on window due to how child processes are spawned. You may have to use freeze support in this case:
+
+```python
+if __name__ == "__main__":
+    import multiprocessing as mp
+    mp.freeze_support()
+
+    # Your plotting or analysis code here
+    from module.plotters import some_plotter
+    some_plotter(*parameters)
+```
+
+## Repository Structure
+
+```
+ phd/
+ ├── module/                      # Core Python modules
+ │   └── core/                    # Main analysis code
+ │   └── json/                    # JSON files for project metadata
+*├── PROJECTS/                    # Project data and results (automatically created when initialising a project or creating figures)
+*│   └── some_project/            # User created project
+*│       └── dataset.pkl          # A dataset of the project (added by user)
+*│       └── metadata.xlsx        # Metadata of the project (auto generated + user edits)
+*│       └── figure_type/         # Figures of of a given type (auto generated)
+ ├── tests/                       # Test suite (run with pytest)
+ └── requirements.txt             # Project dependencies
+```
+
+(\* gitignored)
+
+## Project Management
+
+The `PROJECTS/` directory is the central location for storing project data and generated figures. Here's how it works:
+
+### Project Initialization
+
+When you create a plot or analysis:
+
+1. The system checks for an existing project with the specified name
+2. If the project doesn't exist, you'll be prompted to initialize it
+3. A new project folder is created with a `metadata.xlsx` template (more on metadata later)
+
+### Project Structure
+
+Each project follows this structure:
+
+- `{dataset_name}.pkl`: Your project's dataset files (manually added)
+- `metadata.xlsx`: Project metadata (auto-generated, requires user input)
+- `{figure_type}/`: Directories for different figure types (auto-created)
+  - `{figure_name}.{svg|png|xlsx}`: Generated figures with automatic naming
+
+### Workflow
+
+1. **Data Loading**:
+
+   - If the requested dataset isn't found, you'll be prompted to provide the file path
+   - The dataset is then loaded (more on datasets later)
+   - The requested data is processed for figure generation/stats etc.. (more on requests later)
+
+2. **Figure Generation**:
+   - Figures are automatically saved in `PROJECTS/{project_name}/{figure_type}/`
+   - Figure names and titles are auto-generated for consistency
+   - This allows for easy exploration and comparison of different visualizations
+
+## Datasets
+
+Datasets represent collections of measurements collected using the same technique and sharing common identifying characteristics. They are designed with flexibility in mind while maintaining a consistent structure for analysis.
+
+### Structure
+
+All datasets must include these required columns:
+
+- `subject_id`: Unique identifier for the subject being measured
+- `value`: The measurement value
+- `unit`: The measurement unit
+- One or more measurement characteristic columns (e.g., 'behavior', 'compound', 'location')
+
+### Examples
+
+#### Behavioral Study Example
+
+```
+subject_id | behavior  | value | unit
+-----------|-----------|-------|------
+mouse_1    | freezing  | 12.5  | s
+mouse_1    | jumping   | 5.2   | s
+mouse_2    | freezing  | 8.7   | s
+mouse_2    | jumping   | 7.1   | s
+```
+
+#### HPLC Study Example
+
+```
+subject_id | compound  | location    | value | unit
+-----------|-----------|-------------|-------|------
+rat_1      | serotonin | cortex      | 5.6   | nmol
+rat_1      | dopamine  | cerebellum  | 0.8   | nmol
+rat_2      | dopamine  | cortex      | 5.8   | nmol
+rat_2      | serotonin | cerebellum  | 0.7   | nmol
+```
+
+### Important Notes
+
+- Each row represents a single measurement for a specific subject and characteristic combination
+- Subjects can have multiple rows (one per unique combination of measurement characteristic columns)
+- The combination of `subject_id` and measurement characteristic columns must be unique
+- It's recommended to handle or remove null values before importing, as they may cause inconsistencies depending on how they were implemented
+- This structure enables flexible data selection and filtering during analysis
+
+## Requests
+
+Requests are used to specify what data to analyze and how to process it. They are passed as a dictionary to plotting functions via the `request` parameter.
+
+### Basic Structure
+
+```python
+{
+    "datasets": {
+        "dataset_name": {
+            "column_name": "value",  # Filter condition
+            "another_column": ["value1", "value2"]  # Multiple values
+            "experiment": "experiment_name",  # Uses metadata, only selection here, not used for stats
+            "remove_outliers": {"test_name": "mode"}
+        }
+    },
+    "experiment": "experiment_name"  # Both selects the data and is used as a flag that group comparison should be performed (histogram, summary histogram, network summary, stats table)
+    # "experiment": "default" will keep all groups and treat them as unpaired, parametric, and with the group being the single independant variable. Used in cases where the experiments actual independant variables are not relevant to stats such as in network summary
+}
+
+```
+
+### Key Components
+
+#### 1. Dataset Selection
+
+- The `datasets` key contains one or more dataset specifications
+- Each key in `datasets` should match a dataset name
+- Within each dataset specification, key-value pairs act as filters:
+  - Keys are column names
+  - Values can be single values or lists of values to match
+  - Only rows matching all specified conditions will be selected
+- The `remove_outliers` key is optional and can be used to remove outliers from the dataset. It takes a dictionary with the following keys:
+  - `test_name`: The name of the outlier test to use (currently only grubbs and iqr are supported)
+  - `mode`: The mode of the outlier test (e.g. "calculated"). Previously a functionality enabling manual outlier selection existed and will be restored in future versions.
+- The program also support the selection of ratios of measurements. For example with {"compound": "dopamine/serotonin"} the program will compute on the fly the ratio of dopamine/serotonin and handle it as any other value. Only "simple" ratios are currently supported, development of complex ratios (eg dopamine in cortex / serotonin in cerebellum) is in progress.
+
+#### 2. Multiple Datasets
+
+When multiple datasets are specified:
+
+- Data is combined into a single dataset
+- A new `dataset` column is added to identify the source
+- Measurement characteristics are combined into tuples in the `measurement` column
+  _Note: This behavior may change in future versions to improve handling of datasets with different structures_
+
+#### 3. Experiment Specification
+
+- The optional `experiment` key enables statistical comparisons
+- When present, the system will compute statistical comparisons between groups defined in the experiment's metadata
+- Requires an experiment name that matches an entry in the project's metadata
+
+### Example
+
+```python
+# Request for behavioral data from control and treated groups
+request = {
+    "datasets": {
+        "behavior_data": {
+            "group": ["control", "treated"],
+            "timepoint": "day7",
+            "remove_outliers": {"grubbs": "calculated"}
+        },
+        "hplc_data": {
+            "compound": ["dopamine", "serotonin"],
+            "location": "cortex"
+        }
+    },
+    "experiment": "lsd_dose_response"
+}
+```
+When selecting multiple datasets that therefore do not share measurement characteristics ('region', 'compound' for 'hplc' dataset and 'measure' for 'behavior' dataset) datasets are made generic. 
+This consists in aggregating measurement characteristics in a tuple (region: OF, compound: DA -> (OF, DA), measure: sniffing -> (sniffing,)) in a new column named 'measurement'. A 'dataset' column is added to distinguish datsets. 
+This transformation enable manipulating mutliple datasets with different shapes together.
+
+I understand that this is a bit complex, but I think it's the most flexible way to specify what data to analyze. I'm working on a more user-friendly interface to make it easier to create requests as well as a database to have a more robust & flexible way of handling data selection.
 
 
-    bar_corellogram
-                                                    #see whatsapp image 3/5/23
-        within BR       /       within compound
+## Metadata
+
+Metadata orchestrates all aspects of a project, defining datasets, experiments, groups, and visualization parameters. The metadata is stored in an Excel file with multiple sheets, each serving a specific purpose. Users with knowledge in data modeling will notice an effort to make the metadata as close to a database schema as possible. Development of a proper database is in progress.
+
+### 1. Datasets Sheet
+
+Defines the structure of each dataset in the project.
+
+| Column                | Type       | Description                                                                              |
+| --------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `label`               | string     | Name of the dataset                                                                      |
+| `measurement_columns` | CSV string | Column names that identify unique measurements (e.g., "behavior" or "compound,location") |
+
+### 2. Experiments Sheet
+
+Configures experimental designs and statistical parameters. Statistical test pipeline is automaticcaly selected based on these parameters.
+
+| Column                  | Type       | Description                                                                  |
+| ----------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `label`                 | string     | Name of the experiment                                                       |
+| `group_ids`             | CSV list   | IDs of groups included in this experiment                                    |
+| `independant_variables` | bool (0/1) | Whether the experiment has independent variables                             |
+| `paired`                | bool (0/1) | Whether groups are paired                                                    |
+| `parametric`            | bool (0/1) | Whether to assume parametric distribution (future versions will auto-detect) |
+
+### 3. Groups Sheet
+
+Defines subject groups and their properties.
+
+| Column                  | Type     | Description                        |
+| ----------------------- | -------- | ---------------------------------- |
+| `label`                 | string   | Name of the group                  |
+| `group_id`              | int      | Unique identifier for the group    |
+| `independant_variables` | string   | Independent variables in the group |
+| `subject_ids`           | CSV list | List of subject IDs in this group  |
+
+### 4. Palette Sheet
+
+Controls visualization appearance for different groups.
+
+| Column                | Type   | Description                                    |
+| --------------------- | ------ | ---------------------------------------------- |
+| `group_id`            | int    | Reference to group ID                          |
+| `color`               | string | Color for bars/points in visualizations        |
+| `significance_symbol` | string | Symbol used to denote statistical significance |
+
+### 5. Statistics Sheet
+
+Configures default statistical parameters.
+
+| Column              | Type  | Description                            |
+| ------------------- | ----- | -------------------------------------- |
+| `max_outliers`      | int   | Maximum number of outliers to remove   |
+| `p_value_threshold` | float | Threshold for statistical significance |
+
+### Example Metadata Structure
+
+```yaml
+datasets:
+  - label: "behavior"
+    measurement_columns: "behavior"
+
+experiments:
+  - label: "drug_study"
+    group_ids: "1,2,3"
+    independant_variables: 1
+    paired: 0
+    parametric: 1
+
+groups:
+  - label: "control"
+    group_id: 1
+    independant_variables: ""
+    subject_ids: "1,2,3,4"
+
+palette:
+  - group_id: 1
+    color: "#1f77b4"
+    significance_symbol: "*"
+
+statistics:
+  max_outliers: 2
+  p_value_threshold: 0.05
+```
+
+## Additionnal features (incomplete)
+
+A **custom params** dict may be added for modification of graphical displays.
+
+i.e. for summary_histogram you can input a custom: palette, plot_swarm, swarm_size, fig_width, fig_height, ylabel_x (to adjust the y axis label). Custom params is also used as an interface for seaborn plotting parameters (see Figure.py).
+
+### Constants
+
+There exists a number of files in module.json. These work with the classes in module.core.Registry and are simply mapping that may be used to store information that is more persistent than a single project. For example region_classes.json, compound_classes.json and measure_classes.json enable to select data using 'classes' (lists of regions, compounds, or measures) instead of a list input. Obviously this is a very poor setup and thee categories should be part of project metadata, it was just simpler to do it this way. Proper implementation will wait for the database backend.
+
+#### Measurements
+
+These files (regions.json, compounds.json, measures.json) store the "true" names of various measurement characteristics. If a charcteristic exists within a dataset, the system will attempt to validate it using the correspondingly named contant file. This ensures consistent naming across datasets with similar data.
+
+#### Classes
+
+These files store groupings of measurement characteristics. They enable the user to more easily select recurring groups of regions all the while keeping the name of the group in the automatic figure titling and naming.
+
+#### Positions
+
+A special case of classes that include locations. Only used in the network figure to position nodes.
+
+## Future Development
+
+We're actively working on improvements to make this tool more powerful and user-friendly:
+
+- **Multi project figures**: Enabling the combination of data collected in different experiments with automtic normalization of the data to increase statistical power.
+- **Python Package**: Converting the codebase into a proper Python package for easier installation and distribution.
+- **RESTful API**: Developing a comprehensive API to enable programmatic access to analysis functions.
+- **Database Backend**: Implementing a database solution for better data management and querying capabilities.
+- **Web Interface**: Creating an intuitive web-based interface to make the tool accessible to non-technical users.
+
+These enhancements will maintain all current functionality while making the tool more robust and easier to use.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
