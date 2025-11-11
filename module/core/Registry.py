@@ -130,6 +130,12 @@ class Registry(JSONMapping):
         return os.path.exists(filepath)
 
     @classmethod
+    def get_from_registry(cls, registry, key, default=None):
+        if not cls.exists(registry):
+            return default
+        return cls.get_registry(registry).get(key, default)
+
+    @classmethod
     def list_registries(cls):
         return {
             singular(os.path.splitext(filename)[0]): cls(
