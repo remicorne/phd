@@ -303,7 +303,7 @@ class ProjectDataset(
         self.selection = {**self.selection, **selection}
         data_with_ratios = self.build_ratios(self.data, selection)
         data_selected = data_with_ratios.select(**selection)
-        self.data = self.sort_values(data_selected, selection)
+        self.data = self.sort_values(data_selected, self.selection)
         if outlier_config:
             self.data = self.remove_outliers(outlier_config)
         if self.data.empty:
