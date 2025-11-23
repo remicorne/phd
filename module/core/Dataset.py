@@ -97,7 +97,7 @@ class CustomDataFrame(pd.DataFrame):
             raise ValueError(f"Unknown columns: {unknown_cols}")
         catgorical_cols = [col for col in selector if self[col].dtype == "category"]
         sub_selection = sub_select(self, selector)
-        if sub_selection.empty:
+        if select_one and sub_selection.empty:
             raise SelectionError(f"No rows found for selector: {selector}")
         if select_one and len(sub_selection) > 1:
             raise SelectionError(f"Multiple rows found for selector: {selector}")

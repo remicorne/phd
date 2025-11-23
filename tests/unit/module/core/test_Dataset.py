@@ -62,6 +62,10 @@ class TestCustomDataFrame:
         assert isinstance(result, pd.Series)
         assert result["name"] == "Alice"
 
+    def test_select_empty_no_error(self, sample_df):
+        result = sample_df.select(select_one=False, id=6)
+        assert result.empty
+
     def test_select_one_error_multiple(self, sample_df):
         with pytest.raises(SelectionError):
             sample_df.select(select_one=True, active=True)
