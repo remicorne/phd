@@ -1,5 +1,6 @@
 {
   "all_regions": [
+    "PF",
     "OF",
     "MO",
     "LO",
@@ -26,6 +27,7 @@
     "dH",
     "vH",
     "NAc",
+    "STR",
     "SH",
     "CO",
     "VM",
@@ -33,6 +35,7 @@
     "VL",
     "DL",
     "MD",
+    "Th",
     "VPL",
     "VPR",
     "DLG",
@@ -47,19 +50,52 @@
     "LC",
     "CB"
   ],
-  "cortex": ["OF", "PL", "aCC", "IC", "M1", "S1L", "S1R", "AC", "V1"],
-  "subcortical_telencephalon": ["A", "dH", "vH", "NAc", "VM", "DM", "VL", "DL"],
-  "diencephalon": ["MD", "VPL", "VPR", "DLG", "HY"],
+
+  "cortex": ["PF", "OF", "PL", "aCC", "IC", "M1", "S1L", "S1R", "AC", "V1"],
+
+  "subcortical_telencephalon": [
+    "STR",
+    "A",
+    "dH",
+    "vH",
+    "NAc",
+    "VM",
+    "DM",
+    "VL",
+    "DL"
+  ],
+
+  "diencephalon": ["Th", "MD", "VPL", "VPR", "DLG", "HY"],
+
   "mesencephalon": ["SC", "SN", "VTA", "DR", "MR"],
+
   "cerebellum": ["CB"],
 
   "reward_system": ["PL", "NAc", "A", "VTA", "HY"],
+
   "vision_equilibrium": ["V1", "DLG", "SC", "SN", "CB"],
-  "basal_ganglia": ["NAc", "VM", "DM", "VL", "DL", "SN", "VTA", "DR", "MR"],
-  "cognitive_loops": ["PL", "aCC", "NAc", "VM", "DM", "VL", "DL", "OF"],
+
+  "basal_ganglia": [
+    "STR",
+    "NAc",
+    "VM",
+    "DM",
+    "VL",
+    "DL",
+    "SN",
+    "VTA",
+    "DR",
+    "MR"
+  ],
+
+  "cognitive_loops": ["PL", "aCC", "NAc", "VM", "DM", "VL", "DL", "OF", "PF"],
+
   "motor_loops": ["M1", "SJ", "NAc", "VM", "DM", "VL", "DL"],
+
   "sensory_systems": ["S1L", "S1R", "AC", "V1", "VPL", "VPR", "DLG"],
+
   "limbic_loops": [
+    "PF",
     "OF",
     "aCC",
     "A",
@@ -72,6 +108,7 @@
     "MR",
     "HY"
   ],
+
   "thalamocortical_interaction": [
     "OF",
     "PL",
@@ -132,6 +169,7 @@
     "vH",
     "SH",
     "CO",
+    "STR",
     "VM",
     "DM",
     "VL",
@@ -139,6 +177,7 @@
     "MD",
     "GP",
     "vlT",
+    "Th",
     "HY",
     "SN",
     "VTA",
@@ -148,6 +187,7 @@
   ],
 
   "TCB2_regions": [
+    "PF",
     "OF",
     "PL",
     "aCC",
@@ -161,11 +201,13 @@
     "dH",
     "vH",
     "NAc",
+    "STR",
     "VM",
     "DM",
     "VL",
     "DL",
     "MD",
+    "Th",
     "VPL",
     "VPR",
     "DLG",
@@ -177,7 +219,9 @@
     "MR",
     "CB"
   ],
+
   "TCB2_condensed": [
+    "PF",
     "OF",
     "PL",
     "aCC",
@@ -191,11 +235,13 @@
     "dH",
     "vH",
     "NAc",
+    "STR",
     "VM",
     "DM",
     "VL",
     "DL",
     "MD",
+    "Th",
     "VPL",
     "VPR",
     "DLG",
