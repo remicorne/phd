@@ -1,21 +1,19 @@
 {
+  "PF": "Prefrontal Cortex",
   "OF": "Orbital Frontal Cortex",
 
   "MO": "Medial Orbitofrontal Cortex",
   "LO": "Lateral Orbitofrontal Cortex",
 
   "PL": "Prelimbic Cortex",
-
   "IL": "Infralimbic Cortex",
 
   "aCC": "anterior Cingulate Cortex",
-
   "aCg": "Anterior Cingulate Cortex (Granular)",
   "pCg": "Posterior Cingulate Cortex (Granular)",
 
   "IC": "Insular Cortex",
   "M1": "Motor Cortex",
-
   "M2": "Secondary Motor Cortex",
 
   "SJ": "Primary Somatosensory Cortex",
@@ -30,26 +28,31 @@
 
   "AC": "Auditory Cortex",
   "V1": "Visual Cortex",
+
   "A": "Amygdala",
   "BLA": "Basolateral Amygdala",
+
   "dH": "Dorsal Hippocampus",
   "vH": "Ventral Hippocampus",
-  "NAc": "Nucleus Accumbens",
 
+  "NAc": "Nucleus Accumbens",
   "SH": "Shell of the Nucleus Accumbens",
   "CO": "Core of the Nucleus Accumbens",
 
+  "STR": "Striatum",
   "VM": "Ventromedial Striatum",
   "DM": "Dorsomedial Striatum",
   "VL": "Ventrolateral Striatum",
   "DL": "Dorsolateral Striatum",
   "MD": "Medio Dorsal Striatum",
+
+  "Th": "Thalamus",
   "VPL": "Left Ventral Posterior Medial Thalamus",
   "VPR": "Right Ventral Posterior Medial Thalamus",
   "DLG": "Lateral Geniculate Nucleus",
+  "vlT": "Ventrolateral Thalamus",
 
   "GP": "Globus Pallidus",
-  "vlT": "Ventrolateral Thalamus",
 
   "HY": "Lateral Hypothalamus",
   "SC": "Superior Colliculus",
@@ -58,5 +61,6 @@
   "DR": "Dorsal Raphe Nucleus",
   "MR": "Medial Raphe Nucleus",
   "LC": "Locus Coeruleus",
+
   "CB": "Cerebellum"
 }
