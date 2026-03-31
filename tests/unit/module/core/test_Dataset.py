@@ -1,11 +1,9 @@
 import pytest
 import pandas as pd
-import numpy as np
 from module.core.Dataset import (
     CustomDataFrame,
     DataframeWrapperMixin,
     SelectionError,
-    CachedDataFrame,
 )
 from typing import List, Dict, Any
 

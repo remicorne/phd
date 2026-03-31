@@ -2,6 +2,7 @@ import pandas as pd
 from tests.utils.base import PlotterTestCase
 from module.core.ProjectDataset import ProjectDataset
 from module.core.enums import DatasetColumn
+from module.core.Registry import ClassRegistry
 
 EXPERIMENT = "agonist_antagonist"
 
@@ -256,4 +257,23 @@ class TestProjectDataset(PlotterTestCase):
                 ],
             ),
             check_like=True,
+        )
+
+    def test_sort_values_order(self):
+        def is_subsequence(seq, subseq):
+            it = iter(seq)
+            return all(item in it for item in subseq)
+
+        compounds = ["DA", "5HT"]
+        tcb2_regios_str = "TCB2_regions"
+        project_dataset = self.make_ds().select(
+            compound=compounds,
+            region=tcb2_regios_str,
+        )
+        tcb2_regions = ClassRegistry.get_from_registry("region", tcb2_regios_str)
+        assert is_subsequence(
+            compounds, project_dataset.data.compound.unique().tolist()
+        )
+        assert is_subsequence(
+            tcb2_regions, project_dataset.data.region.unique().tolist()
         )
